@@ -155,8 +155,15 @@ function SD:StartOreRoute(id)
     if not (self.gathering and self.gathering.active and self.gathering.mode == "materials") then
         if not self:StartGathering("materials") then return end
     end
+    local previous = self.oreRoute
     self.oreRoute = route
-    if not self:AdvanceOreRoute() then self.oreRoute = nil end
+    if not self:AdvanceOreRoute() then
+        self.oreRoute = previous
+        return
+    end
+    if not self.oreRouteTicker then
+        self.oreRouteTicker = C_Timer.NewTicker(0.5, function() SD:CheckOreRouteArrival() end)
+    end
 end
 
 function SD:AdvanceOreRoute()
@@ -168,6 +175,24 @@ function SD:AdvanceOreRoute()
     route.index = nextIndex
     self:UpdateInfo()
     return true
+end
+
+function SD:CheckOreRouteArrival()
+    local route = self.oreRoute
+    if not route or self:IsBusy() then return end
+    local point = route.points[route.index]
+    local here = self:GetCurrentLocation()
+    if point and here and here.map == point.map and distance(here, point) <= 0.25^2 then
+        if not self:AdvanceOreRoute() then self:StopOreRoute() end
+    end
+end
+
+function SD:StopOreRoute()
+    self.oreRoute = nil
+    if self.oreRouteTicker then
+        self.oreRouteTicker:Cancel()
+        self.oreRouteTicker = nil
+    end
 end
 
 local function onEvent(_, event, unit, target, spell)
@@ -251,7 +276,7 @@ function SD:StopGathering()
     local state = self.gathering
     if not state or not state.active then return end
     state.active = false
-    self.oreRoute = nil
+    self:StopOreRoute()
     state.events:UnregisterAllEvents()
     if state.mode == "fishing" then setFishingReach(false) end
     refresh(state)
@@ -373,11 +398,11 @@ function SD:BuildGatheringPanel()
     self.gatheringStatus = H.text(page, self:GatheringSummary(), 14, 22, -275, 630)
     H.text(page, "Equipping a fishing pole starts Fishing Mode automatically. If your bobber is out of interact range, right-click it normally.", 12, 22, -310, 630)
     H.text(page, "Mining loops", 17, 22, -365, 630)
-    H.text(page, "Reference locations cover Dun Morogh copper and Loch Modan copper and tin. Other zones use your recorded finds. Click the route line in Field Notes for the next pin.", 12, 22, -395, 630)
+    H.text(page, "Reference locations cover Dun Morogh copper and Loch Modan copper and tin. Other zones use your recorded finds. The pin advances on arrival. Click the Field Notes route line to skip a stop.", 12, 22, -395, 630)
     H.button(page, "Start Copper loop", 22, -445, 185, function() SD:StartOreRoute(2770) end)
     H.button(page, "Start Tin loop", 220, -445, 185, function() SD:StartOreRoute(2771) end)
     H.button(page, "Stop loop", 418, -445, 185, function()
-        SD.oreRoute = nil
+        SD:StopOreRoute()
         SD:UpdateInfo()
     end)
     return page
