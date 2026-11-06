@@ -97,13 +97,14 @@ local activeEvents = {
     "PLAYER_SOFT_INTERACT_CHANGED", "LOOT_READY", "LOOT_OPENED", "LOOT_SLOT_CLEARED", "LOOT_CLOSED",
 }
 
-local oreOptions = {{2770,"Copper"}, {2771,"Tin"}}
-local herbOptions = {{2450,"Briarthorn"}, {785,"Mageroyal"}, {2447,"Peacebloom"}, {765,"Silverleaf"}}
+local options = SD.foreverGatheringOptions
 local ores, fishIDs = {}, {}
-for _, options in ipairs({oreOptions, herbOptions, SD.foreverFish}) do
-    for _, item in ipairs(options) do ores[item[1]] = item[2] end
+for _, group in pairs(options) do
+    for _, item in ipairs(group) do ores[item[1]] = item[2] end
 end
-for _, item in ipairs(SD.foreverFish) do fishIDs[item[1]] = true end
+for _, group in ipairs({options.fish, options.pool}) do
+    for _, item in ipairs(group) do fishIDs[item[1]] = true end
+end
 
 local function distance(a, b)
     return (a.x-b.x)^2 + (a.y-b.y)^2
@@ -171,16 +172,39 @@ function SD:SuggestOreZone(id, here)
 end
 
 function SD:StartOreRoute(id)
+    if not ores[id] then return end
     if self:IsBusy() or not self.db.gatheringEnabled then
         SD.Print("Enable Gathering and start the loop outside combat and Edit Mode.")
         return
     end
     local here = self:GetCurrentLocation()
     if not here then SD.Print("Your current zone coordinates are unavailable.") return end
+    local _, _, _, interface = GetBuildInfo()
+    local zones = interface == 16001 and self.foreverFishZones[id]
+    if zones then
+        local continent, origin = worldPosition(here)
+        local best, bestDistance
+        for _, zone in ipairs(zones) do
+            if zone[1] == here.map or zone[2] == here.name then
+                SD.Print(ores[id] .. ": Reported in " .. zone[2] .. ". Exact catch coordinates are unavailable.")
+                return
+            end
+            if origin and zone[1] then
+                local other, center = worldPosition({map=zone[1],x=50,y=50})
+                if center and other == continent then
+                    local score = distance(origin, center)
+                    if not bestDistance or score < bestDistance then best, bestDistance = zone, score end
+                end
+            end
+        end
+        best = best or zones[1]
+        SD.Print(ores[id] .. (best and (": Reported in " .. best[2] .. ". Exact catch coordinates are unavailable.")
+            or ": No catch locations are documented."))
+        return
+    end
     local key = here.map .. ":" .. id
     local saved = StoneDockCharDB.oreNodes
     local remaining = {unpack(saved and saved[key] or {})}
-    local _, _, _, interface = GetBuildInfo()
     local reference = interface == 16001 and self.foreverOreNodes[key]
     if reference then
         for i = 1, #reference, 2 do
@@ -429,7 +453,7 @@ function SD:BuildGatheringPanel()
     local Create, H = self:WindowBuilder("gatheringPanel")
     local page = Create("Frame", nil, UIParent)
     self.gatheringPanel = page
-    page:SetSize(690, 530)
+    page:SetSize(690, 590)
     H.text(page, "Gathering", 22, 22, -20, 640)
     H.text(page, "Track catches or materials in Field Notes. Each session starts at zero.", 13, 22, -60, 630)
     local enable = Create("CheckButton", nil, page, "UICheckButtonTemplate")
@@ -472,24 +496,25 @@ function SD:BuildGatheringPanel()
     H.text(page, "Equipping a fishing pole starts Fishing Mode automatically. If your bobber is out of interact range, right-click it normally.", 12, 22, -310, 630)
     H.text(page, "Find gathering locations", 17, 22, -365, 630)
     H.text(page, "Choose a material to find a nearby zone or start a local loop. Fish set a waypoint to a reported catch location.", 12, 22, -395, 630)
-    local function dropdown(label, options, x)
+    local function dropdown(label, choices, x, y)
         local menu = Create("DropdownButton", nil, page, "WowStyle1DropdownTemplate")
-        menu:SetPoint("TOPLEFT", x, -440)
+        menu:SetPoint("TOPLEFT", x, y or -440)
         menu:SetSize(190, 32)
         if menu.SetDefaultText then menu:SetDefaultText(label) end
         if menu.SetupMenu then
             menu:SetupMenu(function(_, root)
                 if root.SetScrollMode then root:SetScrollMode(330) end
-                for _, item in ipairs(options) do
+                for _, item in ipairs(choices) do
                     root:CreateButton(item[2], function() SD:StartOreRoute(item[1]) end)
                 end
             end)
         end
     end
-    dropdown("Select ore", oreOptions, 22)
-    dropdown("Select herb", herbOptions, 220)
-    dropdown("Select fish", SD.foreverFish, 418)
-    H.button(page, "Stop loop", 22, -483, 185, function()
+    dropdown("Select ore", options.ore, 22)
+    dropdown("Select herb", options.herb, 220)
+    dropdown("Select fish", options.fish, 418)
+    dropdown("Select fishing pool", options.pool, 22, -483)
+    H.button(page, "Stop loop", 220, -483, 185, function()
         SD:StopOreRoute()
         SD:UpdateInfo()
     end)

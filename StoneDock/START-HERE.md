@@ -1,4 +1,4 @@
-# StoneDock 0.8.8 — friends and family preview
+# StoneDock 0.8.9 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 

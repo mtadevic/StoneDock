@@ -2,7 +2,7 @@ Gathering reference coordinates and fish catch locations
 GatherLite revision 3293e73d1498892628de8c9050b1c877269fbe47
 https://github.com/Wuild/GatherLite/blob/3293e73d1498892628de8c9050b1c877269fbe47/tools/wowhead/forever.json
 Upstream sources: https://www.wowhead.com/forever/object=1731 and https://www.wowhead.com/forever/object=1732
-Also uses tools/wowhead/fish.json and herb objects 1617, 1618, 1620 and 1621.
+Also uses tools/wowhead/fish.json and the ore, herb and fishing catalog in scripts/nodes.lua.
 Adapted by selecting records and converting coordinate units.
 
 MIT License

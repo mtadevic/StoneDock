@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.8.8"
+SD.name, SD.version = addonName, "0.8.9"
 SD.defaults = {
     enabled = true,
     density = 1,
