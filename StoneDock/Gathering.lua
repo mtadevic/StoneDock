@@ -122,15 +122,29 @@ function SD:StartOreRoute(id)
         return
     end
     local here = self:GetCurrentLocation()
-    local saved = here and StoneDockCharDB.oreNodes
-    local points = saved and saved[here.map .. ":" .. id]
-    if not points or #points < 3 then
-        SD.Print("Record three distinct " .. ores[id] .. " finds in this zone first.")
+    if not here then SD.Print("Your current zone coordinates are unavailable.") return end
+    local key = here.map .. ":" .. id
+    local saved = StoneDockCharDB.oreNodes
+    local remaining = {unpack(saved and saved[key] or {})}
+    local _, _, _, interface = GetBuildInfo()
+    local reference = interface == 16001 and self.foreverOreNodes[key]
+    if reference then
+        for i = 1, #reference, 2 do
+            local point = {map=here.map, x=reference[i], y=reference[i+1]}
+            local duplicate
+            for _, known in ipairs(remaining) do
+                if distance(point, known) < 0.6^2 then duplicate = true break end
+            end
+            if not duplicate then remaining[#remaining+1] = point end
+        end
+    end
+    if #remaining < 3 then
+        local tip = here.map == 1426 and id == 2771 and " Try Loch Modan for reference Tin locations." or ""
+        SD.Print("This zone has fewer than three " .. ores[id] .. " locations. Record more finds to make a loop." .. tip)
         return
     end
-    local remaining = {unpack(points)}
     local route = {id=id, index=0, points={}}
-    while #remaining > 0 do
+    while #remaining > 0 and #route.points < 24 do
         local nearest = 1
         for i = 2, #remaining do
             if distance(here, remaining[i]) < distance(here, remaining[nearest]) then nearest = i end
@@ -269,7 +283,7 @@ function SD:StartGathering(mode, automatic)
             if readable(name) and name then state.gatherNames[name] = true end
         end
     end
-    local binding = GetBindingAction and GetBindingAction(state.key) or ""
+    local binding = mode == "fishing" and state.key ~= "" and GetBindingAction and GetBindingAction(state.key) or ""
     if mode == "fishing" and state.key ~= "" and state.fishingName
         and ClearOverrideBindings and SetOverrideBinding and SetOverrideBindingClick
         and (binding == "" or binding == "INTERACTTARGET") then
@@ -359,7 +373,7 @@ function SD:BuildGatheringPanel()
     self.gatheringStatus = H.text(page, self:GatheringSummary(), 14, 22, -275, 630)
     H.text(page, "Equipping a fishing pole starts Fishing Mode automatically. If your bobber is out of interact range, right-click it normally.", 12, 22, -310, 630)
     H.text(page, "Mining loops", 17, 22, -365, 630)
-    H.text(page, "Track materials and mine three different veins in one zone. Start a loop, then click the route line in Field Notes for the next pin.", 12, 22, -395, 630)
+    H.text(page, "Reference locations cover Dun Morogh copper and Loch Modan copper and tin. Other zones use your recorded finds. Click the route line in Field Notes for the next pin.", 12, 22, -395, 630)
     H.button(page, "Start Copper loop", 22, -445, 185, function() SD:StartOreRoute(2770) end)
     H.button(page, "Start Tin loop", 220, -445, 185, function() SD:StartOreRoute(2771) end)
     H.button(page, "Stop loop", 418, -445, 185, function()
