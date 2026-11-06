@@ -12,7 +12,7 @@ Out-of-combat fading has separate switches and opacity sliders for the native da
 
 The dashboard group includes the managed action bars, minimap, unit frames, main chat, bags/menu controls, tracking bars, and stone artwork. It does not hide unrelated game windows such as inventory contents, quests, talents, or the world map.
 
-A small standalone World of Warcraft addon inspired by the supplied Mazzle-style screenshots. The artwork and integration code are new. FauxMazzle and its bundled addons are not required.
+A standalone World of Warcraft addon with original artwork and a dark stone dashboard.
 
 ## First use
 

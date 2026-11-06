@@ -1,6 +1,6 @@
 # StoneDock 0.8.6 — friends and family preview
 
-StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard. AutoBar and FauxMazzle are not required or included.
+StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
 1. Exit the game. Extract the ZIP into the client's `Interface/AddOns` directory: `_forever_/Interface/AddOns` for Forever or `_retail_/Interface/AddOns` for Midnight. Check that there is one `StoneDock` folder with the TOC files directly inside it.
 2. Enable StoneDock in the character selection AddOns list. Log in, type `/stonedock`, and choose **Create / activate layout**. This creates a separate named Blizzard layout. To switch back, use `/stonedock restore`.
