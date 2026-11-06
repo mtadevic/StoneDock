@@ -9,9 +9,35 @@ SD.itemCategories={
 local function safe(value) return not issecretvalue or not issecretvalue(value) end
 local function plain(value) return type(value)=="string" and safe(value) and value:lower():gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r","") or "" end
 local function number(value) return tonumber(((value or ""):gsub("[, ]",""))) or 0 end
-local function amount(text,word)
-    local value=text:match("([%d,%.]+)%%? "..word)
-    return number(value)
+local function amount(text,word,maximum)
+    local best = 0
+    text = text:gsub("–", "-"):gsub("—", "-"):gsub(" to ", "-")
+    for low, high, percent in text:gmatch("([%d,.]+)%s*%-%s*([%d,.]+)(%%?)%s+"..word.."%f[%A]") do
+        local value = (number(low) + number(high)) / 2
+        if percent == "%" then value = value * (maximum or 0) / 100 end
+        best = math.max(best, value)
+    end
+    text = text:gsub("([%d,.]+)%s*%-%s*([%d,.]+)(%%?)%s+"..word.."%f[%A]", "")
+    for raw, percent in text:gmatch("([%d,.]+)(%%?)%s+"..word.."%f[%A]") do
+        local value = number(raw)
+        if percent == "%" then value = value * (maximum or 0) / 100 end
+        best = math.max(best, value)
+    end
+    return best
+end
+
+-- Original First Aid ranks provide a fallback when tooltip text is unavailable.
+local bandageHealing = {
+    [1251]=66,[2581]=114,[3530]=161,[3531]=301,[6450]=400,[6451]=640,
+    [8544]=800,[8545]=1104,[14529]=1360,[14530]=2000,
+}
+
+local function numeric(value)
+    if safe(value) and type(value) == "number" then return value end
+end
+
+local function recoveryScore(value, fallback)
+    return value > 0 and 1000000 + value or fallback
 end
 local function has(text,words)
     for _,word in ipairs(words) do if text:find(word,1,true) then return true end end
@@ -25,50 +51,110 @@ local function isWeaponStone(name)
     return not text:find(":",1,true)
         and (text:match("weight%s*stone$") or text:match("sharpening%s+stone$")) ~= nil
 end
+local roleWeights = {
+    TANK = {stamina=2.3, armor=0.2, defense=2, resistance=0.5, versatility=1.25},
+    HEALER = {intellect=2, spirit=1.5, ["spell power"]=1.2, haste=1.15, ["attack power"]=0.05},
+    DAMAGER = {stamina=0.2, armor=0.025, spirit=0.2, defense=0.1},
+}
+
+local ratingGlobals = {
+    ["critical strike"]="CR_CRIT_MELEE", ["crit rating"]="CR_CRIT_MELEE",
+    haste="CR_HASTE_MELEE", mastery="CR_MASTERY", versatility="CR_VERSATILITY_DAMAGE_DONE",
+    defense="CR_DEFENSE_SKILL",
+}
+
+local function effectiveRatingGain(word, gain, context)
+    local current = context.ratings and context.ratings[word]
+    if not current or not GetCombatRatingBonusForCombatRatingValue then return gain end
+    local convert = GetCombatRatingBonusForCombatRatingValue
+    local rating, value = current[1], current[2]
+    local base = numeric(convert(rating, 0))
+    local first = numeric(convert(rating, 1))
+    local before = numeric(convert(rating, value))
+    local after = numeric(convert(rating, value + gain))
+    if base and first and first > base and before and after then
+        return math.max(0, (after-before)/(first-base))
+    end
+    return gain
+end
+
+local function statScore(text, word, stat, context)
+    local gain = number(text:match(word.." rating by ([%d,.]+)") or text:match(word.." by ([%d,.]+)") or text:match("([%d,.]+) "..word))
+    if gain == 0 then return 0 end
+    local weights = roleWeights[context.role] or roleWeights.DAMAGER
+    local weight = weights[word] or (word == stat and 1.8 or 1)
+    -- Use a smaller marginal weight for piling more onto a large existing
+    -- defensive stat. This is a ranking heuristic, not a rating conversion.
+    local current = context.stats and context.stats[word]
+    if current and current > 0 then
+        local baseline = word == "armor" and 1000 or 100
+        weight = weight * baseline / (baseline + current)
+    end
+    if text:find(word .. " rating", 1, true) or word == "crit rating" then
+        gain = effectiveRatingGain(word, gain, context)
+    end
+    return gain * weight
+end
+
 function SD:GetConsumableSpec()
     local class
     if UnitClass then local _; _,class=UnitClass("player") end
-    local fallback=class=="WARRIOR" and "strength" or "primary stat"
+    local classPrimary = {
+        WARRIOR="strength", DEATHKNIGHT="strength", PALADIN="strength",
+        HUNTER="agility", ROGUE="agility", DEMONHUNTER="agility",
+        MAGE="intellect", PRIEST="intellect", WARLOCK="intellect", EVOKER="intellect",
+    }
+    local fallback=classPrimary[class] or "primary stat"
     local api=C_SpecializationInfo
     local index=api and api.GetSpecialization and api.GetSpecialization() or (GetSpecialization and GetSpecialization())
     local fn=api and api.GetSpecializationInfo or GetSpecializationInfo
     if index and fn then
-        local id,name,_,_,_,stat=fn(index)
+        local id,name,_,_,role,stat=fn(index)
         local primary=class=="WARRIOR" and "strength" or ({[1]="strength",[2]="agility",[4]="intellect"})[stat]
-        return tostring(id or 0),primary or fallback,name or "Current spec"
+        return tostring(id or 0),primary or fallback,name or "Current spec",role
     end
     return "0",fallback,"Current spec"
 end
 -- Classification reads item tooltips only outside combat. The score is an
 -- inventory recommendation, never a decision based on combat health or auras.
-function SD:ClassifyConsumable(item,stat,resource)
+function SD:ClassifyConsumable(item,stat,resource,context)
+    context = context or {}
     local t=plain(item.description)
     local name=plain(item.name)
     local categories={}
     if isWeaponStone(item.name) then
-        categories.utility=(item.level or 0)*100+(item.quality or 0)
+        local damage = number(t:match("damage by ([%d,.]+)") or t:match("([%d,.]+) weapon damage"))
+        categories.utility = recoveryScore(damage, (item.level or 0)*100+(item.quality or 0))
         return categories
     end
     resource=resource or "mana"
     local recovery=has(t,recoveryWords)
-    local heal,mana=recovery and amount(t,"health") or 0,recovery and amount(t,"mana") or 0
+    local heal,mana=recovery and amount(t,"health",context.health) or 0,recovery and amount(t,"mana",context.mana) or 0
     local isFood=item.subclass==5
     local primary=t:find(stat,1,true) or t:find("primary stat",1,true) or t:find("highest stat",1,true)
     local otherPrimary=t:find("strength",1,true) or t:find("agility",1,true) or t:find("intellect",1,true)
     local base=(item.level or 0)*100+(item.quality or 0)
-    if item.subclass==7 or name:find("bandage",1,true) then categories.bandage=heal*1000+base end
+    if item.subclass==7 or name:find("bandage",1,true) then
+        if heal==0 then
+            heal=number(t:match("heals? .-for ([%d,.]+)") or t:match("([%d,.]+) damage over"))
+        end
+        if heal==0 then heal=bandageHealing[item.id] or 0 end
+        categories.bandage=recoveryScore(heal,base)
+    end
     local statBuff=has(t,statWords) or has(name,statWords)
     local eligible=not otherPrimary or primary
     local potion=item.subclass==1 or name:find("potion",1,true)
-    local buffScore=base+(primary and 10000000 or 0)
+    local potency = 0
     for _,word in ipairs(statWords) do
-        local potency=number(t:match(word.." by ([%d,.]+)") or t:match("([%d,.]+) "..word))
-        if potency>0 then buffScore=math.max(buffScore,base+(primary and 10000000 or 0)+potency*1000) end
+        if word ~= "critical strike" or not t:find("crit rating",1,true) then
+            potency = potency + statScore(t, word, stat, context)
+        end
     end
+    local buffScore = recoveryScore(potency, base)
     if potion then
-        if heal>0 or name:find("healing potion",1,true) then categories.heal=heal*1000+base end
-        local restored=recovery and amount(t,resource) or 0
-        if restored>0 or name:find(resource.." potion",1,true) then categories.resource=restored*1000+base end
+        if heal>0 or name:find("healing potion",1,true) then categories.heal=recoveryScore(heal,base) end
+        local restored=recovery and amount(t,resource,context.power) or 0
+        if restored>0 or name:find(resource.." potion",1,true) then categories.resource=recoveryScore(restored,base) end
         if not categories.heal and not categories.resource and eligible and statBuff then
             categories.buffpotion=buffScore
         end
@@ -80,8 +166,8 @@ function SD:ClassifyConsumable(item,stat,resource)
             -- Keep off-spec food browsable without recommending it.
             categories.bufffood=buffScore-(eligible and 0 or 20000000)
         else
-            if heal>0 then categories.food=heal*1000+base end
-            if mana>0 then categories.drink=mana*1000+base end
+            if heal>0 then categories.food=recoveryScore(heal,base) end
+            if mana>0 then categories.drink=recoveryScore(mana,base) end
         end
     end
     if item.subclass==2 or item.subclass==3 or name:find("augment rune",1,true)
@@ -98,11 +184,36 @@ end
 function SD:ScanConsumables()
     if InCombatLockdown() then self.itemsDirty=true return false end
     if not C_Item or not C_Item.GetItemInfo or not C_Container or not C_Container.GetContainerItemInfo then return false end
-    local spec,stat,specName=self:GetConsumableSpec()
+    local spec,stat,specName,role=self:GetConsumableSpec()
     self.itemSpecName=specName
     local resourceToken
     if UnitPowerType then local _; _,resourceToken=UnitPowerType("player") end
     local resource=({MANA="mana",RAGE="rage",ENERGY="energy",FOCUS="focus",RUNIC_POWER="runic power"})[resourceToken] or "mana"
+    local context = {
+        role = role or (UnitGroupRolesAssigned and UnitGroupRolesAssigned("player")),
+        health = UnitHealthMax and numeric(UnitHealthMax("player")),
+        power = UnitPowerMax and numeric(UnitPowerMax("player")),
+        mana = UnitPowerMax and numeric(UnitPowerMax("player",0)),
+        stats = {},
+    }
+    if UnitArmor then
+        local _, armor = UnitArmor("player")
+        context.stats.armor = numeric(armor)
+    end
+    if UnitStat then
+        local _, stamina = UnitStat("player",3)
+        context.stats.stamina = numeric(stamina)
+        local _, spirit = UnitStat("player",5)
+        context.stats.spirit = numeric(spirit)
+    end
+    if GetCombatRating then
+        context.ratings = {}
+        for word, global in pairs(ratingGlobals) do
+            local rating = _G[global]
+            local value = rating and numeric(GetCombatRating(rating))
+            if value then context.ratings[word] = {rating, value} end
+        end
+    end
     local instanceType
     if IsInInstance then local _; _,instanceType=IsInInstance() end
     local inPvp=instanceType=="pvp" or instanceType=="arena"
@@ -137,7 +248,7 @@ function SD:ScanConsumables()
                     if not inPvp and (desc:find("only usable in battlegrounds",1,true) or desc:find("only be used in battlegrounds",1,true)
                         or desc:find("only usable in rated",1,true)) then usable=false end
                     if usable then
-                        item.categories,item.offSpecFood=self:ClassifyConsumable(item,stat,resource)
+                        item.categories,item.offSpecFood=self:ClassifyConsumable(item,stat,resource,context)
                         all[#all+1]=item
                         for key,score in pairs(item.categories) do
                             lists[key][#lists[key]+1]={item=item,score=score}

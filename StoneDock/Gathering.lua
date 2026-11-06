@@ -116,6 +116,54 @@ local function recordOre(id, location)
     if #points < 200 then points[#points+1] = location end
 end
 
+local function worldPosition(point)
+    if not C_Map or not C_Map.GetWorldPosFromMapPos or not CreateVector2D then return end
+    local continent, position = C_Map.GetWorldPosFromMapPos(point.map, CreateVector2D(point.x/100, point.y/100))
+    if not readable(continent) or not continent or not position then return end
+    local x, y = position:GetXY()
+    if readable(x) and readable(y) and type(x) == "number" and type(y) == "number" then
+        return continent, {x=x,y=y}
+    end
+end
+
+function SD:SuggestOreZone(id, here)
+    local continent, origin = worldPosition(here)
+    local candidates = {}
+    local function consider(key, points, flat)
+        local map, ore = key:match("^(%d+):(%d+)$")
+        map = tonumber(map)
+        if tonumber(ore) ~= id or map == here.map or #points < (flat and 6 or 3) then return end
+        local candidate = candidates[map] or {map=map}
+        candidates[map] = candidate
+        if not origin then return end
+        for i = 1, #points, flat and 2 or 1 do
+            local node = flat and {map=map,x=points[i],y=points[i+1]} or points[i]
+            local nodeContinent, position = worldPosition(node)
+            if position and nodeContinent == continent then
+                local score = distance(origin, position)
+                if not candidate.score or score < candidate.score then candidate.score = score end
+            end
+        end
+    end
+    local _, _, _, interface = GetBuildInfo()
+    if interface == 16001 then
+        for key, points in pairs(self.foreverOreNodes) do consider(key, points, true) end
+    end
+    for key, points in pairs(StoneDockCharDB.oreNodes or {}) do consider(key, points, false) end
+    local best, only, count
+    count = 0
+    for _, candidate in pairs(candidates) do
+        count, only = count+1, candidate
+        if candidate.score and (not best or candidate.score < best.score
+            or (candidate.score == best.score and candidate.map < best.map)) then best = candidate end
+    end
+    local result = best or (count == 1 and only)
+    if not result then return end
+    local info = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(result.map)
+    local fallback = {[1426]="Dun Morogh",[1432]="Loch Modan"}
+    return info and info.name or fallback[result.map], best ~= nil
+end
+
 function SD:StartOreRoute(id)
     if self:IsBusy() or not self.db.gatheringEnabled then
         SD.Print("Enable Gathering and start the loop outside combat and Edit Mode.")
@@ -139,8 +187,12 @@ function SD:StartOreRoute(id)
         end
     end
     if #remaining < 3 then
-        local tip = here.map == 1426 and id == 2771 and " Try Loch Modan for reference Tin locations." or ""
-        SD.Print("This zone has fewer than three " .. ores[id] .. " locations. Record more finds to make a loop." .. tip)
+        local zone = self:SuggestOreZone(id, here)
+        if zone then
+            SD.Print(ores[id] .. ": Suggested zone — " .. zone .. ". Start the loop when you arrive.")
+        else
+            SD.Print("This zone has fewer than three " .. ores[id] .. " locations. Record more finds to make a loop.")
+        end
         return
     end
     local route = {id=id, index=0, points={}}
