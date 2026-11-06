@@ -1,8 +1,9 @@
-Mining reference coordinates for Dun Morogh and Loch Modan
+Gathering reference coordinates and fish catch locations
 GatherLite revision 3293e73d1498892628de8c9050b1c877269fbe47
 https://github.com/Wuild/GatherLite/blob/3293e73d1498892628de8c9050b1c877269fbe47/tools/wowhead/forever.json
 Upstream sources: https://www.wowhead.com/forever/object=1731 and https://www.wowhead.com/forever/object=1732
-Adapted by selecting two maps and converting the coordinate units.
+Also uses tools/wowhead/fish.json and herb objects 1617, 1618, 1620 and 1621.
+Adapted by selecting records and converting coordinate units.
 
 MIT License
 

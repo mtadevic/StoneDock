@@ -97,7 +97,13 @@ local activeEvents = {
     "PLAYER_SOFT_INTERACT_CHANGED", "LOOT_READY", "LOOT_OPENED", "LOOT_SLOT_CLEARED", "LOOT_CLOSED",
 }
 
-local ores = {[2770]="Copper", [2771]="Tin"}
+local oreOptions = {{2770,"Copper"}, {2771,"Tin"}}
+local herbOptions = {{2450,"Briarthorn"}, {785,"Mageroyal"}, {2447,"Peacebloom"}, {765,"Silverleaf"}}
+local ores, fishIDs = {}, {}
+for _, options in ipairs({oreOptions, herbOptions, SD.foreverFish}) do
+    for _, item in ipairs(options) do ores[item[1]] = item[2] end
+end
+for _, item in ipairs(SD.foreverFish) do fishIDs[item[1]] = true end
 
 local function distance(a, b)
     return (a.x-b.x)^2 + (a.y-b.y)^2
@@ -132,7 +138,7 @@ function SD:SuggestOreZone(id, here)
     local function consider(key, points, flat)
         local map, ore = key:match("^(%d+):(%d+)$")
         map = tonumber(map)
-        if tonumber(ore) ~= id or map == here.map or #points < (flat and 6 or 3) then return end
+        if tonumber(ore) ~= id or map == here.map or #points < (fishIDs[id] and 2 or (flat and 6 or 3)) then return end
         local candidate = candidates[map] or {map=map}
         candidates[map] = candidate
         if not origin then return end
@@ -186,12 +192,27 @@ function SD:StartOreRoute(id)
             if not duplicate then remaining[#remaining+1] = point end
         end
     end
-    if #remaining < 3 then
+    if #remaining < (fishIDs[id] and 1 or 3) then
         local zone = self:SuggestOreZone(id, here)
         if zone then
-            SD.Print(ores[id] .. ": Suggested zone — " .. zone .. ". Start the loop when you arrive.")
+            SD.Print(ores[id] .. ": Suggested zone — " .. zone .. (fishIDs[id] and ". Select the fish again when you arrive." or ". Start the loop when you arrive."))
+        elseif fishIDs[id] then
+            SD.Print("No nearby reported catch location is available for " .. ores[id] .. ".")
         else
             SD.Print("This zone has fewer than three " .. ores[id] .. " locations. Record more finds to make a loop.")
+        end
+        return
+    end
+    if fishIDs[id] then
+        local nearest = remaining[1]
+        for i = 2, #remaining do
+            if distance(here, remaining[i]) < distance(here, nearest) then nearest = remaining[i] end
+        end
+        if self:SetWaypoint(nearest.map, nearest.x, nearest.y) then
+            self:StopOreRoute()
+            self:UpdateInfo()
+            SD.Print(ores[id] .. ": Waypoint set to a reported catch location.")
+            return true
         end
         return
     end
@@ -449,11 +470,26 @@ function SD:BuildGatheringPanel()
     H.button(page, "End session", 449, -225, 165, function() SD.fishingAutoPaused = poleEquipped() SD:StopGathering() end)
     self.gatheringStatus = H.text(page, self:GatheringSummary(), 14, 22, -275, 630)
     H.text(page, "Equipping a fishing pole starts Fishing Mode automatically. If your bobber is out of interact range, right-click it normally.", 12, 22, -310, 630)
-    H.text(page, "Mining loops", 17, 22, -365, 630)
-    H.text(page, "Reference locations cover Dun Morogh copper and Loch Modan copper and tin. Other zones use your recorded finds. The pin advances on arrival. Click the Field Notes route line to skip a stop.", 12, 22, -395, 630)
-    H.button(page, "Start Copper loop", 22, -445, 185, function() SD:StartOreRoute(2770) end)
-    H.button(page, "Start Tin loop", 220, -445, 185, function() SD:StartOreRoute(2771) end)
-    H.button(page, "Stop loop", 418, -445, 185, function()
+    H.text(page, "Find gathering locations", 17, 22, -365, 630)
+    H.text(page, "Choose a material to find a nearby zone or start a local loop. Fish set a waypoint to a reported catch location.", 12, 22, -395, 630)
+    local function dropdown(label, options, x)
+        local menu = Create("DropdownButton", nil, page, "WowStyle1DropdownTemplate")
+        menu:SetPoint("TOPLEFT", x, -440)
+        menu:SetSize(190, 32)
+        if menu.SetDefaultText then menu:SetDefaultText(label) end
+        if menu.SetupMenu then
+            menu:SetupMenu(function(_, root)
+                if root.SetScrollMode then root:SetScrollMode(330) end
+                for _, item in ipairs(options) do
+                    root:CreateButton(item[2], function() SD:StartOreRoute(item[1]) end)
+                end
+            end)
+        end
+    end
+    dropdown("Select ore", oreOptions, 22)
+    dropdown("Select herb", herbOptions, 220)
+    dropdown("Select fish", SD.foreverFish, 418)
+    H.button(page, "Stop loop", 22, -483, 185, function()
         SD:StopOreRoute()
         SD:UpdateInfo()
     end)
