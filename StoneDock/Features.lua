@@ -54,17 +54,22 @@ end
 function SD:BuildSessionPanel()
     local f,H=panel("session","SESSION TRACKER","Gold, XP and quests for this play session. Elapsed time includes AFK. Reloading resumes a recently saved session; Reset starts a fresh one.")
     local labels={}
-    for i=1,8 do labels[i]=H.text(f,"",16,28,-130-(i-1)*48,620)end
+    local titles={"PLAY SESSION","GOLD EARNED","GOLD SPENT","NET GOLD","GOLD PER HOUR","EXPERIENCE","XP PER HOUR","QUESTS COMPLETED"}
+    for i=1,8 do
+        local card=H.card(f,nil,nil,22+((i-1)%2)*328,-125-math.floor((i-1)/2)*96,312,82,i==1)
+        H.text(card,titles[i],10,14,-12,282):SetTextColor(.49,.86,.66)
+        labels[i]=H.text(card,"",17,14,-38,282)
+    end
     local function update()
         local s=SD:GetSessionStats()if not s then return end
-        local lines={string.format("Elapsed: %dh %02dm",math.floor(s.elapsed/3600),math.floor(s.elapsed/60)%60),"Gold earned: "..money(s.earned),"Gold spent: "..money(s.spent),"Net: "..(s.net<0 and "-"or "+")..money(s.net),string.format("Net gold/hour: %.1f",s.goldPerHour),"XP gained: "..s.xp,string.format("XP/hour: %.0f",s.xpPerHour),"Quests completed: "..s.quests}
+        local lines={string.format("Elapsed: %dh %02dm",math.floor(s.elapsed/3600),math.floor(s.elapsed/60)%60),money(s.earned),money(s.spent),(s.net<0 and "-"or "+")..money(s.net),string.format("Net gold/hour: %.1f",s.goldPerHour),tostring(s.xp),string.format("XP/hour: %.0f",s.xpPerHour),tostring(s.quests)}
         for i,line in ipairs(lines)do labels[i]:SetText(line)end
     end
     f:SetScript("OnShow",function()
         if not f.ticker then f.ticker=C_Timer.NewTicker(1,function()if f:IsShown()then update()end end)end
     end)
     f:SetScript("OnHide",function()if f.ticker then f.ticker:Cancel()f.ticker=nil end end)
-    H.button(f,"Reset this session",22,-550,300,function()SD:ResetSession()update()end)
+    H.button(f,"Reset this session",22,-530,300,function()SD:ResetSession()update()end)
     update()f:Show()if not f.ticker then f.ticker=C_Timer.NewTicker(1,update)end
     return f
 end
@@ -94,11 +99,17 @@ function SD:BuildReadinessPanel()
     local pass=0
     for i,row in ipairs(f.rows)do
         if row.ok then pass=pass+1 end
-        local button=H.button(f,(row.ok and "|cff7bdc93[Ready]|r "or "|cffffc56b[Review]|r ")..row.label.." - "..row.detail,22,-130-(i-1)*55,640)
+        local card=H.card(f,row.label,row.detail,22,-145-(i-1)*91,640,79,row.ok)
+        card.title:SetWidth(495) card.detail:SetWidth(495)
+        local status=H.text(card,row.ok and "READY" or "REVIEW",10,534,-14,90)
+        status:SetTextColor(row.ok and .49 or 1,row.ok and .86 or .75,row.ok and .66 or .38)
+        local button=H.button(card,"Inspect",534,-41,90,row.action)
         button:SetScript("OnClick",function()if not blocked()then SD:Run("Readiness action",row.action)end end)
     end
     H.text(f,string.format("%d / %d checks ready",pass,#f.rows),16,22,-105,640)
-    H.button(f,"Refresh checklist",22,-625,300,function()SD:OpenSettingsTab("readiness")end)
+    local bottom=-155-#f.rows*91
+    H.button(f,"Refresh checklist",22,bottom,300,function()SD:OpenSettingsTab("readiness")end)
+    f:SetHeight(-bottom+65)
     return f
 end
 function SD:GetCurrentLocation()
@@ -135,29 +146,32 @@ end
 function SD:BuildWaypointsPanel()
     local f,H,CreateFrame=panel("waypoints","WAYPOINT DESK","Set a native navigation pin, bookmark your current location, or copy coordinates. Nothing travels automatically; navigation uses Blizzard's own map and guidance.")
     local current=self:GetCurrentLocation()
-    H.text(f,current and string.format("Here: %s | %.1f, %.1f | map %d",current.name,current.x,current.y,current.map)or "Coordinates are unavailable in this area.",13,22,-115,640)
+    H.card(f,"CURRENT LOCATION",current and string.format("%s | %.1f, %.1f | map %d",current.name,current.x,current.y,current.map) or "Coordinates unavailable here.",22,-105,640,76,current~=nil)
     local function edit(text,x,y,width)
         local field=CreateFrame("EditBox",nil,f,"InputBoxTemplate")field:SetSize(width,28)field:SetPoint("TOPLEFT",x,y)field:SetAutoFocus(false)field:SetMaxLetters(40)field:SetText(text)return field
     end
-    H.text(f,"Map ID",12,25,-160,180)H.text(f,"X (0-100)",12,245,-160,180)H.text(f,"Y (0-100)",12,465,-160,180)
-    f.mapEdit=edit(current and tostring(current.map)or "",28,-185,190)
-    f.xEdit=edit(current and string.format("%.1f",current.x)or "",248,-185,190)
-    f.yEdit=edit(current and string.format("%.1f",current.y)or "",468,-185,190)
-    H.button(f,"Set navigation pin",22,-230,300,function()SD:SetWaypoint(f.mapEdit:GetText(),f.xEdit:GetText(),f.yEdit:GetText())end)
-    H.button(f,"Clear navigation pin",350,-230,300,function()if not blocked()and C_Map and C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint()end end)
-    f.nameEdit=edit("My location",28,-295,285)
-    H.button(f,"Bookmark current location",350,-293,300,function()if SD:SaveWaypoint(f.nameEdit:GetText(),SD:GetCurrentLocation())then SD:OpenSettingsTab("waypoints")end end)
-    H.button(f,"Copy current coordinates",22,-345,628,function()
+    H.text(f,"Map ID",12,25,-202,180)H.text(f,"X (0-100)",12,245,-202,180)H.text(f,"Y (0-100)",12,465,-202,180)
+    f.mapEdit=edit(current and tostring(current.map)or "",28,-227,190)
+    f.xEdit=edit(current and string.format("%.1f",current.x)or "",248,-227,190)
+    f.yEdit=edit(current and string.format("%.1f",current.y)or "",468,-227,190)
+    H.button(f,"Set navigation pin",22,-272,300,function()SD:SetWaypoint(f.mapEdit:GetText(),f.xEdit:GetText(),f.yEdit:GetText())end)
+    H.button(f,"Clear navigation pin",350,-272,300,function()if not blocked()and C_Map and C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint()end end)
+    f.nameEdit=edit("My location",28,-337,285)
+    H.button(f,"Bookmark current location",350,-335,300,function()if SD:SaveWaypoint(f.nameEdit:GetText(),SD:GetCurrentLocation())then SD:OpenSettingsTab("waypoints")end end)
+    H.button(f,"Copy current coordinates",22,-387,628,function()
         local location=SD:GetCurrentLocation()
         if location then SD:ShowCopyDialog("Location coordinates",string.format("%s | %.1f, %.1f | map %d",location.name,location.x,location.y,location.map))else SD.Print("No coordinates available here.")end
     end)
-    local scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate")scroll:SetPoint("TOPLEFT",22,-400)scroll:SetSize(630,230)
+    local scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate")scroll:SetPoint("TOPLEFT",22,-440)scroll:SetSize(630,230)
     local child=CreateFrame("Frame",nil,scroll)scroll:SetScrollChild(child)
     local names={}for name in pairs(StoneDockCharDB.waypoints or {})do names[#names+1]=name end table.sort(names)
-    child:SetSize(600,math.max(230,#names*38))
+    child:SetSize(600,math.max(230,#names*88))
     for i,name in ipairs(names)do local location=StoneDockCharDB.waypoints[name]
-        H.button(child,string.format("%s | %.1f, %.1f",name,location.x,location.y),0,-(i-1)*38,595,function()SD:SetWaypoint(location.map,location.x,location.y)end)
+        local card=H.card(child,name,string.format("%.1f, %.1f | map %d",location.x,location.y,location.map),0,-(i-1)*88,595,76,false)
+        card.title:SetWidth(440) card.detail:SetWidth(440)
+        H.button(card,"Navigate",455,-24,124,function()SD:SetWaypoint(location.map,location.x,location.y)end)
     end
+    f:SetHeight(700)
     return f
 end
 function SD:GetNotebookQuests()
@@ -182,18 +196,19 @@ function SD:BuildQuestsPanel()
     local child=CreateFrame("Frame",nil,scroll)scroll:SetScrollChild(child)
     local y=0
     for _,quest in ipairs(quests)do
-        local b=H.button(child,(quest.done and "|cff7bdc93[Complete]|r "or "")..quest.title,0,-y,605,function()
+        local count=math.min(10,#quest.objectives)
+        local card=H.card(child,nil,nil,0,-y,605,82+count*28,quest.done)
+        H.text(card,quest.done and "COMPLETE" or "IN PROGRESS",10,14,-12,440):SetTextColor(.49,.86,.66)
+        H.text(card,quest.title,15,14,-32,435)
+        local b=H.button(card,"Open quest",457,-26,132,function()
             if blocked()then return end
             if QuestMapFrame_OpenToQuestDetails then QuestMapFrame_OpenToQuestDetails(quest.id)
             elseif C_QuestLog.SetSelectedQuest then C_QuestLog.SetSelectedQuest(quest.id)if ToggleQuestLog then ToggleQuestLog()end end
         end)
-        b:SetScript("OnEnter",function()GameTooltip:SetOwner(b,"ANCHOR_LEFT")GameTooltip:SetText(quest.title)GameTooltip:AddLine("Click to open the native quest details.",.75,.8,.85,true)GameTooltip:Show()end)
-        b:SetScript("OnLeave",function()GameTooltip:Hide()end)
-        y=y+38
-        for i,objective in ipairs(quest.objectives)do if i>10 then break end
-            H.text(child,(objective.finished and "|cff7bdc93"or "|cffc5cbd0")..(objective.text or "Objective").."|r",12,12,-y,585)y=y+34
+        for i=1,count do local objective=quest.objectives[i]
+            H.text(card,(objective.finished and "|cff7bdc93" or "|cffc5cbd0")..(objective.text or "Objective").."|r",12,14,-64-(i-1)*28,565)
         end
-        y=y+14
+        y=y+94+count*28
     end
     if #quests==0 then H.text(child,"Track quests in Blizzard's quest log to see them here.",13,0,0,590)end
     child:SetSize(610,math.max(480,y))

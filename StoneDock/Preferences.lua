@@ -210,10 +210,8 @@ function SD:BuildPreferencePage(key, definition)
         local card=create("Frame",nil,page,"BackdropTemplate")
         card:SetPoint("TOPLEFT",14,y)
         card:SetSize(648,height)
-        card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-        card:SetBackdropColor(0.045,0.06,0.075,0.92)
-        card:SetBackdropBorderColor(0.2,0.3,0.35,1)
-        H.text(card,group.title,15,16,-14,600):SetTextColor(0.9,0.78,0.5)
+        self:StyleCard(card,false)
+        H.text(card,group.title,15,16,-14,600):SetTextColor(.49,.86,.66)
         for i,field in ipairs(group.controls) do
             local top=-42-(i-1)*51
             local control

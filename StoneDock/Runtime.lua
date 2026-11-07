@@ -1,5 +1,19 @@
 local _, SD = ...
 
+-- Shared expedition-style surfaces for settings, tools and status cards.
+function SD:StyleCard(frame, active)
+    frame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+    frame:SetBackdropColor(.025,.065,.058,.97)
+    frame:SetBackdropBorderColor(active and .30 or .17,active and .68 or .34,active and .48 or .28,1)
+end
+function SD:StyleAction(button)
+    self:StyleCard(button,false)
+    if button.SetNormalTexture then button:SetNormalTexture("") end
+    if button.SetPushedTexture then button:SetPushedTexture("") end
+    if button.SetHighlightTexture then button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight","ADD") end
+    if button.GetFontString then local label=button:GetFontString() if label then label:SetTextColor(.66,.9,.77) end end
+end
+
 -- Reuse dynamic window controls. WoW frames are not garbage-collected when
 -- hidden, so rebuilding a menu must not allocate another full frame tree.
 function SD:WindowBuilder(key)
@@ -29,8 +43,15 @@ function SD:WindowBuilder(key)
         label:SetTextColor(.73,.79,.83)label:SetWidth(width or 275)label:SetJustifyH("LEFT")label:SetText(caption)label:Show()
         return label
     end
+    function H.card(parent,title,detail,x,y,width,height,active)
+        local card=frame("Frame",nil,parent,"BackdropTemplate")
+        card:SetPoint("TOPLEFT",x,y) card:SetSize(width,height) SD:StyleCard(card,active)
+        if title then card.title=H.text(card,title,16,16,-13,width-32) card.title:SetTextColor(.49,.86,.66) end
+        if detail then card.detail=H.text(card,detail,12,16,-40,width-32) end
+        return card
+    end
     function H.button(parent,caption,x,y,width,fn)
-        local b=frame("Button",nil,parent,"UIPanelButtonTemplate")b:SetPoint("TOPLEFT",x,y)b:SetSize(width,30)b:SetText(caption)
+        local b=frame("Button",nil,parent,"UIPanelButtonTemplate,BackdropTemplate")b:SetPoint("TOPLEFT",x,y)b:SetSize(width,30)b:SetText(caption) SD:StyleAction(b)
         b:SetScript("OnClick",function()SD:Run(caption,fn)end)
         return b
     end

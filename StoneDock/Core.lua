@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.9.0"
+SD.name, SD.version = addonName, "0.9.1"
 SD.defaults = {
     enabled = true,
     density = 1,
@@ -100,7 +100,13 @@ function SD:ReportError(context, err)
 end
 
 function SD:Run(context, callback, ...)
+    local previous=self.actionContext
+    local previousParent=self.parentActionContext
+    self.parentActionContext=previous
+    self.actionContext=context
     local ok, result, detail = pcall(callback, ...)
+    self.actionContext=previous
+    self.parentActionContext=previousParent
     if not ok then self:ReportError(context, result) end
     return ok, result, detail
 end
@@ -145,6 +151,35 @@ SD.events:SetScript("OnEvent", function(_, event, ...)
         for _, callback in ipairs(list) do SD:Run(event, callback, ...) end
     end
 end)
+
+-- Blocked protected actions do not necessarily raise a Lua exception.
+-- Keep a small deduplicated record without touching protected UI or error handlers.
+function SD:RecordBlockedAction(event, addon, action)
+    if not StoneDockCharDB then return end
+    local function text(value)
+        if issecretvalue and issecretvalue(value) then return "restricted" end
+        return tostring(value or "unknown"):sub(1,180)
+    end
+    local records=StoneDockCharDB.blockedActions or {}
+    StoneDockCharDB.blockedActions=records
+    local name,operation=text(addon),text(action)
+    local combat=InCombatLockdown()
+    local context=self.actionContext or "Native UI / asynchronous callback"
+    -- The event dispatcher is a recorder, not the original action's context.
+    if context==event then context=self.parentActionContext or "Native UI / asynchronous callback" end
+    local last=records[#records]
+    if last and last.event==event and last.addon==name and last.action==operation and last.combat==combat and last.context==context then
+        last.count=last.count+1 last.time=date("%Y-%m-%d %H:%M:%S") return
+    end
+    local record={event=event,addon=name,action=operation,combat=combat,context=context,count=1,time=date("%Y-%m-%d %H:%M:%S")}
+    if debugstack then record.stack=debugstack(2,10,0):sub(1,2500) end
+    records[#records+1]=record
+    if #records>8 then table.remove(records,1) end
+    if name==self.name then SD.Print("A blocked interface action was recorded. Use /stonedock report for details.") end
+end
+for _,event in ipairs({"ADDON_ACTION_BLOCKED","ADDON_ACTION_FORBIDDEN"}) do
+    SD:On(event,function(addon,action)SD:RecordBlockedAction(event,addon,action)end)
+end
 
 SD:On("ADDON_LOADED", function(name)
     if name ~= addonName then return end

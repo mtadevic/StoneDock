@@ -1,6 +1,6 @@
 # StoneDock — Dark Stone
 
-Version 0.9.0 introduces grouped settings with staged Apply/Revert, dropdown choices, and an active gathering expedition card.
+Version 0.9.1 introduces grouped settings with staged Apply/Revert, dropdown choices, and an active gathering expedition card.
 
 ## Updating an existing layout
 

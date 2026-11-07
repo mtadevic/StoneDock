@@ -1,4 +1,4 @@
-# StoneDock 0.9.0 — friends and family preview
+# StoneDock 0.9.1 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
@@ -17,3 +17,9 @@ This is a preview, not a public compatibility claim. Before wider distribution, 
 Settings use left-hand navigation, grouped controls, and dropdowns for choices such as theme, activity and resource. Selections stay pending until you choose **Apply** at the bottom. **Revert edits** discards changes on the current page. Pending edits remain when switching pages within the session; they are not saved through a reload. Actions such as starting an expedition or restoring a snapshot run when clicked.
 
 For gathering, choose **Gathering & fishing**, enable it, choose an activity and resource, then **Apply** and **Start expedition**. The green active card identifies your target and destination. Field Notes becomes an expedition card with collection count, route progress and **Next stop**, **Expedition**, and **End** controls. Ending a session restores the normal Field Notes rows. Fishing can also start automatically when you equip a pole.
+
+## Card-style tools and blocked-action reports
+
+Session, readiness, saved locations, quests, profiles and settings share the expedition's dark green cards and highlighted headings. Readiness cards distinguish Ready from Review and keep their action beside the details.
+
+If the game reports a blocked interface action, use `/stonedock report`. StoneDock now records the addon named by the client, attempted function, combat state, time and available call context. The most recent eight distinct records are kept; consecutive repeats are counted together. Records may identify another addon and do not prove that StoneDock caused the problem. Actions that happened before this version cannot be reconstructed.

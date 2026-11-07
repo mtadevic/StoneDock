@@ -132,29 +132,31 @@ function SD:ShowProfiles()
     if self.profileWindow then self.profileWindow:Hide() end
     local CreateFrame,H=self:WindowBuilder("profileWindow")
     local f=CreateFrame("Frame",nil,UIParent,"BackdropTemplate") self.profileWindow=f
-    f:SetSize(620,600) f:SetPoint("CENTER") f:SetFrameStrata("DIALOG") f:SetClampedToScreen(true)
-    f:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\Stone.tga",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=256,edgeSize=14})
+    f:SetSize(620,710) f:SetPoint("CENTER") f:SetFrameStrata("DIALOG") f:SetClampedToScreen(true)
+    self:StyleCard(f,false)
     H.text(f,"PROFILES & LAYOUT SNAPSHOTS",20,22,-22,575)
     H.text(f,"Character: "..(UnitName and UnitName("player") or "Current").."  |  Spec: "..(self.itemSpecName or self.profileKey),12,22,-60,575)
     H.text(f,"Stone artwork and action-bank geometry are shared. HUD, unit/pet placement, group sizing and item preferences are saved per character/spec. Snapshots include shared appearance and the native layout.",12,22,-88,575)
+    local identity=H.card(f,"CURRENT PROFILE","Character: "..(UnitName and UnitName("player") or "Current").." | "..(self.itemSpecName or self.profileKey),22,-130,568,76,true)
     local edit=CreateFrame("EditBox",nil,f,"InputBoxTemplate") f.nameEdit=edit
-    edit:SetSize(330,28) edit:SetPoint("TOPLEFT",30,-150) edit:SetAutoFocus(false) edit:SetMaxLetters(48) edit:SetText("My layout")
-    H.button(f,"Save snapshot",380,-148,210,function() if SD:SaveSnapshot(edit:GetText()) then SD:ShowProfiles() end end)
-    H.button(f,"Undo last restore",22,-192,275,function() SD:RestoreSnapshotData(StoneDockCharDB.snapshotUndo) end)
-    H.button(f,"Export current native layout",310,-192,280,function()
+    edit:SetSize(330,28) edit:SetPoint("TOPLEFT",30,-230) edit:SetAutoFocus(false) edit:SetMaxLetters(48) edit:SetText("My layout")
+    H.button(f,"Save snapshot",380,-228,210,function() if SD:SaveSnapshot(edit:GetText()) then SD:ShowProfiles() end end)
+    H.button(f,"Undo last restore",22,-272,275,function() SD:RestoreSnapshotData(StoneDockCharDB.snapshotUndo) end)
+    H.button(f,"Export current native layout",310,-272,280,function()
         local layout=SD:GetActiveLayout()
         if layout and C_EditMode.ConvertLayoutInfoToString then SD:ShowCopyDialog("Native layout export",C_EditMode.ConvertLayoutInfoToString(layout)) end
     end)
-    local scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate") scroll:SetPoint("TOPLEFT",22,-240) scroll:SetSize(565,290)
+    local scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate") scroll:SetPoint("TOPLEFT",22,-320) scroll:SetSize(565,290)
     local child=CreateFrame("Frame",nil,scroll) scroll:SetScrollChild(child)
     local names={} for name in pairs(StoneDockCharDB.snapshots)do names[#names+1]=name end table.sort(names)
-    child:SetSize(540,math.max(290,#names*48))
+    child:SetSize(540,math.max(290,#names*88))
     for i,name in ipairs(names)do
         local snapshot=StoneDockCharDB.snapshots[name]
-        H.text(child,name.."  "..(snapshot.created or ""),12,0,-(i-1)*48,365)
-        H.button(child,"Restore",400,-(i-1)*48,130,function() SD:RestoreSnapshot(name) end)
+        local card=H.card(child,name,snapshot.created or "Saved layout",0,-(i-1)*88,540,76,false)
+        card.title:SetWidth(370) card.detail:SetWidth(370)
+        H.button(card,"Restore",394,-24,130,function() SD:RestoreSnapshot(name) end)
     end
-    H.button(f,"Close settings",22,-548,568,function() SD:CloseSettings() end)
+    H.button(f,"Close settings",22,-648,568,function() SD:CloseSettings() end)
     f:Show() self:RefreshFading(true)
 end
 function SD:ActivateCharacterProfile()

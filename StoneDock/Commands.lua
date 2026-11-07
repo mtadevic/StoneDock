@@ -16,6 +16,13 @@ function SD:BuildReport()
         "Previous recorded error: " .. tostring(StoneDockCharDB.lastError or "none"),
         "", "Item bar:",
     }
+    lines[#lines+1]="Blocked interface actions (most recent 8):"
+    for _,record in ipairs(StoneDockCharDB.blockedActions or {}) do
+        lines[#lines+1]=string.format("%s | %s | %s | %s | combat=%s | count=%d | %s",record.time,record.event,record.addon,record.action,tostring(record.combat),record.count,record.context)
+        if record.stack then lines[#lines+1]=record.stack end
+    end
+    if not StoneDockCharDB.blockedActions or #StoneDockCharDB.blockedActions==0 then lines[#lines+1]="None captured. Events before this update cannot be recovered." end
+    lines[#lines+1]=""
     local _,primary=self:GetConsumableSpec()
     lines[#lines+1]="Primary stat: "..primary
     lines[#lines+1]="Bag scan: "..(self.itemsDirty and "pending" or self.consumableLists and "ready" or "unavailable")
