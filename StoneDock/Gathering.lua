@@ -72,7 +72,7 @@ end
 local function refresh(state)
     updateBinding(state)
     SD:UpdateInfo()
-    if SD.gatheringStatus then SD.gatheringStatus:SetText(SD:GatheringSummary()) end
+    if SD.RefreshExpeditionStatus then SD:RefreshExpeditionStatus() end
 end
 
 local function lootMatches(state)
@@ -186,6 +186,7 @@ function SD:StartOreRoute(id)
         local best, bestDistance
         for _, zone in ipairs(zones) do
             if zone[1] == here.map or zone[2] == here.name then
+                if self:StartGathering("fishing") then self.gathering.targetID,self.gathering.destination=id,zone[2] self:UpdateInfo() self:RefreshExpeditionStatus() end
                 SD.Print(ores[id] .. ": Reported in " .. zone[2] .. ". Exact catch coordinates are unavailable.")
                 return
             end
@@ -198,10 +199,12 @@ function SD:StartOreRoute(id)
             end
         end
         best = best or zones[1]
+        if best and self:StartGathering("fishing") then self.gathering.targetID,self.gathering.destination=id,best[2] self:UpdateInfo() self:RefreshExpeditionStatus() end
         SD.Print(ores[id] .. (best and (": Reported in " .. best[2] .. ". Exact catch coordinates are unavailable.")
             or ": No catch locations are documented."))
         return
     end
+    local destination = here.name
     local key = here.map .. ":" .. id
     local saved = StoneDockCharDB.oreNodes
     local remaining = {unpack(saved and saved[key] or {})}
@@ -219,6 +222,11 @@ function SD:StartOreRoute(id)
     if #remaining < (fishIDs[id] and 1 or 3) then
         local zone = self:SuggestOreZone(id, here)
         if zone then
+            if self:StartGathering(fishIDs[id] and "fishing" or "materials") then
+                self.gathering.targetID, self.gathering.destination = id, zone
+                self:UpdateInfo()
+                if self.RefreshExpeditionStatus then self:RefreshExpeditionStatus() end
+            end
             SD.Print(ores[id] .. ": Suggested zone — " .. zone .. (fishIDs[id] and ". Select the fish again when you arrive." or ". Start the loop when you arrive."))
         elseif fishIDs[id] then
             SD.Print("No nearby reported catch location is available for " .. ores[id] .. ".")
@@ -233,6 +241,10 @@ function SD:StartOreRoute(id)
             if distance(here, remaining[i]) < distance(here, nearest) then nearest = remaining[i] end
         end
         if self:SetWaypoint(nearest.map, nearest.x, nearest.y) then
+            if self:StartGathering("fishing") then
+                self.gathering.targetID = id
+                self.gathering.destination = here.name
+            end
             self:StopOreRoute()
             self:UpdateInfo()
             SD.Print(ores[id] .. ": Waypoint set to a reported catch location.")
@@ -254,6 +266,7 @@ function SD:StartOreRoute(id)
     end
     local previous = self.oreRoute
     self.oreRoute = route
+    self.gathering.targetID, self.gathering.destination = id, destination
     if not self:AdvanceOreRoute() then
         self.oreRoute = previous
         return
@@ -270,7 +283,9 @@ function SD:AdvanceOreRoute()
     local point = route.points[nextIndex]
     if not self:SetWaypoint(point.map, point.x, point.y) then return false end
     route.index = nextIndex
+    if nextIndex==1 then route.laps=(route.laps or -1)+1 end
     self:UpdateInfo()
+    if self.RefreshExpeditionStatus then self:RefreshExpeditionStatus() end
     return true
 end
 
@@ -449,75 +464,113 @@ function SD:UpdatePoleFishing()
     end
 end
 
-function SD:BuildGatheringPanel()
-    local Create, H = self:WindowBuilder("gatheringPanel")
-    local page = Create("Frame", nil, UIParent)
-    self.gatheringPanel = page
-    page:SetSize(690, 590)
-    H.text(page, "Gathering", 22, 22, -20, 640)
-    H.text(page, "Track catches or materials in Field Notes. Each session starts at zero.", 13, 22, -60, 630)
-    local enable = Create("CheckButton", nil, page, "UICheckButtonTemplate")
-    enable:SetPoint("TOPLEFT", 22, -94)
-    enable:SetChecked(self.db.gatheringEnabled)
-    H.text(enable, "Enable Gathering", 13, 28, -5, 550)
-    enable:SetScript("OnClick", function(button)
-        SD:SetModule("gatheringEnabled", button:GetChecked() == true)
-        button:SetChecked(SD.db.gatheringEnabled)
-    end)
-    H.text(page, "Fishing uses your Interact key by default. Enter an unbound F-key to use it instead.", 13, 22, -135, 630)
-    local key = Create("EditBox", nil, page, "InputBoxTemplate")
-    key:SetPoint("TOPLEFT", 27, -164)
-    key:SetSize(100, 25)
-    key:SetAutoFocus(false)
-    key:SetMaxLetters(3)
-    key:SetText(self.db.gatheringKey or "")
-    H.button(page, "Save key", 141, -164, 105, function()
-        if SD:IsBusy() then return end
-        local value = key:GetText():upper():match("^%s*(.-)%s*$")
-        local number = tonumber(value:match("^F(%d%d?)$"))
-        if value ~= "" and (not number or number < 1 or number > 12 or value ~= "F" .. number) then
-            SD.Print("Enter F1 through F12, or leave it blank.")
-            return
-        end
-        if value ~= "" and GetBindingAction and GetBindingAction(value) ~= "" then
-            SD.Print("Choose a key without an existing WoW binding.")
-            return
-        end
-        SD:StopGathering()
-        SD.db.gatheringKey = value
-        key:ClearFocus()
-        SD:UpdatePoleFishing()
-        SD.Print("Fishing key saved.")
-    end)
-    H.button(page, "Start fishing", 22, -225, 180, function() if SD:StartGathering("fishing") then SD:CloseSettings() end end)
-    H.button(page, "Track herbs, ore & skins", 215, -225, 220, function() if SD:StartGathering("materials") then SD:CloseSettings() end end)
-    H.button(page, "End session", 449, -225, 165, function() SD.fishingAutoPaused = poleEquipped() SD:StopGathering() end)
-    self.gatheringStatus = H.text(page, self:GatheringSummary(), 14, 22, -275, 630)
-    H.text(page, "Equipping a fishing pole starts Fishing Mode automatically. If your bobber is out of interact range, right-click it normally.", 12, 22, -310, 630)
-    H.text(page, "Find gathering locations", 17, 22, -365, 630)
-    H.text(page, "Choose a material to find a nearby zone or start a local loop. Fish set a waypoint to a reported catch location.", 12, 22, -395, 630)
-    local function dropdown(label, choices, x, y)
-        local menu = Create("DropdownButton", nil, page, "WowStyle1DropdownTemplate")
-        menu:SetPoint("TOPLEFT", x, y or -440)
-        menu:SetSize(190, 32)
-        if menu.SetDefaultText then menu:SetDefaultText(label) end
-        if menu.SetupMenu then
-            menu:SetupMenu(function(_, root)
-                if root.SetScrollMode then root:SetScrollMode(330) end
-                for _, item in ipairs(choices) do
-                    root:CreateButton(item[2], function() SD:StartOreRoute(item[1]) end)
-                end
-            end)
-        end
+function SD:GetExpeditionDetails()
+    local state, route = self.gathering, self.oreRoute
+    if not state or not state.active then
+        return {active=false, title="No expedition running", status="READY TO EXPLORE",
+            detail="Choose an activity and a resource, then start your expedition.", count="Your catches and materials will appear here."}
     end
-    dropdown("Select ore", options.ore, 22)
-    dropdown("Select herb", options.herb, 220)
-    dropdown("Select fish", options.fish, 418)
-    dropdown("Select fishing pool", options.pool, 22, -483)
-    H.button(page, "Stop loop", 220, -483, 185, function()
-        SD:StopOreRoute()
-        SD:UpdateInfo()
+    local resource = state.targetID and ores[state.targetID]
+    local location = state.destination or (GetZoneText and GetZoneText()) or "Current zone"
+    local progress = route and string.format("Stop %d of %d  /  Lap %d",route.index,#route.points,(route.laps or 0)+1)
+    return {active=true,title=resource or modes[state.mode],status="EXPEDITION ACTIVE",
+        detail=progress or (state.mode=="fishing" and "Fishing session" or "Gathering session"),
+        destination=location,count=string.format("%d items collected",state.count),
+        last=state.last and ("Last find: "..state.last) or "Waiting for the first find",
+        progress=route and route.index/#route.points or 0}
+end
+
+function SD:RefreshExpeditionStatus()
+    local view = self.gatheringStatusCard
+    if not view then return end
+    local info = self:GetExpeditionDetails()
+    view.status:SetText(info.status)
+    view.status:SetTextColor(info.active and .42 or .62,info.active and .87 or .68,info.active and .66 or .72)
+    view.title:SetText(info.title)
+    view.detail:SetText((info.destination and info.destination.."  |  " or "")..info.detail)
+    view.count:SetText(info.count.."  |  "..(info.last or ""))
+    view:SetBackdropBorderColor(info.active and .25 or .22,info.active and .63 or .30,info.active and .45 or .35,1)
+    view.progress:SetWidth(math.max(1,590*(info.progress or 0)))
+    if view.stop then view.stop:SetEnabled(info.active) end
+    if view.start then
+        local field = self.preferenceDrafts and self.preferenceDrafts.gathering
+        local current = field and field.fields.gatheringMode
+        local mode = current and self:PreferenceValue("gathering",current) or self.db.gatheringMode or "materials"
+        view.start:SetText(info.active and "Start a new expedition" or (mode=="fishing" and "Start fishing" or "Start expedition"))
+    end
+end
+
+function SD:BuildGatheringPanel()
+    local modeField={key="gatheringMode",label="Activity",kind="select",rebuild=true,
+        choices={{"materials","Gather materials"},{"fishing","Fish with equipped pole"},{"ore","Find ore"},{"herb","Find herbs"},{"fish","Find fish"},{"pool","Find fishing pools"}},
+        read=function() return SD.db.gatheringMode or "materials" end}
+    local mode=self:PreferenceValue("gathering",modeField)
+    local setup={
+        {key="gatheringEnabled",label="Enable Gathering & fishing",kind="check"},
+        modeField,
+    }
+    local choices=options[mode]
+    if choices then
+        local resourceField={key="gatheringResource",label="Resource",kind="select",choices=choices,
+            read=function()
+                local id=SD.db.gatheringResource
+                for _, item in ipairs(choices) do if item[1]==id then return id end end
+                return choices[1][1]
+            end}
+        local draft=self:GetPreferenceDraft("gathering")
+        local current=draft.values.gatheringResource
+        if current then
+            local valid
+            for _, item in ipairs(choices) do if item[1]==current then valid=true break end end
+            if not valid then draft.values.gatheringResource=nil end
+        end
+        setup[#setup+1]=resourceField
+    end
+    local keys={{"","Use my Interact key"}}
+    for index=1,12 do keys[#keys+1]={"F"..index,"F"..index} end
+    local definition={title="Gathering & expeditions",description="Set up an expedition below. Apply your changes before starting.",top=-285,sections={
+        {title="Expedition setup",controls=setup},
+        {title="Fishing controls",controls={{key="gatheringKey",label="Fishing key",kind="select",choices=keys,
+            read=function() return SD.db.gatheringKey or "" end}}},
+    }}
+    local page=self:BuildPreferencePage("gathering",definition)
+    self.gatheringPanel=page
+    local create,H=self:WindowBuilder("expeditionSettings")
+    local card=create("Frame",nil,page,"BackdropTemplate")
+    self.gatheringStatusCard=card
+    card:SetPoint("TOPLEFT",14,-105)card:SetSize(648,155)
+    card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+    card:SetBackdropColor(.035,.085,.075,.96)
+    card.status=H.text(card,"",11,18,-14,600)
+    card.title=H.text(card,"",22,18,-39,600)
+    card.detail=H.text(card,"",12,18,-75,600)
+    card.count=H.text(card,"",12,18,-100,600)
+    card.track=card.track or card:CreateTexture(nil,"BACKGROUND")
+    card.track:SetPoint("TOPLEFT",18,-133)card.track:SetSize(590,4)card.track:SetColorTexture(.13,.22,.2,1)
+    card.progress=card.progress or card:CreateTexture(nil,"ARTWORK")
+    card.progress:SetPoint("TOPLEFT",18,-133)card.progress:SetHeight(4)card.progress:SetColorTexture(.35,.78,.57,1)
+    local y=-page:GetHeight()
+    card.start=H.button(page,"Start expedition",22,y,300,function()
+        if SD:HasPreferenceChanges("gathering") then SD.Print("Apply your expedition setup first.") return end
+        local activity=SD.db.gatheringMode or "materials"
+        if activity=="fishing" or activity=="materials" then SD:StartGathering(activity)
+        else
+            local choices=options[activity]
+            local resource=SD.db.gatheringResource
+            local valid
+            for _, item in ipairs(choices or {}) do if item[1]==resource then valid=true break end end
+            SD:StartOreRoute(valid and resource or choices[1][1])
+        end
+        SD:RefreshExpeditionStatus()
     end)
+    card.stop=H.button(page,"End expedition",338,y,300,function()
+        SD.fishingAutoPaused=poleEquipped()
+        SD:StopGathering()
+        SD:RefreshExpeditionStatus()
+    end)
+    H.text(page,"Fishing Mode also starts when you equip a pole. Use the route card in Field Notes to skip a stop or end the expedition.",12,22,y-52,610)
+    page:SetHeight(-y+115)
+    self:RefreshExpeditionStatus()
     return page
 end
 

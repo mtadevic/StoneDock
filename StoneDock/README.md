@@ -1,12 +1,12 @@
 # StoneDock — Dark Stone
 
-Version 0.2.0 adds drawer surrounds, inventory windows above the dashboard, measured alignment, adjustable bar/HUD positioning, and separate out-of-combat fading.
+Version 0.9.0 introduces grouped settings with staged Apply/Revert, dropdown choices, and an active gathering expedition card.
 
 ## Updating an existing layout
 
 After reloading the UI, run `/stonedock align`. This updates dashboard controls while preserving your manual unit-frame and chat positions. Do not use the full Rebuild command unless you want those placements reset as well.
 
-Open `/stonedock advanced` for action-bar position, bank separation, width, HUD position, HUD bar separation, and HUD scale. HUD changes preview immediately. Choose **Apply bar alignment** after adjusting action-bar settings.
+Open `/stonedock advanced` for action-bar position, bank separation, width, HUD position, HUD bar separation, and HUD scale. Choose **Apply** at the bottom of the current page to save its changes. **Revert edits** discards pending choices. Theme, activity, resource and other exclusive choices use dropdowns with a visible selected value.
 
 Out-of-combat fading has separate switches and opacity sliders for the native dashboard/UI group and the curved HUD. Zero is fully transparent. Combat restores visibility immediately. Mouse-over can reveal the dashboard; turn that option off for uninterrupted invisibility. Open settings temporarily keep the controls visible. Fading changes alpha rather than hiding protected action buttons; transparent buttons remain clickable.
 
@@ -18,7 +18,7 @@ A standalone World of Warcraft addon with original artwork and a dark stone dash
 
 1. Enable **StoneDock** in the game's AddOns list and enter the world.
 2. Type `/stonedock`.
-3. Choose **Create / activate layout**.
+3. Open **Theme & layout** and choose **Create / activate layout**.
 
 This creates an account Edit Mode layout called **StoneDock - Dark Stone**. Your existing layouts remain available. Installing the folder alone does not apply a layout.
 

@@ -36,6 +36,10 @@ function SD:UpdateInfo()
     local g=self.geometry or self:GetGeometry()
     local step=math.min(17,math.max(12,(g.right.h-34-(g.utilityY+20.4+8))/4))
     local gathering, last, hint = self:GetGatheringNotes()
+    if not gathering or not self.db.showInfo then
+        if self.expeditionCard then self.expeditionCard:Hide() end
+        if self.panels.right.caption then self.panels.right.caption:SetText("FIELD NOTES") end
+    end
     local specs,signature={},{}
     local row,column=0,0
     if self:IsNoteRowEnabled("zone")then specs.zone={0,0,308}signature[#signature+1]="zone"row=1 end
@@ -46,7 +50,7 @@ function SD:UpdateInfo()
         end
     end
     if gathering then
-        specs = {zone={0,0,308}, profile={0,1,308}, performance={0,2,308}, bags={0,3,308}}
+        specs = {}
         signature = {"gathering"}
     end
     local layoutKey=tostring(step)..":"..tostring(self.db.showInfo)..":"..table.concat(signature,",")
@@ -84,10 +88,8 @@ function SD:UpdateInfo()
     n.bags.label:SetText(string.format("Bags: %d free / %d",free,total))
     n.bags.details={string.format("%d used of %d ordinary-bag slots",total-free,total),"Specialty bag capacity is excluded.","Click to toggle all bags."}
     if gathering then
-        n.zone.details, n.profile.details, n.performance.details = nil, nil, nil
-        n.zone.label:SetText(gathering)
-        n.profile.label:SetText(last)
-        n.performance.label:SetText(hint)
+        for _, button in pairs(self.noteButtons) do button:Hide() end
+        self:UpdateExpeditionCard(n.bags.label:GetText())
         return
     end
     local lowest,damaged,pieces

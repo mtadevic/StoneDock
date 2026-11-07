@@ -8,6 +8,7 @@ local actions={
 }
 local names={left="Conversation",right="Field Notes",map="Map",leftWell="Left action bars",rightWell="Right action bars"}
 local defaults={left={"options","fade"},right={"utility","info"},map={"units","hud"},leftWell={"advanced","preview"},rightWell={"advanced","preview"}}
+SD.rivetActionOptions, SD.rivetActionDefaults = actions, defaults
 local function caption(id)
     for _,entry in ipairs(actions) do if entry[1]==id then return entry[2] end end
     return "No action"

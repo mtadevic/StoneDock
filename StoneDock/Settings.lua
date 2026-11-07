@@ -25,6 +25,19 @@ local tabs={
     {"waypoints","Saved waypoints","waypointsPanel"},
     {"quests","Tracked quests","questsPanel"},
 }
+function SD:RefreshSettingsFooter()
+    local f = self.settingsWindow
+    if not f or not f.apply then return end
+    local staged = self.settingsPage and self.settingsPage.preferenceKey
+    local dirty = staged and self:HasPreferenceChanges(staged)
+    f.apply:SetShown(not not staged)
+    f.discard:SetShown(not not staged)
+    f.apply:SetEnabled(not not dirty)
+    f.discard:SetEnabled(not not dirty)
+    f.saveStatus:SetText(staged and (dirty and "|cffffce75Unsaved changes on this page|r" or "|cff83d6adAll changes applied|r")
+        or "Use the actions on this page to continue.")
+end
+
 function SD:CloseSettings()
     if self.settingsWindow then self.settingsWindow:Hide()end
 end
@@ -38,8 +51,8 @@ function SD:CreateSettingsWindow()
     f:SetBackdropColor(.5,.5,.5,1)
     local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")title:SetPoint("TOPLEFT",22,-20)title:SetText("STONEDOCK  |  SETTINGS")
     local close=CreateFrame("Button",nil,f,"UIPanelCloseButton")close:SetPoint("TOPRIGHT",-6,-6)close:SetScript("OnClick",function()SD:CloseSettings()end)
-    local line=f:CreateTexture(nil,"BORDER")line:SetColorTexture(.4,.45,.48,.35)line:SetPoint("TOPLEFT",198,-54)line:SetSize(1,740)
-    f.scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate")f.scroll:SetPoint("TOPLEFT",210,-54)f.scroll:SetSize(704,736)
+    local line=f:CreateTexture(nil,"BORDER")line:SetColorTexture(.4,.45,.48,.35)line:SetPoint("TOPLEFT",198,-54)line:SetSize(1,686)
+    f.scroll=CreateFrame("ScrollFrame",nil,f,"UIPanelScrollFrameTemplate")f.scroll:SetPoint("TOPLEFT",210,-54)f.scroll:SetSize(704,680)
     f.content=CreateFrame("Frame",nil,f.scroll)f.content:SetSize(690,780)f.scroll:SetScrollChild(f.content)
     f.tabs={}
     local y = -60
@@ -57,8 +70,17 @@ function SD:CreateSettingsWindow()
         b.selected=b:CreateTexture(nil,"OVERLAY")b.selected:SetColorTexture(.55,.65,.7,.2)b.selected:SetAllPoints()b.selected:Hide()
         f.tabs[spec[1]]=b
     end
-    local note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")note:SetPoint("BOTTOMLEFT",22,25)note:SetWidth(165)note:SetJustifyH("LEFT")note:SetText("Changes save as you go.\nUse Profiles & backups to save a snapshot.")
+    local note=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")note:SetPoint("BOTTOMLEFT",22,25)note:SetWidth(165)note:SetJustifyH("LEFT")note:SetText("Choose settings, then Apply.\nPending edits stay on their page.")
+    f.apply=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
+    f.apply:SetSize(130,32)f.apply:SetPoint("BOTTOMRIGHT",-30,22)f.apply:SetText("Apply")
+    f.apply:SetScript("OnClick",function() SD:Run("Apply settings",function() SD:ApplyPreferences(SD.settingsTab) end) end)
+    f.discard=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
+    f.discard:SetSize(130,32)f.discard:SetPoint("RIGHT",f.apply,"LEFT",-12,0)f.discard:SetText("Revert edits")
+    f.discard:SetScript("OnClick",function() SD:DiscardPreferences(SD.settingsTab) end)
+    f.saveStatus=f:CreateFontString(nil,"OVERLAY","GameFontHighlightSmall")
+    f.saveStatus:SetPoint("BOTTOMLEFT",218,33)f.saveStatus:SetWidth(340)f.saveStatus:SetJustifyH("LEFT")
     f:SetScript("OnHide",function()
+        if SD.settingsPage then SD.settingsPage:Hide() end
         for _,spec in ipairs(tabs)do local page=SD[spec[3]]if page then page:Hide()end end
         if SD.rivetSettingsPage then SD.rivetSettingsPage:Hide()end
         if SD.disabledModulePage then SD.disabledModulePage:Hide()end
@@ -108,17 +130,20 @@ function SD:OpenSettingsTab(key,arg,label)
     self:CreateSettingsWindow()
     self.settingsBuilding=true
     local ok,err=pcall(function()
+        if self.settingsPage then self.settingsPage:Hide() end
         for _,spec in ipairs(tabs)do local page=self[spec[3]]if page then page:Hide()end end
         if self.rivetSettingsPage then self.rivetSettingsPage:Hide()end
         if self.disabledModulePage then self.disabledModulePage:Hide()end
         local page
         local featureKeys={session=true,readiness=true,waypoints=true,quests=true,notesCustomize=true,positioning=true,rivets=true,profiles=true}
+        local schema=self:PreferenceSchema(key)
         if featureKeys[key]and not self:IsModuleEnabled(key)then
             local CreateFrame,H=self:WindowBuilder("disabledModulePage")
             page=CreateFrame("Frame",nil,self.settingsWindow.content)self.disabledModulePage=page page:SetSize(690,450)
             H.text(page,"MODULE DISABLED",22,22,-22,640)
-            H.text(page,"Enable this feature in Master Modules to configure and use it.",13,22,-70,640)
-            H.button(page,"Open Master Modules",22,-120,350,function()SD:OpenSettingsTab("master")end)
+            H.text(page,"Enable this feature in Enable features to configure and use it.",13,22,-70,640)
+            H.button(page,"Open Enable features",22,-120,350,function()SD:OpenSettingsTab("master")end)
+        elseif schema then page=self:BuildPreferencePage(key,schema)
         elseif key=="master"then page=self:BuildMasterPanel()
         elseif key=="gathering"then page=self:BuildGatheringPanel()
         elseif key=="hud"then page=self:BuildHUDPanel()
@@ -129,10 +154,7 @@ function SD:OpenSettingsTab(key,arg,label)
         elseif key=="notesCustomize"then page=self:BuildNotesPanel()
         elseif key=="rivets"then page=self:BuildRivetSettings(arg,label)
         elseif key=="items"then
-            self.settingsItemKey=arg or self.settingsItemKey or "bufffood"
-            local caption=label
-            if not caption then for _,category in ipairs(self.itemCategories)do if category.key==self.settingsItemKey then caption=category.label end end end
-            builders.items(self,self.settingsItemKey,caption or self.settingsItemKey)page=self.itemPicker
+            page=self:BuildItemPreferences(arg)
         elseif key=="appearance"then builders.appearance(self,true)page=self.options
         elseif key=="bars"then builders.bars(self,true)page=self.advanced
         elseif key=="units"then builders.units(self)page=self.unitOptions
@@ -145,6 +167,7 @@ function SD:OpenSettingsTab(key,arg,label)
         if self.settingsWindow.scroll.SetVerticalScroll then self.settingsWindow.scroll:SetVerticalScroll(0)end
         self.settingsPage=page
         self.settingsTab=key
+        self:RefreshSettingsFooter()
         for id,button in pairs(self.settingsWindow.tabs)do button.selected:SetShown(id==key)end
         self.settingsWindow:Show()self:RefreshFading(true)
     end)
