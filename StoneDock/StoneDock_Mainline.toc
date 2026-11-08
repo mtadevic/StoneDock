@@ -1,41 +1,41 @@
-## Interface: 120105
-## Title: StoneDock
-## Notes: A dark stone dashboard around Blizzard's default interface.
-## Author: Custom UI project
-## Version: 0.12.0
-## SavedVariables: StoneDockDB
-## SavedVariablesPerCharacter: StoneDockCharDB
-## OptionalDeps: Blizzard_EditMode, Blizzard_Minimap, Blizzard_ActionBar, Blizzard_UnitFrame
-## IconTexture: Interface\Icons\INV_Stone_04
-
-Core.lua
-Variants.lua
-OrnamentalFrames.lua
-Geometry.lua
-Layout.lua
-Panels.lua
-Docking.lua
-HUD.lua
-Fading.lua
-Runtime.lua
-Options.lua
-Advanced.lua
-Units.lua
-Auras.lua
-Consumables.lua
-Rivets.lua
-Hearth.lua
-ItemMenus.lua
-Profiles.lua
-Positioning.lua
-FieldNotes.lua
-MiningData.lua
-Routes.lua
-Gathering.lua
-Modules.lua
-Features.lua
-NotesSettings.lua
-Expedition.lua
-Preferences.lua
-Settings.lua
-Commands.lua
+## Interface: 120105
+## Title: StoneDock
+## Notes: A dark stone dashboard around Blizzard's default interface.
+## Author: Custom UI project
+## Version: 0.12.1
+## SavedVariables: StoneDockDB
+## SavedVariablesPerCharacter: StoneDockCharDB
+## OptionalDeps: Blizzard_EditMode, Blizzard_Minimap, Blizzard_ActionBar, Blizzard_UnitFrame
+## IconTexture: Interface\Icons\INV_Stone_04
+
+Core.lua
+Variants.lua
+OrnamentalFrames.lua
+Geometry.lua
+Layout.lua
+Panels.lua
+Docking.lua
+HUD.lua
+Fading.lua
+Runtime.lua
+Options.lua
+Advanced.lua
+Units.lua
+Auras.lua
+Consumables.lua
+Rivets.lua
+Hearth.lua
+ItemMenus.lua
+Profiles.lua
+Positioning.lua
+FieldNotes.lua
+MiningData.lua
+Routes.lua
+Gathering.lua
+Modules.lua
+Features.lua
+NotesSettings.lua
+Expedition.lua
+Preferences.lua
+Settings.lua
+Commands.lua
