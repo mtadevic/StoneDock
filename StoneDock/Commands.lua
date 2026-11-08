@@ -54,6 +54,16 @@ function SD:BuildReport()
     table.insert(lines, "")
     if full then
         table.insert(lines, "Active layout index: " .. tostring(full.activeLayout))
+        local active=full.layouts[full.activeLayout]
+        for _,info in ipairs(active and active.systems or {}) do
+            if info.system==Enum.EditModeSystem.ActionBar and info.systemIndex<=3 then
+                for _,setting in ipairs(info.settings or {}) do
+                    if setting.setting==Enum.EditModeActionBarSetting.NumIcons then
+                        lines[#lines+1]="Native bar "..info.systemIndex.." saved button count: "..tostring(setting.value)
+                    end
+                end
+            end
+        end
         for index, layout in ipairs(full.layouts) do
             table.insert(lines, string.format("Layout %d: %s; type=%s; systems=%d", index, tostring(layout.layoutName), tostring(layout.layoutType), #(layout.systems or {})))
         end

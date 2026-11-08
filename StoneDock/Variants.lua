@@ -59,7 +59,7 @@ function SD:GetGulveigGeometry(width,height,rise)
     local compact=.8
     local function r(x,y,w,h)return {x=x,y=y*rise,w=w,h=h*rise}end
     return {
-        variant="gulveig",revision=3,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
+        variant="gulveig",revision=4,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
         base=r(0,0,1920,1),left=r(20,90,420,160),right=r(1440,300,440,160),
         leftWell=r(40,250,440,20),rightWell=r(1440,250,440,20),
         map=r(1640,22,250,260),chat=r(30,100,400,135),
@@ -123,11 +123,11 @@ function SD:RefreshVariantArt(g)
             -- Two native anchors follow movement, size and UI scale directly;
             -- never poll geometry or modify the protected/native chat frame.
             chat:ClearAllPoints()
-            chat:SetPoint("TOPLEFT",ChatFrame1,"TOPLEFT",-10,22)
-            chat:SetPoint("BOTTOMRIGHT",ChatFrame1,"BOTTOMRIGHT",10,-10)
+            chat:SetPoint("TOPLEFT",ChatFrame1,"TOPLEFT",-22,30)
+            chat:SetPoint("BOTTOMRIGHT",ChatFrame1,"BOTTOMRIGHT",22,-24)
         end
-        chat.fill:SetPoint("TOPLEFT",chat,"TOPLEFT",10,-10)
-        chat.fill:SetPoint("BOTTOMRIGHT",chat,"BOTTOMRIGHT",-10,10)
+        chat.fill:SetPoint("TOPLEFT",chat,"TOPLEFT",14,-14)
+        chat.fill:SetPoint("BOTTOMRIGHT",chat,"BOTTOMRIGHT",-14,14)
         chat.fill:SetColorTexture(0,0,0,.75)
         chat.shadow:Hide()
     else chat.fill:SetAllPoints(chat) chat.shadow:Show() end

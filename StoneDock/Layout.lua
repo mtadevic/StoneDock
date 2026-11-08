@@ -129,7 +129,10 @@ function SD:UpgradeDefaultUnitAnchors(systems, g)
             end
             if g.variant=="gulveig" and a and a.relativeTo=="UIParent" and a.relativePoint=="BOTTOMLEFT" then
                 local legacy=info.systemIndex==U.Player and 210 or (info.systemIndex==U.Target and 1710)
-                if legacy and math.abs(a.offsetX-legacy*g.scale)<.25 then
+                local frame=info.systemIndex==U.Player and PlayerFrame or TargetFrame
+                local frameScale=frame and frame:GetScale() or 1
+                if legacy and (math.abs(a.offsetX-legacy*g.scale)<1
+                    or math.abs(a.offsetX-legacy*g.scale/math.max(frameScale,.01))<1) then
                     anchor(info,point,"BOTTOMLEFT",x*g.scale,y*g.scale)
                     changed=true
                 end
@@ -190,7 +193,9 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
         anchor(info, "CENTER", "BOTTOMLEFT", bar.x * s, bar.y * s)
         displaySetting(info, A.Orientation, Enum.ActionBarOrientation.Horizontal)
         displaySetting(info, A.NumRows, 1)
-        displaySetting(info, A.NumIcons, bar.icons or 12)
+        -- NumIcons is consumed as a raw integer by UpdateSystemSettingNumIcons.
+        -- Do not quantize it through a client-specific display slider step.
+        rawSetting(info, A.NumIcons, bar.icons or 12)
         displaySetting(info, A.IconSize, bar.iconSize and bar.iconSize*s/nativeButtonSize*100 or iconPercent)
         displaySetting(info, A.IconPadding, 2)
         displaySetting(info, A.AlwaysShowButtons, 1)

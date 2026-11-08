@@ -388,7 +388,13 @@ function SD:RefreshUtilityButtons(scan)
         b:ClearAllPoints() b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",width-size-(#items-i)*(size+spacing),0)
     end
     self.utilityRoot:ClearAllPoints()
-    self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.bagDrawer.x+6,g.utilityY)
+    if g.variant=="gulveig" and ChatFrame1 then
+        -- A live native anchor preserves clearance as chat moves or grows.
+        -- This secure root is positioned only in this out-of-combat refresh.
+        self.utilityRoot:SetPoint("BOTTOMRIGHT",ChatFrame1,"TOPRIGHT",22,44)
+    else
+        self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.bagDrawer.x+6,g.utilityY)
+    end
     self.utilityRoot:SetSize(width,size)
     local shown=self.utilityRoot:IsShown() and (#trinkets+#items)>0
     if not shown and self.utilityTicker then self.utilityTicker:Cancel()self.utilityTicker=nil end
