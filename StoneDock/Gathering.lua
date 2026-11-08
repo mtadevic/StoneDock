@@ -51,6 +51,19 @@ local function bobber(guid)
         and guid:match("^GameObject%-%d+%-%d+%-%d+%-%d+%-35591%-") ~= nil
 end
 
+local function fishingKeys(configured)
+    local keys,seen={},{}
+    local function add(key)
+        if type(key)~="string" or key=="" or seen[key] then return end
+        local action=GetBindingAction and GetBindingAction(key) or ""
+        if action~="" and action~="INTERACTTARGET" then return end
+        seen[key]=true keys[#keys+1]=key
+    end
+    if GetBindingKey then local first,second=GetBindingKey("INTERACTTARGET") add(first) add(second) end
+    add(configured)
+    return keys
+end
+
 local function updateBinding(state)
     if not state.owner or InCombatLockdown() then return end
     local action = state.active and state.mode == "fishing" and state.key ~= "" and "cast" or nil
@@ -60,11 +73,13 @@ local function updateBinding(state)
     end
     if action == state.bound then return end
     ClearOverrideBindings(state.owner)
-    if action == "reel" then
-        SetOverrideBinding(state.owner, true, state.key, "INTERACTTARGET")
-    elseif action then
-        local button = action == "cast" and "StoneDockFishingCast" or "StoneDockFishingLoot"
-        SetOverrideBindingClick(state.owner, true, state.key, button, "LeftButton")
+    for _,key in ipairs(state.keys or {state.key}) do
+        if action == "reel" then
+            SetOverrideBinding(state.owner, true, key, "INTERACTTARGET")
+        elseif action then
+            local button = action == "cast" and "StoneDockFishingCast" or "StoneDockFishingLoot"
+            SetOverrideBindingClick(state.owner, true, key, button, "LeftButton")
+        end
     end
     state.bound = action
 end
@@ -410,9 +425,8 @@ function SD:StartGathering(mode, automatic)
         key = self.db.gatheringKey or "", fishingName = spellName(select(4, GetBuildInfo()) < 100000 and 7620 or 131474) or spellName(7620),
     }
     self.gathering = state
-    if mode == "fishing" and state.key == "" and GetBindingKey then
-        state.key = GetBindingKey("INTERACTTARGET") or ""
-    end
+    state.keys=mode=="fishing" and fishingKeys(state.key) or {}
+    if mode=="fishing" then state.key=state.keys[1] or "" end
     if mode == "materials" then
         state.gatherNames = {}
         for _, id in ipairs({2366, 2575, 8613}) do
@@ -456,7 +470,10 @@ function SD:UpdatePoleFishing()
     if not equipped then self.fishingAutoPaused = nil end
     local state = self.gathering
     if state and state.active then
-        if state.automatic and not equipped then self:StopGathering() end
+        if state.automatic and not equipped then self:StopGathering()
+        elseif equipped and state.mode~="fishing" and self.db.enabled and self.db.gatheringEnabled and not self.fishingAutoPaused then
+            self:StartGathering("fishing",true)
+        end
         return
     end
     if equipped and self.db.enabled and self.db.gatheringEnabled and not self.fishingAutoPaused then
@@ -526,11 +543,11 @@ function SD:BuildGatheringPanel()
         end
         setup[#setup+1]=resourceField
     end
-    local keys={{"","Use my Interact key"}}
+    local keys={{"","Interact key only"}}
     for index=1,12 do keys[#keys+1]={"F"..index,"F"..index} end
     local definition={title="Gathering & expeditions",description="Set up an expedition below. Apply your changes before starting.",top=-285,sections={
         {title="Expedition setup",controls=setup},
-        {title="Fishing controls",controls={{key="gatheringKey",label="Fishing key",kind="select",choices=keys,
+        {title="Fishing controls",controls={{key="gatheringKey",label="Additional fishing key",kind="select",choices=keys,
             read=function() return SD.db.gatheringKey or "" end}}},
     }}
     local page=self:BuildPreferencePage("gathering",definition)
@@ -590,3 +607,25 @@ SD:On("PLAYER_EQUIPMENT_CHANGED", function(slot)
     if slot == 16 then SD:UpdatePoleFishing() end
 end)
 SD:On("PLAYER_LOGOUT", function() setFishingReach(false) end)
+
+-- Binding changes rebuild only our temporary overrides, outside protected states.
+SD:On("UPDATE_BINDINGS",function()
+    if SD:IsBusy() then SD.fishingBindingsPending=true return end
+    local state=SD.gathering
+    if SD.fishingRebinding or not state or not state.active or state.mode~="fishing" then return end
+    if SD.Equal(state.keys,fishingKeys(SD.db.gatheringKey)) then return end
+    SD.fishingRebinding=true
+    local ok,err=pcall(function()
+        if SD:StartGathering("fishing",state.automatic) then
+            for _,key in ipairs({"count","last","targetID","destination","channel","inReach","loot","slots"}) do SD.gathering[key]=state[key] end
+            refresh(SD.gathering)
+        end
+    end)
+    SD.fishingRebinding=nil
+    if not ok then SD:ReportError("Refresh fishing bindings",err) end
+end)
+SD:On("PLAYER_REGEN_ENABLED",function()
+    if not SD.fishingBindingsPending or SD:IsBusy() then return end
+    SD.fishingBindingsPending=nil
+    SD:UpdatePoleFishing()
+end)
