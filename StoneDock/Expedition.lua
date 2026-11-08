@@ -84,6 +84,7 @@ function SD:UpdateExpeditionCard(bagText)
     card.progress:SetShown(details.active and height>=76)
     card.progress:SetColorTexture(self:CardAccent())
     card.progress:SetWidth(math.max(1,(g.right.w-44)*(details.progress or 0)))
+    for _,button in ipairs({card.skip,card.configure,card.stop}) do button:EnableMouse(not self.editing) end
     card.stop:SetShown(details.active)
     card.skip:SetShown(details.active and (self.oreRoute~=nil or state.targetID~=nil))
     if parent.caption then parent.caption:SetText("COMMAND CENTER") end

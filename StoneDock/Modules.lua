@@ -49,7 +49,7 @@ function SD:SetModule(key,enabled)
     return true
 end
 function SD:RefreshRivetVisibility()
-    for _,button in pairs(self.rivetControls or {})do button:SetShown(self:IsModuleEnabled("rivets"))end
+    for _,button in pairs(self.rivetControls or {})do button:SetShown(self:IsModuleEnabled("rivets") and not self.editing)end
 end
 function SD:BuildMasterPanel()
     local CreateFrame,H=self:WindowBuilder("masterPanel")

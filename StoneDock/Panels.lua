@@ -200,7 +200,7 @@ function SD:RefreshPanels()
     self.guides:SetShown(self.db.showGuides)
     -- Follow the active native layout instead of leaving artwork over another UI.
     local show = self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides)
-    self.canvas:SetShown(show and not self.editing)
+    self.canvas:SetShown(show)
     self.fadeLayoutActive=self:IsOurLayoutActive()
     if self.options and self.options:IsShown() and self.options.Refresh then self.options:Refresh() end
     self:UpdateInfo()
@@ -217,6 +217,7 @@ end
 
 function SD:SetEditing(editing)
     self.editing = editing
+    if editing and self.commandMenu then self.commandMenu:Hide() end
     if not editing and self.CheckLoginAlignment then C_Timer.After(0.1,function() SD:CheckLoginAlignment() end) end
     if self.canvas then self:RefreshPanels() end
 end

@@ -33,6 +33,7 @@ function SD:UpdateInfo()
     if not self.info or not self.db then return end
     self:CreateFieldNotes()
     for _,label in pairs(self.info)do label:Hide()end
+    for _,button in pairs(self.noteButtons) do button:EnableMouse(not self.editing) end
     local g=self.geometry or self:GetGeometry()
     local step=math.min(17,math.max(12,(g.right.h-34-(g.utilityY+20.4+8))/4))
     local gathering, last, hint = self:GetGatheringNotes()
@@ -145,6 +146,7 @@ function SD:RefreshCommandCenter()
     self.commandStatus:ClearAllPoints() self.commandStatus:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-28)
     self.commandStatus:SetSize(self.geometry.right.w-24,42) self:StyleCard(self.commandStatus,false) self.commandStatus:Show()
     self.commandMenuButton:Show() self.commandExpeditionButton:Show()
+    self.commandMenuButton:EnableMouse(not self.editing) self.commandExpeditionButton:EnableMouse(not self.editing)
     self:StyleAction(self.commandMenuButton) self:StyleAction(self.commandExpeditionButton)
     parent.caption:SetText("COMMAND CENTER")
 end
