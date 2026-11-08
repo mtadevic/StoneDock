@@ -202,9 +202,8 @@ SD:On("PLAYER_LOGIN", function()
         EventRegistry:RegisterCallback("EditMode.Exit", function() SD:SetEditing(false) end, SD)
     end
     if not StoneDockCharDB.welcomed then
-        StoneDockCharDB.welcomed = true
-        SD.Print("Ready. Type /stonedock to set up your dark stone dashboard.")
-        C_Timer.After(2, function() SD:ToggleOptions(true) end)
+        SD.Print("Welcome. Choose your starting layout; /stonedock opens settings later.")
+        C_Timer.After(2, function() SD:PromptForLayout() end)
     end
 end)
 

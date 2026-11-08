@@ -218,6 +218,7 @@ end
 
 function SD:SetEditing(editing)
     self.editing = editing
+    if not editing and self.welcomePending then self:PromptForLayout() end
     if editing and self.commandMenu then self.commandMenu:Hide() end
     if not editing and self.CheckLoginAlignment then C_Timer.After(0.1,function() SD:CheckLoginAlignment() end) end
     if self.canvas then self:RefreshPanels() end

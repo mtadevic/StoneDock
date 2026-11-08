@@ -120,3 +120,38 @@ function SD:RefreshVariantArt(g)
         self.gulveigArt:SetSize(r.w,r.h)
     end
 end
+
+function SD:ChooseFirstLayout(key)
+    if not self:ActivateLayoutVariant(key) then return false end
+    StoneDockCharDB.welcomed=true
+    self.welcomePending=nil
+    if self.layoutChooser then self.layoutChooser:Hide() end
+    SD.Print("Layout ready. Change layouts anytime in Theme & layout.")
+    return true
+end
+
+function SD:PromptForLayout()
+    if StoneDockCharDB.welcomed then return end
+    if self:IsBusy() then self.welcomePending=true return end
+    self.welcomePending=nil
+    if not self.layoutChooser then
+        local create,H=self:WindowBuilder("layoutChooser")
+        local f=create("Frame","StoneDockLayoutChooser",UIParent,"BackdropTemplate")
+        self.layoutChooser=f
+        f:SetSize(560,330) f:SetPoint("CENTER") f:SetFrameStrata("DIALOG")
+        f:SetClampedToScreen(true) self:StyleCard(f,false)
+        H.text(f,"Welcome to StoneDock",23,24,-24,510)
+        H.text(f,"Choose your starting layout",15,24,-66,510)
+        H.text(f,"StoneDock dashboard: split action banks, centered map and a tools panel.\n\nGulveig Bar: Celtic trim, three centered action rows, flanking unit frames and a bottom-right map.",13,24,-100,510)
+        f.selection=self.db.layoutVariant or "stone"
+        f.choice=self:SettingsDropdown(f,"Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"}},
+            function()return f.selection end,function(key)f.selection=key end,create)
+        f.choice:SetPoint("TOPLEFT",24,-218)
+        f.apply=H.button(f,"Use this layout",24,-272,248,function()SD:ChooseFirstLayout(f.selection)end)
+        f.later=H.button(f,"Decide later",288,-272,248,function()f:Hide()end)
+        UISpecialFrames[#UISpecialFrames+1]="StoneDockLayoutChooser"
+    end
+    self.layoutChooser:Show()
+end
+
+SD:On("PLAYER_REGEN_ENABLED",function()if SD.welcomePending then SD:PromptForLayout() end end)
