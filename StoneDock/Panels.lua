@@ -87,7 +87,7 @@ function SD:CreatePanels()
     self.canvas:EnableMouse(false)
     self.panels = {
         base = panel(self.canvas),
-        left = panel(self.canvas, "CONVERSATION"),
+        left = panel(self.canvas),
         right = panel(self.canvas, "FIELD NOTES"),
         leftWell = panel(self.canvas),
         rightWell = panel(self.canvas),
