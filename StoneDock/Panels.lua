@@ -178,7 +178,8 @@ function SD:RefreshPanels()
         end
     end
     for _, key in ipairs({ "base", "leftWell", "rightWell", "map" }) do self.panels[key].caption:Hide() end
-    self.brand:SetShown(self.db.showLabels)
+    self:RefreshVariantArt(g)
+    self.brand:SetShown(self.db.showLabels and not g.variant)
     for _, label in pairs(self.info) do label:SetShown(self.db.showInfo) end
     self.info.hint:Hide()
 

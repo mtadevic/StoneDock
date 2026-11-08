@@ -183,8 +183,8 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
         anchor(info, "CENTER", "BOTTOMLEFT", bar.x * s, bar.y * s)
         displaySetting(info, A.Orientation, Enum.ActionBarOrientation.Horizontal)
         displaySetting(info, A.NumRows, 1)
-        displaySetting(info, A.NumIcons, 12)
-        displaySetting(info, A.IconSize, iconPercent)
+        displaySetting(info, A.NumIcons, bar.icons or 12)
+        displaySetting(info, A.IconSize, bar.iconSize and bar.iconSize*s/nativeButtonSize*100 or iconPercent)
         displaySetting(info, A.IconPadding, 2)
         displaySetting(info, A.AlwaysShowButtons, 1)
         displaySetting(info, A.HideBarArt, 1)
@@ -196,7 +196,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     -- Hide inherited extra rows in this layout only, so a prior multi-column
     -- layout cannot leave bars over the chat well. Their action slots stay intact.
     if self.db.useExtraBars then
-        for index = 5, 8 do
+        for index = g.variant=="gulveig" and 4 or 5, 8 do
             displaySetting(findSystem(layout, E.ActionBar, index), A.VisibleSetting, Enum.ActionBarVisibleSetting.Hidden)
         end
     end
@@ -226,7 +226,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     local mapPercent = (g.map.w - 10) * s / mapWidth * 100
     displaySetting(minimap, Enum.EditModeMinimapSetting.Size, mapPercent)
     displaySetting(minimap, Enum.EditModeMinimapSetting.HeaderUnderneath, 0)
-    anchor(minimap, "CENTER", "BOTTOM", -10, (g.map.y + g.map.h / 2) * s + 15)
+    anchor(minimap, "CENTER", "BOTTOM", (g.map.x+g.map.w/2-960)*s-10, (g.map.y + g.map.h / 2) * s + 15)
 
     if self.db.arrangeChat and not dashboardOnly then
         local chat = findSystem(layout, E.ChatFrame)
@@ -351,6 +351,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     if self.ConfigureNativeParty then
         self:ConfigureNativeParty(findSystem(layout,E.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party),g)
     end
+    if g.variant=="gulveig" then self:FinishGulveigLayout(layout,g,base.layoutName~=self.layoutName) end
     return layout
 end
 
@@ -478,7 +479,7 @@ function SD:InstallLayout()
     self:ApplyBarVisibility()
     self:RefreshPanels()
     self:SchedulePrecisionAlignment()
-    SD.Print("Dark Stone layout created. Your previous layout is still available. /stonedock restore switches back.")
+    SD.Print(self.layoutName.." layout created. Your previous layout is still available. /stonedock restore switches back.")
     return true
 end
 

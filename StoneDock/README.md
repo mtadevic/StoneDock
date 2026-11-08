@@ -1,6 +1,6 @@
 # StoneDock — Dark Stone
 
-Version 0.10.2 introduces grouped settings with staged Apply/Revert, dropdown choices, and an active gathering expedition card.
+Version 0.11.0 adds Gulveig Bar as a separate selectable native layout with Celtic artwork, compact centered action rows and separate saved placement.
 
 ## Updating an existing layout
 
@@ -197,3 +197,14 @@ Party/raid rows reserve additional space for tracking-bar trim and the bottom po
 
 ### 0.6.4: Stable native party anchor
 The native PartyFrame layout now records the same top-left groove anchor, cell dimensions and horizontal orientation used by the compact party row. Previously only the compact child was seated there; native parent layout updates could move it back to the old higher anchor during combat. Full creation, dashboard alignment, unit settings and old character-profile restores now agree. Parent layout notifications coalesce into the existing guarded out-of-combat job. No protected positions are changed in combat. Reload outside combat once to migrate the saved native party anchor.
+
+
+## Gulveig Bar - alternate layout
+
+Open **Theme & layout**, choose **Layout > Gulveig Bar**, then **Apply**. The original StoneDock dashboard remains a separate Blizzard layout; choose **StoneDock dashboard** to return. Switching requires leaving combat and Edit Mode. Your selected native layout is detected again at login. Each design keeps separate character/spec unit, aura and tracking placement.
+
+Gulveig Bar uses original Celtic metalwork with green tips around three centered native action rows: **six visible buttons per row**, with smaller top and bottom rows for a stepped silhouette (Blizzard's supported minimum is six). These use native action bars 1, 2 and 3. Existing action assignments and keybindings are preserved; slots beyond the visible counts remain assigned but are not shown in this compact design. Adjust the native bar counts in Edit Mode if you need more visible actions. Bars 4-8 are hidden within this layout.
+
+Player and target frames flank the character, the player's cast bar sits underneath, and the minimap moves to the bottom right. XP and reputation sit beneath the action bank. Chat, bags, the interface menu and the consumable row stay accessible at the lower left. The dashboard's right Command Center card is omitted in this design; its tools remain accessible through `/stonedock`. Existing theme choices continue to style chat and the utility drawers. The ornamental artwork remains visible in Edit Mode.
+
+This first version follows the reference composition and uses native unit frames; it does not replace Blizzard's portrait art or class resource displays. Native frames and artwork need an in-game visual check at your preferred scale.

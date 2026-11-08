@@ -1,7 +1,8 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.10.2"
+SD.name, SD.version = addonName, "0.11.0"
 SD.defaults = {
     enabled = true,
+    layoutVariant = "stone",
     density = 1,
     opacity = 0.94,
     accent = "silver",
@@ -142,6 +143,7 @@ function SD:InitializeDB()
     if not self.colors[db.accent] then db.accent = "silver" end
     self.db = db
     if self.InitializeProfiles then self:InitializeProfiles() end
+    if self.InitializeLayoutVariant then self:InitializeLayoutVariant() end
 end
 
 SD.events = CreateFrame("Frame")

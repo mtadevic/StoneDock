@@ -54,7 +54,7 @@ function SD:FitTrackingBars()
             local previous=self.trackingWidths[frame]
             local width
             if active then
-                local well=i==1 and g.leftWell or g.rightWell
+                local well=g.trackingWell or (i==1 and g.leftWell or g.rightWell)
                 local factor=frame:GetEffectiveScale()/UIParent:GetEffectiveScale()
                 width=(well.w-26)*g.scale/factor
                 if not previous then previous={original=frame:GetWidth()}self.trackingWidths[frame]=previous end
@@ -105,7 +105,7 @@ function SD:PrecisionAlign(bagsOnly)
         for n, spec in ipairs(g.bars) do
             local bar, buttons = nativeBars[n], {}
             if bar and bar.actionButtons then
-                for i = 1, 12 do
+                for i = 1, spec.icons or 12 do
                     if bar.actionButtons[i] then table.insert(buttons, bar.actionButtons[i]) end
                 end
             elseif bar then table.insert(buttons, bar) end
@@ -113,9 +113,9 @@ function SD:PrecisionAlign(bagsOnly)
         end
         -- Native auxiliary frames have invisible padding; align visible icons.
         for _,spec in ipairs({
-            {11,StanceBar,g.leftWell,true,MultiBarBottomLeft,g.bars[2]},
-            {12,PetActionBar,g.rightWell,false,MultiBarRight,g.bars[4]},
-            {13,PossessActionBar,g.rightWell,false,MultiBarRight,g.bars[4]},
+            {11,StanceBar,g.auxLeft or g.leftWell,true,MultiBarBottomLeft,g.bars[2]},
+            {12,PetActionBar,g.auxRight or g.rightWell,false,MultiBarRight,g.bars[4]},
+            {13,PossessActionBar,g.auxRight or g.rightWell,false,MultiBarRight,g.bars[4]},
         }) do
             local frame,well=spec[2],spec[3]
             local buttons={}
@@ -128,7 +128,7 @@ function SD:PrecisionAlign(bagsOnly)
                 local bottom=(well.y+well.h-18*g.density)*g.scale
                 local main=spec[5]
                 local _,_,mainWidth,mainHeight=union(main and (main.actionButtons or {main}) or {})
-                if mainWidth then
+                if mainWidth and spec[6] and not g.variant then
                     edge=spec[6].x*g.scale+(spec[4] and mainWidth/2 or -mainWidth/2)
                     bottom=spec[6].y*g.scale+mainHeight/2+4*g.scale
                 end

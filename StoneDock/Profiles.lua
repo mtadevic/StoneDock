@@ -46,21 +46,24 @@ function SD:CaptureProfile()
     local layout=self:GetActiveLayout()
     local native={}
     for _,info in ipairs(layout and layout.systems or {})do if profileSystem(info)then native[#native+1]=SD.Copy(info) end end
-    if not SD.Equal(self.profile.native,native)then self.profile.native=native end
+    local store,key=self:GetVariantProfileStore()
+    if not SD.Equal(store[key],native)then store[key]=native end
 end
 function SD:ApplyProfileNative()
     if not self.profile then return true end
-    if not self.profile.native or not self:IsOurLayoutActive() then self.profileNeedsRestore=nil return true end
-    self:UpgradeDefaultUnitAnchors(self.profile.native)
+    local store,key=self:GetVariantProfileStore()
+    local native=store[key]
+    if not native or not self:IsOurLayoutActive() then self.profileNeedsRestore=nil return true end
+    self:UpgradeDefaultUnitAnchors(native)
     if self.db.arrangeGroups then
-        local info=self.UnitLayoutHelpers.find({systems=self.profile.native},Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party)
+        local info=self.UnitLayoutHelpers.find({systems=native},Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party)
         self:ConfigureNativeParty(info)
     end
     local full=self:GetFullLayouts() if not full then return false end
     local layout=full.layouts[full.activeLayout]
     local changed=false
     for i,info in ipairs(layout.systems)do
-        for _,saved in ipairs(self.profile.native)do
+        for _,saved in ipairs(native)do
             if info.system==saved.system and info.systemIndex==saved.systemIndex then
                 if not SD.Equal(info,saved)then layout.systems[i]=SD.Copy(saved)changed=true end
                 break
@@ -104,6 +107,7 @@ function SD:RestoreSnapshotData(snapshot)
     if self:IsBusy() or not snapshot then return false end
     -- Only restore our active native layout; no other named layout is edited.
     if snapshot.layout and not self:IsOurLayoutActive() then SD.Print("Activate StoneDock before restoring its native layout.") return false end
+    if snapshot.layout and snapshot.layout.layoutName~=self.layoutName then SD.Print("Select the snapshot’s layout before restoring it.") return false end
     self.profileSwitching=true
     local ok=true
     if snapshot.layout then

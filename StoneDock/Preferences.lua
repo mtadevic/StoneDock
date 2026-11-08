@@ -8,6 +8,7 @@ local function section(title, controls) return {title=title,controls=controls} e
 local schemas = {
     appearance = {title="Theme & layout", description="Choose the look and spacing of your dashboard.", sections={
         section("Appearance",{
+            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"}}),
             selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"},{"kintsugi","Onyx Kintsugi"}}),
             selectOption("accent","Accent color",{{"silver","Silver"},{"violet","Violet"},{"green","Moss"},{"bronze","Bronze"}}),
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),
@@ -118,7 +119,9 @@ function SD:ApplyPreferences(key)
         changed[id] = true
         write(field, value)
     end
+    local oldLayoutName=self.layoutName
     local ok, failure = pcall(function()
+        if changed.layoutVariant and not self:ActivateLayoutVariant(self.db.layoutVariant) then error("Could not activate the selected layout.") end
         if self:IsOurLayoutActive() then
             local layoutChanges = changed.density or changed.barOffsetX or changed.barOffsetY or changed.barWidth or changed.barSpread
             if layoutChanges and not self:AlignLayout(self.db.nativeGeometry or previous) then error("Could not save layout placement.") end
@@ -160,6 +163,7 @@ function SD:ApplyPreferences(key)
         self:RefreshUtilityButtons(true)
     end)
     if not ok then
+        self.layoutName=oldLayoutName
         for id, old in pairs(originals) do write(draft.fields[id],old.value) end
         if itemBackup then self.db.itemRules=itemBackup.rules self.db.itemOverrides=itemBackup.pins self.db.preferredHearth=itemBackup.hearth end
         if nativeBackup then
