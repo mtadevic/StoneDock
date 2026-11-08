@@ -1,7 +1,7 @@
 local _, SD = ...
 SD.moduleDefinitions={
- {key="enabled",label="Dashboard & stone panels",description="Master visibility for the dock, Field Notes, item row and optional HUD."},
- {key="showInfo",label="Field Notes",description="Clickable status information on the right panel."},
+ {key="enabled",label="Dashboard & stone panels",description="Master visibility for the dock, Command Center, item row and optional HUD."},
+ {key="showInfo",label="Command Center",description="Clickable status information on the right panel."},
  {key="showHUD",label="Curved health/resource HUD",description="The optional curved player display."},
  {key="showUtility",label="Trinkets & consumable row",description="Secure item buttons and their flyouts."},
  {key="stoneUnits",label="Unit-frame stone trim",description="Decorative edges on native group frames."},
@@ -19,8 +19,8 @@ SD.moduleDefinitions={
  {key="readiness",flag=true,label="Readiness checklist",description="Gear, bags and consumable preparation."},
  {key="waypoints",flag=true,label="Waypoint desk",description="Coordinates, saved locations and native navigation."},
  {key="quests",flag=true,label="Quest notebook",description="Tracked quests, objectives and map shortcuts."},
- {key="gatheringEnabled",label="Gathering & fishing",description="Track catches and materials in Field Notes."},
- {key="notesCustomize",flag=true,label="Field Notes customization",description="Choose visible information and click actions."},
+ {key="gatheringEnabled",label="Gathering & fishing",description="Track catches and materials in Command Center."},
+ {key="notesCustomize",flag=true,label="Command Center customization",description="Choose visible information and click actions."},
 }
 function SD:IsModuleEnabled(key)
     return self.db and (not self.db.moduleFlags or self.db.moduleFlags[key]~=false)

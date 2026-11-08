@@ -37,32 +37,26 @@ function SD:UpdateInfo()
     local step=math.min(17,math.max(12,(g.right.h-34-(g.utilityY+20.4+8))/4))
     local gathering, last, hint = self:GetGatheringNotes()
     if not gathering or not self.db.showInfo then
-        if self.expeditionCard then self.expeditionCard:Hide() end
-        if self.panels.right.caption then self.panels.right.caption:SetText("FIELD NOTES") end
+        if self.expeditionCard and not self.db.showInfo then self.expeditionCard:Hide() end
+        if self.panels.right.caption then self.panels.right.caption:SetText("COMMAND CENTER") end
     end
     local specs,signature={},{}
-    local row,column=0,0
-    if self:IsNoteRowEnabled("zone")then specs.zone={0,0,308}signature[#signature+1]="zone"row=1 end
-    for _,key in ipairs({"bags","durability","money","clock","performance","profile"})do
-        if self:IsNoteRowEnabled(key)then
-            specs[key]={column*158,row,150}signature[#signature+1]=key
-            column=column+1 if column==2 then column=0 row=row+1 end
-        end
-    end
-    if gathering then
-        specs = {}
-        signature = {"gathering"}
+    for i,key in ipairs({"durability","money","clock","performance"}) do
+        if self:IsNoteRowEnabled(key) then specs[key]={((i-1)%2)*158,math.floor((i-1)/2),150} signature[#signature+1]=key end
     end
     local layoutKey=tostring(step)..":"..tostring(self.db.showInfo)..":"..table.concat(signature,",")
     if self.noteLayoutKey~=layoutKey then
         for _,button in pairs(self.noteButtons)do button:Hide()end
         for key,pos in pairs(specs)do
-            local b=self.noteButtons[key]b:ClearAllPoints()b:SetPoint("TOPLEFT",self.panels.right,"TOPLEFT",18+pos[1],-34-pos[2]*step)
+            local b=self.noteButtons[key]b:ClearAllPoints()b:SetPoint("TOPLEFT",self.panels.right,"TOPLEFT",18+pos[1],-38-pos[2]*17)
             b:SetSize(pos[3],step)b:SetShown(self.db.showInfo)
         end
         self.noteLayoutKey=layoutKey
     end
-    if not self.db.showInfo then return end
+    if not self.db.showInfo then
+        if self.commandStatus then self.commandStatus:Hide() self.commandMenuButton:Hide() self.commandExpeditionButton:Hide() end
+        return
+    end
     local n=self.noteButtons
     local zone=GetZoneText() or "Azeroth"
     local sub=GetSubZoneText and GetSubZoneText() or ""
@@ -87,11 +81,6 @@ function SD:UpdateInfo()
     else free,total=self.noteInventory[1],self.noteInventory[2] end
     n.bags.label:SetText(string.format("Bags: %d free / %d",free,total))
     n.bags.details={string.format("%d used of %d ordinary-bag slots",total-free,total),"Specialty bag capacity is excluded.","Click to toggle all bags."}
-    if gathering then
-        for _, button in pairs(self.noteButtons) do button:Hide() end
-        self:UpdateExpeditionCard(n.bags.label:GetText())
-        return
-    end
     local lowest,damaged,pieces
     if not self.noteDurability or self.noteDurabilityDirty then
     lowest,damaged,pieces=100,0,0
@@ -119,9 +108,48 @@ function SD:UpdateInfo()
     n.performance.details={"Home latency: "..tostring(home).." ms","World latency: "..tostring(world).." ms","Click to open diagnostics."}
     local specName=self.itemSpecName or "Current spec"
     n.profile.label:SetText(specName.." | Profile") n.profile.details={"Per-character / per-spec preferences.","Click for profiles, snapshots and export."}
+    self:RefreshCommandCenter()
+    self:UpdateExpeditionCard(n.bags.label:GetText())
 end
 
 SD:On("BAG_UPDATE_DELAYED",function()SD.noteInventoryDirty=true end)
 SD:On("PLAYER_EQUIPMENT_CHANGED",function()SD.noteDurabilityDirty=true end)
 SD:On("UPDATE_INVENTORY_DURABILITY",function()SD.noteDurabilityDirty=true end)
 SD:On("PLAYER_ENTERING_WORLD",function()SD.noteInventoryDirty=true SD.noteDurabilityDirty=true end)
+
+function SD:RefreshCommandCenter()
+    local parent=self.panels.right
+    if not self.commandStatus then
+        self.commandStatus=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+        self.commandStatus:SetFrameLevel(parent:GetFrameLevel()+3)
+        local function button(caption,x,width,action)
+            local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate,BackdropTemplate")
+            b:SetFrameLevel(parent:GetFrameLevel()+5) b:SetPoint("TOPLEFT",x,-76) b:SetSize(width,22) b:SetText(caption)
+            b:SetScript("OnClick",function() if InCombatLockdown() then SD.Print("Open Command Center controls after combat.") return end SD:Run(caption,action) end)
+            return b
+        end
+        self.commandExpeditionButton=button("Expedition",12,153,function()SD:OpenSettingsTab("gathering")end)
+        self.commandMenuButton=button("Command menu",171,153,function()
+            local menu=SD.commandMenu
+            if menu and menu:IsShown() then menu:Hide() return end
+            local create,H=SD:WindowBuilder("commandMenu")
+            menu=create("Frame",nil,UIParent,"BackdropTemplate") SD.commandMenu=menu
+            menu:SetSize(270,320) menu:SetPoint("BOTTOMRIGHT",SD.commandMenuButton,"TOPRIGHT",0,8)
+            menu:SetFrameStrata("DIALOG") menu:SetClampedToScreen(true) SD:StyleCard(menu,true)
+            H.text(menu,"COMMAND CENTER",15,14,-14,240):SetTextColor(SD:CardAccent())
+            for i,entry in ipairs({{"gathering","Expedition & fishing"},{"readiness","Readiness"},{"session","Session statistics"},{"waypoints","Saved locations"},{"quests","Quest notebook"},{"profiles","Profiles & backups"},{"master","Settings"}}) do
+                H.button(menu,entry[2],12,-43-(i-1)*38,246,function()menu:Hide() SD:OpenSettingsTab(entry[1])end)
+            end
+        end)
+    end
+    self.commandStatus:ClearAllPoints() self.commandStatus:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-28)
+    self.commandStatus:SetSize(self.geometry.right.w-24,42) self:StyleCard(self.commandStatus,false) self.commandStatus:Show()
+    self.commandMenuButton:Show() self.commandExpeditionButton:Show()
+    self:StyleAction(self.commandMenuButton) self:StyleAction(self.commandExpeditionButton)
+    parent.caption:SetText("COMMAND CENTER")
+end
+SD:On("PLAYER_REGEN_DISABLED",function()if SD.commandMenu then SD.commandMenu:Hide()end end)
+SD:On("GLOBAL_MOUSE_DOWN",function(button)
+    local menu=SD.commandMenu
+    if button=="LeftButton" and menu and menu:IsShown() and MouseIsOver and not MouseIsOver(menu) and not MouseIsOver(SD.commandMenuButton) then menu:Hide() end
+end)

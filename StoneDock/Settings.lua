@@ -17,7 +17,7 @@ local tabs={
     {"hud","Curved health HUD","hudPanel"},
     {"units","Player, party & raid","unitOptions"},
     {"rivets","Corner shortcuts","rivetMenu"},
-    {"notesCustomize","Field Notes","notesCustomizePanel"},
+    {"notesCustomize","Command Center","notesCustomizePanel"},
     {"items","Consumables & travel","itemPicker","Gameplay"},
     {"gathering","Gathering & fishing","gatheringPanel"},
     {"readiness","Readiness checklist","readinessPanel"},
@@ -110,7 +110,7 @@ function SD:BuildRivetSettings(key,anchor)
         local H=self.ControlHelpers
         H.text(f,"RIVET ACTIONS",20,20,-20,640)
         H.text(f,"Select a corner rivet, then assign its action below.",12,20,-56,640)
-        local panels={{"left","Conversation"},{"right","Field Notes"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}
+        local panels={{"left","Conversation"},{"right","Command Center"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}
         for row,spec in ipairs(panels)do for i=1,2 do
             local id=spec[1]..i
             H.button(f,spec[2]..(i==1 and " - left"or " - right"),20+(i-1)*315,-80-(row-1)*34,300,function()SD:OpenSettingsTab("rivets",id,SD.rivetControls and SD.rivetControls[id])end)

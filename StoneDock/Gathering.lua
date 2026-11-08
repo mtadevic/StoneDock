@@ -66,7 +66,7 @@ end
 
 local function updateBinding(state)
     if not state.owner or InCombatLockdown() then return end
-    local action = state.active and state.mode == "fishing" and state.key ~= "" and "cast" or nil
+    local action = state.active and not state.paused and state.mode == "fishing" and state.key ~= "" and "cast" or nil
     if action and state.loot then action = "loot"
     elseif action and state.channel then
         action = state.inReach and "reel" or nil
@@ -255,11 +255,10 @@ function SD:StartOreRoute(id)
         for i = 2, #remaining do
             if distance(here, remaining[i]) < distance(here, nearest) then nearest = remaining[i] end
         end
-        if self:SetWaypoint(nearest.map, nearest.x, nearest.y) then
-            if self:StartGathering("fishing") then
-                self.gathering.targetID = id
-                self.gathering.destination = here.name
-            end
+        if self:StartGathering("fishing") and self:SetWaypoint(nearest.map, nearest.x, nearest.y) then
+            self.gathering.targetID = id
+            self.gathering.destination = here.name
+            self.gathering.waypoint={map=nearest.map,x=nearest.x,y=nearest.y}
             self:StopOreRoute()
             self:UpdateInfo()
             SD.Print(ores[id] .. ": Waypoint set to a reported catch location.")
@@ -267,15 +266,10 @@ function SD:StartOreRoute(id)
         end
         return
     end
-    local route = {id=id, index=0, points={}}
-    while #remaining > 0 and #route.points < 24 do
-        local nearest = 1
-        for i = 2, #remaining do
-            if distance(here, remaining[i]) < distance(here, remaining[nearest]) then nearest = i end
-        end
-        here = table.remove(remaining, nearest)
-        route.points[#route.points+1] = here
-    end
+    local centers,measured=self:PlanGatheringRoute(remaining,here)
+    local route = {id=id,index=0,points=centers,arrivalRadius=100}
+    if #centers==0 then return end
+    if not measured then SD.Print("Map scale is unavailable here; exact 100-yard arrival detection cannot be used.") end
     if not (self.gathering and self.gathering.active and self.gathering.mode == "materials") then
         if not self:StartGathering("materials") then return end
     end
@@ -291,14 +285,17 @@ function SD:StartOreRoute(id)
     end
 end
 
-function SD:AdvanceOreRoute()
+function SD:AdvanceOreRoute(nextIndex)
     local route = self.oreRoute
     if not route then return false end
-    local nextIndex = route.index % #route.points + 1
+    local previousIndex=route.index
+    nextIndex=nextIndex or route.index % #route.points + 1
     local point = route.points[nextIndex]
     if not self:SetWaypoint(point.map, point.x, point.y) then return false end
     route.index = nextIndex
-    if nextIndex==1 then route.laps=(route.laps or -1)+1 end
+    route.ownedWaypoint={map=point.map,x=point.x,y=point.y}
+    route.arrived=nil
+    if previousIndex==0 then route.laps=0 elseif nextIndex<=previousIndex then route.laps=(route.laps or 0)+1 end
     self:UpdateInfo()
     if self.RefreshExpeditionStatus then self:RefreshExpeditionStatus() end
     return true
@@ -306,15 +303,53 @@ end
 
 function SD:CheckOreRouteArrival()
     local route = self.oreRoute
-    if not route or self:IsBusy() then return end
+    if not route or self:IsBusy() or (self.gathering and self.gathering.paused) then return end
     local point = route.points[route.index]
     local here = self:GetCurrentLocation()
-    if point and here and here.map == point.map and distance(here, point) <= 0.25^2 then
-        if not self:AdvanceOreRoute() then self:StopOreRoute() end
+    local yards=self:GatheringDistanceYards(here,point)
+    if yards and (yards<=100 or route.arrived) then
+        local nextIndex=route.index%#route.points+1
+        -- Skip centers already covered by the same 100-yard arrival circle.
+        -- If the entire loop is nearby, hold instead of spinning through laps.
+        for _=1,#route.points do
+            local nextDistance=self:GatheringDistanceYards(here,route.points[nextIndex])
+            if not nextDistance or nextDistance>100 then
+                self:AdvanceOreRoute(nextIndex)
+                return
+            end
+            nextIndex=nextIndex%#route.points+1
+        end
+        if not route.arrived then
+            self:ClearExpeditionWaypoint(route.ownedWaypoint)
+            route.arrived=true self:UpdateInfo() self:RefreshExpeditionStatus()
+        end
+    end
+end
+
+function SD:ClearExpeditionWaypoint(point)
+    if not point then return end
+    if InCombatLockdown() then
+        self.pendingExpeditionPins=self.pendingExpeditionPins or {}
+        if #self.pendingExpeditionPins<2 then self.pendingExpeditionPins[#self.pendingExpeditionPins+1]=point end
+        return
+    end
+    if not C_Map or not C_Map.ClearUserWaypoint then return end
+    local current
+    if C_Map.GetUserWaypoint then
+        local pin=C_Map.GetUserWaypoint()
+        if pin and pin.position then
+            local x,y=pin.position:GetXY()
+            if readable(x) and readable(y) then current={map=pin.uiMapID,x=x*100,y=y*100} end
+        end
+    else current=self.lastWaypoint end
+    if current and current.map==point.map and distance(current,point)<.0001 then
+        C_Map.ClearUserWaypoint()
+        self.lastWaypoint=nil
     end
 end
 
 function SD:StopOreRoute()
+    if self.oreRoute then self:ClearExpeditionWaypoint(self.oreRoute.ownedWaypoint) end
     self.oreRoute = nil
     if self.oreRouteTicker then
         self.oreRouteTicker:Cancel()
@@ -324,7 +359,7 @@ end
 
 local function onEvent(_, event, unit, target, spell)
     local state = SD.gathering
-    if not state.active then return end
+    if not state.active or state.paused then return end
     if event == "LOOT_READY" or event == "LOOT_OPENED" then
         if state.loot then return end
         state.loot = lootMatches(state) and true or nil
@@ -403,6 +438,7 @@ function SD:StopGathering()
     local state = self.gathering
     if not state or not state.active then return end
     state.active = false
+    self:ClearExpeditionWaypoint(state.waypoint)
     self:StopOreRoute()
     state.events:UnregisterAllEvents()
     if state.mode == "fishing" then setFishingReach(false) end
@@ -448,7 +484,7 @@ function SD:StartGathering(mode, automatic)
             local loot = CreateFrame("Button", "StoneDockFishingLoot", UIParent)
             loot:RegisterForClicks("AnyDown")
             loot:SetScript("OnClick", function()
-                if InCombatLockdown() or not SD.gathering.active or not SD.gathering.loot then return end
+                if InCombatLockdown() or not SD.gathering.active or SD.gathering.paused or not SD.gathering.loot then return end
                 for slot = GetNumLootItems(), 1, -1 do LootSlot(slot) end
             end)
         end
@@ -464,20 +500,38 @@ function SD:StartGathering(mode, automatic)
     return true
 end
 
+-- Session identity and route progress survive temporary loss of fishing controls.
+function SD:RefreshExpeditionPause()
+    local state=self.gathering
+    if not state or not state.active then return end
+    local reason=InCombatLockdown() and "Combat" or self.gatheringTravel and "Changing zones"
+        or (state.mode=="fishing" and not poleEquipped() and "Equip a fishing pole") or nil
+    if reason and not state.paused then
+        state.channel,state.inReach,state.loot,state.slots,state.gatheredAt=nil,nil,nil,nil,nil
+    end
+    state.paused=reason
+    if state.mode=="fishing" then setFishingReach(not reason) end
+    refresh(state)
+end
+
 function SD:UpdatePoleFishing()
     if not self.db or InCombatLockdown() then return end
-    local equipped = poleEquipped()
-    if not equipped then self.fishingAutoPaused = nil end
-    local state = self.gathering
+    local equipped=poleEquipped()
+    if not equipped then self.fishingAutoPaused=nil end
+    local state=self.gathering
     if state and state.active then
-        if state.automatic and not equipped then self:StopGathering()
-        elseif equipped and state.mode~="fishing" and self.db.enabled and self.db.gatheringEnabled and not self.fishingAutoPaused then
+        -- An explicit resource expedition keeps its target and route on weapon swaps.
+        if equipped and state.mode~="fishing" and not state.targetID
+            and self.db.enabled and self.db.gatheringEnabled and not self.fishingAutoPaused then
+            local count,last=state.count,state.last
             self:StartGathering("fishing",true)
+            self.gathering.count,self.gathering.last=count,last
         end
+        self:RefreshExpeditionPause()
         return
     end
     if equipped and self.db.enabled and self.db.gatheringEnabled and not self.fishingAutoPaused then
-        self:StartGathering("fishing", true)
+        self:StartGathering("fishing",true)
     end
 end
 
@@ -489,9 +543,9 @@ function SD:GetExpeditionDetails()
     end
     local resource = state.targetID and ores[state.targetID]
     local location = state.destination or (GetZoneText and GetZoneText()) or "Current zone"
-    local progress = route and string.format("Stop %d of %d  /  Lap %d",route.index,#route.points,(route.laps or 0)+1)
-    return {active=true,title=resource or modes[state.mode],status="EXPEDITION ACTIVE",
-        detail=progress or (state.mode=="fishing" and "Fishing session" or "Gathering session"),
+    local progress = route and (route.arrived and "Hotspot reached - search nearby" or string.format("Area %d of %d  /  Lap %d",route.index,#route.points,(route.laps or 0)+1))
+    return {active=true,paused=state.paused,title=resource or modes[state.mode],status=state.paused and ("EXPEDITION PAUSED - "..state.paused) or "EXPEDITION ACTIVE",
+        detail=state.paused or progress or (state.mode=="fishing" and "Fishing session" or "Gathering session"),
         destination=location,count=string.format("%d items collected",state.count),
         last=state.last and ("Last find: "..state.last) or "Waiting for the first find",
         progress=route and route.index/#route.points or 0}
@@ -593,15 +647,17 @@ function SD:BuildGatheringPanel()
     return page
 end
 
-SD:On("PLAYER_REGEN_DISABLED", function() SD:StopGathering() end)
+SD:On("PLAYER_REGEN_DISABLED", function() SD:RefreshExpeditionPause() end)
 SD:On("PLAYER_REGEN_ENABLED", function()
-    if SD.gathering then updateBinding(SD.gathering) end
-    setFishingReach(false)
+    local pending=SD.pendingExpeditionPins SD.pendingExpeditionPins=nil
+    for _,point in ipairs(pending or {}) do SD:ClearExpeditionWaypoint(point) end
+    if not (SD.gathering and SD.gathering.active) then setFishingReach(false) end
     SD:UpdatePoleFishing()
 end)
-SD:On("PLAYER_LEAVING_WORLD", function() SD:StopGathering() end)
+SD:On("PLAYER_LEAVING_WORLD", function() SD.gatheringTravel=true SD:RefreshExpeditionPause() end)
 
 SD:On("PLAYER_ENTERING_WORLD", function()
+    SD.gatheringTravel=nil
     if not (SD.gathering and SD.gathering.active) then setFishingReach(false) end
     SD:UpdatePoleFishing()
 end)
@@ -620,7 +676,7 @@ SD:On("UPDATE_BINDINGS",function()
     local ok,err=pcall(function()
         if SD:StartGathering("fishing",state.automatic) then
             for _,key in ipairs({"count","last","targetID","destination","channel","inReach","loot","slots"}) do SD.gathering[key]=state[key] end
-            refresh(SD.gathering)
+            SD:RefreshExpeditionPause()
         end
     end)
     SD.fishingRebinding=nil

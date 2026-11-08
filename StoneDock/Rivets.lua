@@ -2,11 +2,11 @@ local _, SD = ...
 local actions={
     {"options","Open appearance settings"},{"units","Open unit / raid settings"},
     {"advanced","Open position / fading settings"},{"hud","Toggle curved health HUD"},
-    {"fade","Toggle out-of-combat dashboard fading"},{"info","Toggle Field Notes information"},
+    {"fade","Toggle out-of-combat dashboard fading"},{"info","Toggle Command Center information"},
     {"utility","Toggle trinket / consumable row"},{"preview","Toggle party preview"},
     {"labels","Toggle stone panel captions"},{"gathering","Open gathering settings"},{"none","No action"},
 }
-local names={left="Conversation",right="Field Notes",map="Map",leftWell="Left action bars",rightWell="Right action bars"}
+local names={left="Conversation",right="Command Center",map="Map",leftWell="Left action bars",rightWell="Right action bars"}
 local defaults={left={"options","fade"},right={"utility","info"},map={"units","hud"},leftWell={"advanced","preview"},rightWell={"advanced","preview"}}
 SD.rivetActionOptions, SD.rivetActionDefaults = actions, defaults
 local function caption(id)

@@ -335,11 +335,11 @@ function SD:PreferenceSchema(key)
             action.write=function(value) SD.db.noteActions[entry[1]]=value end
             groups[#groups+1]=section(entry[2],{row,action})
         end
-        return {title="Field Notes",description="Choose visible rows and their shortcuts. An expedition card appears here while gathering.",sections=groups}
+        return {title="Command Center",description="Choose visible rows and their shortcuts. An expedition card appears here while gathering.",sections=groups}
     end
     if key=="rivets" then
         local controls={}
-        for _, panel in ipairs({{"left","Conversation"},{"right","Field Notes"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}) do
+        for _, panel in ipairs({{"left","Conversation"},{"right","Command Center"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}) do
             for index=1,2 do
                 local id=panel[1]..index
                 local field=selectOption(id,panel[2]..(index==1 and " / left" or " / right"),self.rivetActionOptions)

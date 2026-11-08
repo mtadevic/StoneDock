@@ -1,4 +1,4 @@
-# StoneDock 0.9.4 — friends and family preview
+# StoneDock 0.10.0 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
@@ -16,7 +16,7 @@ This is a preview, not a public compatibility claim. Before wider distribution, 
 
 Settings use left-hand navigation, grouped controls, and dropdowns for choices such as theme, activity and resource. Selections stay pending until you choose **Apply** at the bottom. **Revert edits** discards changes on the current page. Pending edits remain when switching pages within the session; they are not saved through a reload. Actions such as starting an expedition or restoring a snapshot run when clicked.
 
-For gathering, choose **Gathering & fishing**, enable it, choose an activity and resource, then **Apply** and **Start expedition**. The green active card identifies your target and destination. Field Notes becomes an expedition card with collection count, route progress and **Next stop**, **Expedition**, and **End** controls. Ending a session restores the normal Field Notes rows. Fishing can also start automatically when you equip a pole.
+For gathering, choose **Gathering & fishing**, enable it, choose an activity and resource, then **Apply** and **Start expedition**. The green active card identifies your target and destination. Command Center becomes an expedition card with collection count, route progress and **Next stop**, **Expedition**, and **End** controls. Ending a session returns the card to its ready state and clears its navigation pin. Fishing can also start automatically when you equip a pole.
 
 ## Card-style tools and blocked-action reports
 
@@ -24,8 +24,16 @@ Session, readiness, saved locations, quests, profiles and settings share the exp
 
 If the game reports a blocked interface action, use `/stonedock report`. StoneDock now records the addon named by the client, attempted function, combat state, time and available call context. The most recent eight distinct records are kept; consecutive repeats are counted together. Records may identify another addon and do not prove that StoneDock caused the problem. Actions that happened before this version cannot be reconstructed.
 
-With Gathering enabled, equipping a fishing pole switches an active materials session into Fishing Mode. Both keys assigned to Blizzard's Interact action cast Fishing while idle; a selected additional fishing key works alongside them. While channeling, Interact returns to its native behavior for the bobber. Unequipping the pole ends an automatically started session. Combat changes remain deferred. Keybinding changes retain session catches and update the temporary shortcuts without changing your saved WoW bindings.
+With Gathering enabled, equipping a fishing pole switches a general materials session into Fishing Mode; an explicit resource expedition keeps its target and route. Both keys assigned to Blizzard's Interact action cast Fishing while idle; a selected additional fishing key works alongside them. While channeling, Interact returns to its native behavior for the bobber. Unequipping the pole pauses fishing controls while retaining your expedition, catches and target. Combat changes remain deferred. Keybinding changes retain session catches and update the temporary shortcuts without changing your saved WoW bindings.
 
 ## Onyx Kintsugi theme
 
 Choose **Theme & layout > Theme > Onyx Kintsugi**, then **Apply**. Satin-black onyx carries fine bronze-gold repaired seams, warm rivets, and matching card headings and borders. Selecting it also stages the Bronze accent; you can choose another accent before applying. Existing themes remain available and your chosen theme persists through reloads.
+
+## Command Center and hotspot routes
+
+The right panel is now Command Center. Its bordered top strip keeps durability, gold, local time and FPS/latency visible. Use **Expedition** for gathering setup or **Command menu** for readiness, session statistics, saved locations, quests, profiles and settings. Buttons sit above the item bars, and the expedition card remains visible below them.
+
+Combat, weapon changes and zone transitions pause an expedition instead of ending it. Target, counts, route order and current area are retained. Fishing controls resume when safe and a pole is equipped. Use **End** to finish; only the expedition's own current pin is removed, preserving a replacement waypoint you set yourself.
+
+Routes group nearby spawn reports within a 125-yard seed radius and mark their center as a gathering hotspot. Planning selects up to 24 nearby areas, favors your initial facing direction, and smooths crossing detours and sharp reversals. Entering a 100-yard radius advances to the next area; if all remaining centers are already nearby, the card indicates that you should search the current area rather than cycling pins in place. These are node-based loops, not terrain-aware pathfinding.

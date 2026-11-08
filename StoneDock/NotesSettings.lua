@@ -1,5 +1,5 @@
 local _, SD = ...
-SD.noteRowDefinitions={{"zone","Location"},{"bags","Bag space"},{"durability","Durability"},{"money","Gold"},{"clock","Clock"},{"performance","FPS / latency"},{"profile","Spec / profile"}}
+SD.noteRowDefinitions={{"durability","Durability"},{"money","Gold"},{"clock","Clock"},{"performance","FPS / latency"}}
 SD.noteActionDefinitions={{"default","Default action"},{"none","No click action"},{"map","World map"},{"bags","Inventory"},{"equipment","Equipment"},{"currency","Currencies"},{"calendar","Calendar"},{"diagnostics","Diagnostics"},{"profiles","Profiles & backups"},{"session","Session tracker"},{"readiness","Readiness checklist"},{"waypoints","Waypoint desk"},{"quests","Quest notebook"},{"settings","Master Modules"}}
 function SD:IsNoteRowEnabled(key)
     return not self:IsModuleEnabled("notesCustomize")or self.db.noteRows[key]~=false
@@ -26,8 +26,8 @@ end
 function SD:BuildNotesPanel()
     local CreateFrame,H=self:WindowBuilder("notesCustomizePanel")
     local f=CreateFrame("Frame",nil,UIParent)self.notesCustomizePanel=f f:SetSize(690,700)
-    H.text(f,"CUSTOMIZE FIELD NOTES",22,22,-22,640)
-    H.text(f,"Choose which rows appear above the item drawers. Click an action button to cycle its shortcut. Right-click any Field Notes row to return here. Hidden rows compact automatically.",12,22,-62,640)
+    H.text(f,"CUSTOMIZE COMMAND CENTER",22,22,-22,640)
+    H.text(f,"Choose which rows appear above the item drawers. Click an action button to cycle its shortcut. Right-click any Command Center row to return here. Hidden rows compact automatically.",12,22,-62,640)
     f.checks={}f.actions={}
     for i,entry in ipairs(self.noteRowDefinitions)do
         local key,title=entry[1],entry[2]local y=-130-(i-1)*60
@@ -42,6 +42,6 @@ function SD:BuildNotesPanel()
         end)
         f.checks[key]=b f.actions[key]=action
     end
-    H.button(f,"Restore Field Notes defaults",22,-590,620,function()SD.db.noteRows={}SD.db.noteActions={}SD.noteLayoutKey=nil SD:UpdateInfo()SD:OpenSettingsTab("notesCustomize")end)
+    H.button(f,"Restore Command Center defaults",22,-590,620,function()SD.db.noteRows={}SD.db.noteActions={}SD.noteLayoutKey=nil SD:UpdateInfo()SD:OpenSettingsTab("notesCustomize")end)
     return f
 end

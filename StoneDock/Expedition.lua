@@ -63,26 +63,28 @@ function SD:UpdateExpeditionCard(bagText)
             SD:StopGathering()
         end)
     end
-    local visible=details.active and self.db.showInfo
+    local visible=self.db.showInfo
     card:SetShown(visible)
     if not visible then return end
     local g=self.geometry or self:GetGeometry()
-    local height=math.max(65,math.min(100,g.right.h-28-g.utilityY-20.4-8))
-    self:StyleCard(card,true)
+    local height=math.max(65,math.min(100,g.right.h-106-g.utilityY-20.4-8))
+    self:StyleCard(card,details.active)
     card:ClearAllPoints()
-    card:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-28)
+    card:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-106)
     card:SetSize(g.right.w-24,height)
-    local fishing=self.gathering.mode=="fishing"
-    local icon=self.gathering.targetID and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(self.gathering.targetID)
+    local state=self.gathering or {}
+    local fishing=state.mode=="fishing"
+    local icon=state.targetID and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(state.targetID)
     card.icon:SetTexture(icon or (fishing and "Interface\\Icons\\Trade_Fishing" or "Interface\\Icons\\Trade_Mining"))
     card.title:SetText(details.title)
     card.title:SetTextColor(self:CardAccent())
-    card.detail:SetText((self.oreRoute and details.detail) or details.destination or details.detail)
-    card.count:SetText(details.count.."  |  "..(bagText or ""))
-    card.track:SetShown(height>=76)
-    card.progress:SetShown(height>=76)
+    card.detail:SetText(details.paused or (self.oreRoute and details.detail) or details.destination or (details.active and details.detail or "Choose Expedition to plan your next trip."))
+    card.count:SetText(details.active and (details.count.."  |  "..(bagText or "")) or (bagText or ""))
+    card.track:SetShown(details.active and height>=76)
+    card.progress:SetShown(details.active and height>=76)
     card.progress:SetColorTexture(self:CardAccent())
     card.progress:SetWidth(math.max(1,(g.right.w-44)*(details.progress or 0)))
-    card.skip:SetShown(self.oreRoute~=nil or self.gathering.targetID~=nil)
-    if parent.caption then parent.caption:SetText("EXPEDITION") end
+    card.stop:SetShown(details.active)
+    card.skip:SetShown(details.active and (self.oreRoute~=nil or state.targetID~=nil))
+    if parent.caption then parent.caption:SetText("COMMAND CENTER") end
 end
