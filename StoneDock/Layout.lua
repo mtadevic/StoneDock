@@ -139,11 +139,11 @@ function SD:UpgradeDefaultUnitAnchors(systems, g)
 end
 
 local function geometryStamp(g)
-    return {width=g.width, height=g.height, scale=g.scale, density=g.density, trackingAtWells=true}
+    return {width=g.width, height=g.height, scale=g.scale, density=g.density, revision=g.revision, trackingAtWells=true}
 end
 
 local function sameGeometry(a, b)
-    return a and a.width == b.width and a.height == b.height and a.density == b.density
+    return a and a.width == b.width and a.height == b.height and a.density == b.density and (a.revision or 0)==(b.revision or 0)
 end
 
 function SD:NeedsGeometryAlignment()

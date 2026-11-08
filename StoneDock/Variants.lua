@@ -56,22 +56,23 @@ function SD:GetGulveigGeometry(width,height,rise)
     local scale=width/1920
     local dx,dy=self.db.barOffsetX,self.db.barOffsetY
     local stretch=self.db.barWidth/100
+    local compact=.8
     local function r(x,y,w,h)return {x=x,y=y*rise,w=w,h=h*rise}end
     return {
-        variant="gulveig",width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
+        variant="gulveig",revision=2,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
         base=r(0,0,1920,1),left=r(20,90,420,160),right=r(1440,300,440,160),
         leftWell=r(40,250,440,20),rightWell=r(1440,250,440,20),
         map=r(1640,22,250,260),chat=r(30,100,400,135),
         menuDrawer=r(25,4,410,38),bagDrawer=r(25,47,410,36),utilityY=260*rise,
         bars={
-            {index=1,x=960+dx,y=(241+dy)*rise,icons=6,iconSize=58*stretch*rise},
-            {index=2,x=960+dx,y=(156+dy)*rise,icons=6,iconSize=70*stretch*rise},
-            {index=3,x=960+dx,y=(75+dy)*rise,icons=6,iconSize=58*stretch*rise},
+            {index=1,x=960+dx,y=(24+(241-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
+            {index=2,x=960+dx,y=(24+(156-24)*compact+dy)*rise,icons=6,iconSize=70*compact*stretch*rise},
+            {index=3,x=960+dx,y=(24+(75-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
         },
-        ornament=r(510+dx,24+dy,900*stretch,270),
-        trackingWell=r(480,-100,960,115),
-        auxLeft=r(550+dx,300+dy,390,20),auxRight=r(980+dx,300+dy,390,20),
-        player={x=210,y=400*rise},target={x=1710,y=400*rise},
+        ornament=r(510+dx,24+dy,900*compact*stretch,270*compact),
+        trackingWell=r(576,-100,768,115),
+        auxLeft=r(770+dx,258+dy,180,20),auxRight=r(970+dx,258+dy,180,20),
+        player={x=580,y=345*rise},target={x=1340,y=345*rise},
         cast={x=-540,y=370*rise},party={x=40,y=300*rise},raid={x=40,y=370*rise},
     }
 end
@@ -104,9 +105,29 @@ end
 
 function SD:RefreshVariantArt(g)
     local gulveig=g.variant=="gulveig"
-    for _,key in ipairs({"base","leftWell","rightWell","map","right"}) do
+    for _,key in ipairs({"base","leftWell","rightWell","map","right","menuDrawer","bagDrawer"}) do
         self.panels[key]:SetShown(not gulveig)
     end
+    local chat=self.panels.left
+    if not self.gulveigChatTrim then
+        self.gulveigChatTrim=chat:CreateTexture(nil,"OVERLAY")
+        self.gulveigChatTrim:SetAllPoints()
+        self.gulveigChatTrim:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigChat.tga")
+    end
+    self.gulveigChatTrim:SetShown(gulveig)
+    for _,texture in ipairs(chat.trim) do texture:SetShown(not gulveig) end
+    for _,texture in ipairs(chat.rivets) do texture:SetShown(not gulveig) end
+    if gulveig then chat.fill:SetColorTexture(0,0,0,.65) chat.shadow:Hide()
+    else chat.shadow:Show() end
+    if not self.gulveigBackdrops then
+        self.gulveigBackdrops={}
+        for i=1,3 do
+            local background=self.canvas:CreateTexture(nil,"BACKGROUND")
+            background:SetColorTexture(0,0,0,.68)
+            self.gulveigBackdrops[i]=background
+        end
+    end
+    for _,background in ipairs(self.gulveigBackdrops) do background:SetShown(gulveig) end
     if not self.gulveigArt then
         local art=self.canvas:CreateTexture(nil,"ARTWORK")
         art:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigBar.tga")
@@ -118,6 +139,12 @@ function SD:RefreshVariantArt(g)
         self.gulveigArt:ClearAllPoints()
         self.gulveigArt:SetPoint("BOTTOMLEFT",self.canvas,"BOTTOMLEFT",r.x+(900-r.w)/2,r.y)
         self.gulveigArt:SetSize(r.w,r.h)
+        for i,bar in ipairs(g.bars) do
+            local background=self.gulveigBackdrops[i]
+            background:ClearAllPoints()
+            background:SetPoint("CENTER",self.canvas,"BOTTOMLEFT",bar.x,bar.y)
+            background:SetSize(r.w*(i==2 and .75 or .44),r.h*(i==2 and .27 or .235))
+        end
     end
 end
 
@@ -155,3 +182,28 @@ function SD:PromptForLayout()
 end
 
 SD:On("PLAYER_REGEN_ENABLED",function()if SD.welcomePending then SD:PromptForLayout() end end)
+
+-- Hide only these native controls, outside combat, and restore their former
+-- visibility when leaving Gulveig. No parenting or secure attributes change.
+function SD:RefreshVariantControls()
+    if InCombatLockdown() or self.variantControlsBusy then return end
+    self.variantControlsBusy=true
+    local hide=self.db.enabled and self.layoutName==names.gulveig and self:IsOurLayoutActive() and not self.editing
+    self.variantHiddenControls=self.variantHiddenControls or {}
+    self.variantControlHooks=self.variantControlHooks or {}
+    for _,frame in ipairs({MicroMenuContainer or MicroMenu,BagsBar}) do
+        if not self.variantControlHooks[frame] and frame.HookScript then
+            frame:HookScript("OnShow",function()SD:RefreshVariantControls()end)
+            self.variantControlHooks[frame]=true
+        end
+        if hide then
+            if self.variantHiddenControls[frame]==nil then self.variantHiddenControls[frame]=frame:IsShown() end
+            if frame:IsShown() then frame:Hide() end
+        elseif self.variantHiddenControls[frame]~=nil then
+            local shown=self.variantHiddenControls[frame]
+            self.variantHiddenControls[frame]=nil
+            if shown then frame:Show() end
+        end
+    end
+    self.variantControlsBusy=nil
+end

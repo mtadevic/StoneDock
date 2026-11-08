@@ -1,6 +1,6 @@
 # StoneDock — Dark Stone
 
-Version 0.11.0 adds Gulveig Bar as a separate selectable native layout with Celtic artwork, compact centered action rows and separate saved placement.
+Version 0.11.1 adds Gulveig Bar as a separate selectable native layout with Celtic artwork, compact centered action rows and separate saved placement.
 
 ## Updating an existing layout
 
@@ -205,8 +205,10 @@ Open **Theme & layout**, choose **Layout > Gulveig Bar**, then **Apply**. The or
 
 Gulveig Bar uses original Celtic metalwork with green tips around three centered native action rows: **six visible buttons per row**, with smaller top and bottom rows for a stepped silhouette (Blizzard's supported minimum is six). These use native action bars 1, 2 and 3. Existing action assignments and keybindings are preserved; slots beyond the visible counts remain assigned but are not shown in this compact design. Adjust the native bar counts in Edit Mode if you need more visible actions. Bars 4-8 are hidden within this layout.
 
-Player and target frames flank the character, the player's cast bar sits underneath, and the minimap moves to the bottom right. XP and reputation sit beneath the action bank. Chat, bags, the interface menu and the consumable row stay accessible at the lower left. The dashboard's right Command Center card is omitted in this design; its tools remain accessible through `/stonedock`. Existing theme choices continue to style chat and the utility drawers. The ornamental artwork remains visible in Edit Mode.
+Player and target frames flank the character, the player's cast bar sits underneath, and the minimap moves to the bottom right. XP and reputation sit beneath the action bank. Chat and the consumable row remain at the lower left. The bag-button and character-menu bars are hidden only while Gulveig is active; inventory keybindings and Escape settings remain available. Both native bars return when leaving this layout. The dashboard's right Command Center card is omitted in this design; its tools remain accessible through `/stonedock`. Existing theme choices continue to style chat and the utility drawers. The ornamental artwork remains visible in Edit Mode.
 
 This first version follows the reference composition and uses native unit frames; it does not replace Blizzard's portrait art or class resource displays. Native frames and artwork need an in-game visual check at your preferred scale.
 
 On first login, new users see a layout chooser with StoneDock dashboard and Gulveig Bar. **Use this layout** creates/activates the selection. **Decide later** leaves the current UI alone and asks again next login. The chooser waits until combat and Edit Mode finish; a failed save leaves it open. Existing users keep their chosen layout without seeing onboarding again.
+
+Gulveig refinement: the action rows, ornamental surround and tracking-bar width are reduced to 80% of the initial size. Translucent black row backgrounds and a matching Celtic chat border replace the remaining stone trim. Existing player/target placement is preserved; login realigns the resized action assembly once.
