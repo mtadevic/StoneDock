@@ -8,7 +8,7 @@ local function section(title, controls) return {title=title,controls=controls} e
 local schemas = {
     appearance = {title="Theme & layout", description="Choose the look and spacing of your dashboard.", sections={
         section("Appearance",{
-            selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"}}),
+            selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"},{"kintsugi","Onyx Kintsugi"}}),
             selectOption("accent","Accent color",{{"silver","Silver"},{"violet","Violet"},{"green","Moss"},{"bronze","Bronze"}}),
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),
             range("opacity","Panel opacity",0.4,1,0.05),
@@ -72,6 +72,9 @@ function SD:SetPreferenceValue(page, field, value)
     local draft = self:GetPreferenceDraft(page)
     draft.fields[field.key] = field
     if value == read(field) then draft.values[field.key]=nil else draft.values[field.key]=value end
+    if field.key=="stoneTexture" and value=="kintsugi" then
+        self:SetPreferenceValue(page,{key="accent"},"bronze")
+    end
     self:RefreshSettingsFooter()
 end
 function SD:HasPreferenceChanges(key)
@@ -211,7 +214,7 @@ function SD:BuildPreferencePage(key, definition)
         card:SetPoint("TOPLEFT",14,y)
         card:SetSize(648,height)
         self:StyleCard(card,false)
-        H.text(card,group.title,15,16,-14,600):SetTextColor(.49,.86,.66)
+        H.text(card,group.title,15,16,-14,600):SetTextColor(SD:CardAccent())
         for i,field in ipairs(group.controls) do
             local top=-42-(i-1)*51
             local control

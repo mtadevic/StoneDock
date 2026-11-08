@@ -1,4 +1,4 @@
-# StoneDock 0.9.2 — friends and family preview
+# StoneDock 0.9.3 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
@@ -25,3 +25,7 @@ Session, readiness, saved locations, quests, profiles and settings share the exp
 If the game reports a blocked interface action, use `/stonedock report`. StoneDock now records the addon named by the client, attempted function, combat state, time and available call context. The most recent eight distinct records are kept; consecutive repeats are counted together. Records may identify another addon and do not prove that StoneDock caused the problem. Actions that happened before this version cannot be reconstructed.
 
 With Gathering enabled, equipping a fishing pole switches an active materials session into Fishing Mode. Both keys assigned to Blizzard's Interact action cast Fishing while idle; a selected additional fishing key works alongside them. While channeling, Interact returns to its native behavior for the bobber. Unequipping the pole ends an automatically started session. Combat changes remain deferred. Keybinding changes retain session catches and update the temporary shortcuts without changing your saved WoW bindings.
+
+## Onyx Kintsugi theme
+
+Choose **Theme & layout > Theme > Onyx Kintsugi**, then **Apply**. Satin-black onyx carries fine bronze-gold repaired seams, warm rivets, and matching card headings and borders. Selecting it also stages the Bronze accent; you can choose another accent before applying. Existing themes remain available and your chosen theme persists through reloads.

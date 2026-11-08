@@ -506,7 +506,9 @@ function SD:RefreshExpeditionStatus()
     view.title:SetText(info.title)
     view.detail:SetText((info.destination and info.destination.."  |  " or "")..info.detail)
     view.count:SetText(info.count.."  |  "..(info.last or ""))
-    view:SetBackdropBorderColor(info.active and .25 or .22,info.active and .63 or .30,info.active and .45 or .35,1)
+    self:StyleCard(view,info.active)
+    view.title:SetTextColor(self:CardAccent())
+    view.progress:SetColorTexture(self:CardAccent())
     view.progress:SetWidth(math.max(1,590*(info.progress or 0)))
     if view.stop then view.stop:SetEnabled(info.active) end
     if view.start then

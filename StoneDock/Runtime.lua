@@ -1,17 +1,27 @@
 local _, SD = ...
 
+function SD:CardAccent()
+    if self.db and self.db.stoneTexture=="kintsugi" then return .86,.67,.40 end
+    return .49,.86,.66
+end
+
 -- Shared expedition-style surfaces for settings, tools and status cards.
 function SD:StyleCard(frame, active)
     frame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-    frame:SetBackdropColor(.025,.065,.058,.97)
-    frame:SetBackdropBorderColor(active and .30 or .17,active and .68 or .34,active and .48 or .28,1)
+    if self.db and self.db.stoneTexture=="kintsugi" then
+        frame:SetBackdropColor(.018,.017,.016,.98)
+        frame:SetBackdropBorderColor(active and .73 or .40,active and .53 or .30,active and .27 or .18,1)
+    else
+        frame:SetBackdropColor(.025,.065,.058,.97)
+        frame:SetBackdropBorderColor(active and .30 or .17,active and .68 or .34,active and .48 or .28,1)
+    end
 end
 function SD:StyleAction(button)
     self:StyleCard(button,false)
     if button.SetNormalTexture then button:SetNormalTexture("") end
     if button.SetPushedTexture then button:SetPushedTexture("") end
     if button.SetHighlightTexture then button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight","ADD") end
-    if button.GetFontString then local label=button:GetFontString() if label then label:SetTextColor(.66,.9,.77) end end
+    if button.GetFontString then local label=button:GetFontString() if label then label:SetTextColor(self:CardAccent()) end end
 end
 
 -- Reuse dynamic window controls. WoW frames are not garbage-collected when
@@ -46,7 +56,7 @@ function SD:WindowBuilder(key)
     function H.card(parent,title,detail,x,y,width,height,active)
         local card=frame("Frame",nil,parent,"BackdropTemplate")
         card:SetPoint("TOPLEFT",x,y) card:SetSize(width,height) SD:StyleCard(card,active)
-        if title then card.title=H.text(card,title,16,16,-13,width-32) card.title:SetTextColor(.49,.86,.66) end
+        if title then card.title=H.text(card,title,16,16,-13,width-32) card.title:SetTextColor(SD:CardAccent()) end
         if detail then card.detail=H.text(card,detail,12,16,-40,width-32) end
         return card
     end

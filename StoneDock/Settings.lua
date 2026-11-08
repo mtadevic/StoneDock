@@ -169,6 +169,12 @@ function SD:OpenSettingsTab(key,arg,label)
         self.settingsTab=key
         self:RefreshSettingsFooter()
         for id,button in pairs(self.settingsWindow.tabs)do button.selected:SetShown(id==key)end
+        self:StyleCard(self.settingsWindow,false)
+        self:StyleAction(self.settingsWindow.apply) self:StyleAction(self.settingsWindow.discard)
+        for _,button in pairs(self.settingsWindow.tabs) do
+            self:StyleAction(button)
+            local r,g,b=self:CardAccent() button.selected:SetColorTexture(r,g,b,.2)
+        end
         self.settingsWindow:Show()self:RefreshFading(true)
     end)
     self.settingsBuilding=nil

@@ -57,7 +57,7 @@ function SD:BuildSessionPanel()
     local titles={"PLAY SESSION","GOLD EARNED","GOLD SPENT","NET GOLD","GOLD PER HOUR","EXPERIENCE","XP PER HOUR","QUESTS COMPLETED"}
     for i=1,8 do
         local card=H.card(f,nil,nil,22+((i-1)%2)*328,-125-math.floor((i-1)/2)*96,312,82,i==1)
-        H.text(card,titles[i],10,14,-12,282):SetTextColor(.49,.86,.66)
+        H.text(card,titles[i],10,14,-12,282):SetTextColor(SD:CardAccent())
         labels[i]=H.text(card,"",17,14,-38,282)
     end
     local function update()
@@ -198,7 +198,7 @@ function SD:BuildQuestsPanel()
     for _,quest in ipairs(quests)do
         local count=math.min(10,#quest.objectives)
         local card=H.card(child,nil,nil,0,-y,605,82+count*28,quest.done)
-        H.text(card,quest.done and "COMPLETE" or "IN PROGRESS",10,14,-12,440):SetTextColor(.49,.86,.66)
+        H.text(card,quest.done and "COMPLETE" or "IN PROGRESS",10,14,-12,440):SetTextColor(SD:CardAccent())
         H.text(card,quest.title,15,14,-32,435)
         local b=H.button(card,"Open quest",457,-26,132,function()
             if blocked()then return end

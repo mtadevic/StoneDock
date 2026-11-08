@@ -5,6 +5,7 @@ local stoneTextures = {
     classic = "Stone.tga",
     weathered = "WeatheredStone.tga",
     carved = "CarvedStone.tga",
+    kintsugi = "OnyxKintsugi.tga",
 }
 
 local function line(parent, x, y, w, h, r, g, b, a)
@@ -165,6 +166,11 @@ function SD:RefreshPanels()
     local texture = media .. (stoneTextures[theme] or stoneTextures.weathered)
     for key, frame in pairs(self.panels) do
         frame.fill:SetTexture(texture, "REPEAT", "REPEAT")
+        local tint={base={.75,.75,.78},leftWell={.55,.57,.60},rightWell={.55,.57,.60},map={.78,.80,.84},menuDrawer={.40,.43,.48},bagDrawer={.40,.43,.48}}
+        local color=theme=="kintsugi" and {1,1,1} or tint[key] or {1,1,1}
+        frame.fill:SetVertexColor(unpack(color))
+        frame.caption:SetTextColor(theme=="kintsugi" and .83 or .69,theme=="kintsugi" and .67 or .72,theme=="kintsugi" and .43 or .75)
+        for _,rivet in ipairs(frame.rivets) do rivet:SetVertexColor(1,theme=="kintsugi" and .76 or 1,theme=="kintsugi" and .43 or 1) end
         place(frame, g[key])
         if frame.frieze then
             frame.frieze:SetTexCoord(0, (g[key].w - 34) / 64, 0, 1)
