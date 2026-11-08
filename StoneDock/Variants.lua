@@ -59,14 +59,14 @@ function SD:GetGulveigGeometry(width,height,rise)
     local compact=.8
     local function r(x,y,w,h)return {x=x,y=y*rise,w=w,h=h*rise}end
     return {
-        variant="gulveig",revision=2,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
+        variant="gulveig",revision=3,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
         base=r(0,0,1920,1),left=r(20,90,420,160),right=r(1440,300,440,160),
         leftWell=r(40,250,440,20),rightWell=r(1440,250,440,20),
         map=r(1640,22,250,260),chat=r(30,100,400,135),
         menuDrawer=r(25,4,410,38),bagDrawer=r(25,47,410,36),utilityY=260*rise,
         bars={
             {index=1,x=960+dx,y=(24+(241-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
-            {index=2,x=960+dx,y=(24+(156-24)*compact+dy)*rise,icons=6,iconSize=70*compact*stretch*rise},
+            {index=2,x=960+dx,y=(24+(156-24)*compact+dy)*rise,icons=8,iconSize=70*compact*stretch*rise},
             {index=3,x=960+dx,y=(24+(75-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
         },
         ornament=r(510+dx,24+dy,900*compact*stretch,270*compact),
@@ -117,16 +117,39 @@ function SD:RefreshVariantArt(g)
     self.gulveigChatTrim:SetShown(gulveig)
     for _,texture in ipairs(chat.trim) do texture:SetShown(not gulveig) end
     for _,texture in ipairs(chat.rivets) do texture:SetShown(not gulveig) end
-    if gulveig then chat.fill:SetColorTexture(0,0,0,.65) chat.shadow:Hide()
-    else chat.shadow:Show() end
+    chat.fill:ClearAllPoints()
+    if gulveig then
+        if ChatFrame1 then
+            -- Two native anchors follow movement, size and UI scale directly;
+            -- never poll geometry or modify the protected/native chat frame.
+            chat:ClearAllPoints()
+            chat:SetPoint("TOPLEFT",ChatFrame1,"TOPLEFT",-10,22)
+            chat:SetPoint("BOTTOMRIGHT",ChatFrame1,"BOTTOMRIGHT",10,-10)
+        end
+        chat.fill:SetPoint("TOPLEFT",chat,"TOPLEFT",10,-10)
+        chat.fill:SetPoint("BOTTOMRIGHT",chat,"BOTTOMRIGHT",-10,10)
+        chat.fill:SetColorTexture(0,0,0,.75)
+        chat.shadow:Hide()
+    else chat.fill:SetAllPoints(chat) chat.shadow:Show() end
     if not self.gulveigBackdrops then
         self.gulveigBackdrops={}
+        self.gulveigBacking=CreateFrame("Frame",nil,UIParent)
+        self.gulveigBacking:SetFrameStrata("BACKGROUND")
+        self.gulveigBacking:SetFrameLevel(0)
+        self.gulveigBacking:EnableMouse(false)
+        self.canvas:SetFrameLevel(1)
         for i=1,3 do
-            local background=self.canvas:CreateTexture(nil,"BACKGROUND")
-            background:SetColorTexture(0,0,0,.68)
+            local background=self.gulveigBacking:CreateTexture(nil,"BACKGROUND")
+            background:SetColorTexture(0,0,0,1)
             self.gulveigBackdrops[i]=background
         end
     end
+    self.gulveigBacking:ClearAllPoints()
+    self.gulveigBacking:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
+    self.gulveigBacking:SetSize(1920,g.screenHeight)
+    self.gulveigBacking:SetScale(g.scale)
+    self.gulveigBacking:SetAlpha(self.currentUIAlpha or 1)
+    self.gulveigBacking:SetShown(gulveig and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides))
     for _,background in ipairs(self.gulveigBackdrops) do background:SetShown(gulveig) end
     if not self.gulveigArt then
         local art=self.canvas:CreateTexture(nil,"ARTWORK")
@@ -139,11 +162,14 @@ function SD:RefreshVariantArt(g)
         self.gulveigArt:ClearAllPoints()
         self.gulveigArt:SetPoint("BOTTOMLEFT",self.canvas,"BOTTOMLEFT",r.x+(900-r.w)/2,r.y)
         self.gulveigArt:SetSize(r.w,r.h)
-        for i,bar in ipairs(g.bars) do
+        -- Overlapping interior slabs extend beneath the metal seams, closing
+        -- the bright strips between rows without painting outside the wings.
+        local fills={{.445,.88,.50},{.74,.40,.49},{.445,.28,.19}}
+        for i,fill in ipairs(fills) do
             local background=self.gulveigBackdrops[i]
             background:ClearAllPoints()
-            background:SetPoint("CENTER",self.canvas,"BOTTOMLEFT",bar.x,bar.y)
-            background:SetSize(r.w*(i==2 and .75 or .44),r.h*(i==2 and .27 or .235))
+            background:SetPoint("CENTER",self.gulveigBacking,"BOTTOMLEFT",g.bars[1].x,r.y+r.h*fill[3])
+            background:SetSize(r.w*fill[1],r.h*fill[2])
         end
     end
 end

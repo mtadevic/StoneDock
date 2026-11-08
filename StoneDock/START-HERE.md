@@ -1,4 +1,4 @@
-# StoneDock 0.11.1 — friends and family preview
+# StoneDock 0.11.2 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
@@ -47,7 +47,7 @@ The right panel matches the chat panel height and has no heading. Durability, go
 
 Open **Theme & layout**, choose **Layout > Gulveig Bar**, then **Apply**. The original StoneDock dashboard remains a separate Blizzard layout; choose **StoneDock dashboard** to return. Switching requires leaving combat and Edit Mode. Your selected native layout is detected again at login. Each design keeps separate character/spec unit, aura and tracking placement.
 
-Gulveig Bar uses original Celtic metalwork with green tips around three centered native action rows: **six visible buttons per row**, with smaller top and bottom rows for a stepped silhouette (Blizzard's supported minimum is six). These use native action bars 1, 2 and 3. Existing action assignments and keybindings are preserved; slots beyond the visible counts remain assigned but are not shown in this compact design. Adjust the native bar counts in Edit Mode if you need more visible actions. Bars 4-8 are hidden within this layout.
+Gulveig Bar uses original Celtic metalwork with green tips around three centered native action rows: **6 / 8 / 6 visible buttons**, with smaller top and bottom rows for a stepped silhouette. These use native action bars 1, 2 and 3. Existing action assignments and keybindings are preserved; slots beyond the visible counts remain assigned but are not shown in this compact design. Adjust the native bar counts in Edit Mode if you need more visible actions. Bars 4-8 are hidden within this layout.
 
 Player and target frames flank the character, the player's cast bar sits underneath, and the minimap moves to the bottom right. XP and reputation sit beneath the action bank. Chat and the consumable row remain at the lower left. The bag-button and character-menu bars are hidden only while Gulveig is active; inventory keybindings and Escape settings remain available. Both native bars return when leaving this layout. The dashboard's right Command Center card is omitted in this design; its tools remain accessible through `/stonedock`. Existing theme choices continue to style chat and the utility drawers. The ornamental artwork remains visible in Edit Mode.
 
@@ -56,3 +56,5 @@ This first version follows the reference composition and uses native unit frames
 On first login, new users see a layout chooser with StoneDock dashboard and Gulveig Bar. **Use this layout** creates/activates the selection. **Decide later** leaves the current UI alone and asks again next login. The chooser waits until combat and Edit Mode finish; a failed save leaves it open. Existing users keep their chosen layout without seeing onboarding again.
 
 Gulveig refinement: the action rows, ornamental surround and tracking-bar width are reduced to 80% of the initial size. Translucent black row backgrounds and a matching Celtic chat border replace the remaining stone trim. Existing player/target placement is preserved; login realigns the resized action assembly once.
+
+The Gulveig chat border follows ChatFrame1 directly as it moves or resizes; its dark fill is inset inside the artwork. The action bank uses overlapping opaque black interior fills beneath the metal seams, independent of artwork opacity and still following dashboard fading. The middle row now has eight buttons. Legacy generated far-edge player/target anchors migrate inward; other manual placements remain intact.

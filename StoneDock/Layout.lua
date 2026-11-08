@@ -127,6 +127,13 @@ function SD:UpgradeDefaultUnitAnchors(systems, g)
             elseif info.systemIndex == U.Focus then
                 oldX, point, x, y = 1621, "BOTTOMRIGHT", g.target.x + 200, g.target.y + 72*g.density
             end
+            if g.variant=="gulveig" and a and a.relativeTo=="UIParent" and a.relativePoint=="BOTTOMLEFT" then
+                local legacy=info.systemIndex==U.Player and 210 or (info.systemIndex==U.Target and 1710)
+                if legacy and math.abs(a.offsetX-legacy*g.scale)<.25 then
+                    anchor(info,point,"BOTTOMLEFT",x*g.scale,y*g.scale)
+                    changed=true
+                end
+            end
             if oldX and a and a.point == point and a.relativePoint == "BOTTOMLEFT"
                 and a.relativeTo == "UIParent" and math.abs(a.offsetX-oldX*g.scale)<0.25
                 and math.abs(a.offsetY-254*g.density*g.scale)<0.25 then
