@@ -1,4 +1,4 @@
-# StoneDock 0.10.1 — friends and family preview
+# StoneDock 0.10.2 — friends and family preview
 
 StoneDock is a standalone addon that arranges Blizzard's UI and adds a dark stone dashboard.
 
@@ -39,3 +39,5 @@ Combat, weapon changes and zone transitions pause an expedition instead of endin
 Routes group nearby spawn reports within a 125-yard seed radius and mark their center as a gathering hotspot. Planning selects up to 24 nearby areas, favors your initial facing direction, and smooths crossing detours and sharp reversals. Entering a 100-yard radius advances to the next area; if all remaining centers are already nearby, the card indicates that you should search the current area rather than cycling pins in place. These are node-based loops, not terrain-aware pathfinding.
 
 Stone panels remain visible in Blizzard Edit Mode as placement references. Dashboard shortcut controls stop accepting mouse input while editing so native frame handles remain usable. Native docking remains paused until Edit Mode closes.
+
+The right panel matches the chat panel height and has no heading. Durability, gold, time and performance share one compact line. Expedition and Command menu buttons sit on the normal clickable UI layer. The expedition summary is compact; hover for full details. On very short layouts, the Expedition button displays the active resource instead of overlapping the item row.

@@ -39,12 +39,9 @@ function SD:UpdateInfo()
     local gathering, last, hint = self:GetGatheringNotes()
     if not gathering or not self.db.showInfo then
         if self.expeditionCard and not self.db.showInfo then self.expeditionCard:Hide() end
-        if self.panels.right.caption then self.panels.right.caption:SetText("COMMAND CENTER") end
+        if self.panels.right.caption then self.panels.right.caption:SetText("") end
     end
-    local specs,signature={},{}
-    for i,key in ipairs({"durability","money","clock","performance"}) do
-        if self:IsNoteRowEnabled(key) then specs[key]={((i-1)%2)*158,math.floor((i-1)/2),150} signature[#signature+1]=key end
-    end
+    local specs,signature={},{"compact-status"}
     local layoutKey=tostring(step)..":"..tostring(self.db.showInfo)..":"..table.concat(signature,",")
     if self.noteLayoutKey~=layoutKey then
         for _,button in pairs(self.noteButtons)do button:Hide()end
@@ -123,9 +120,14 @@ function SD:RefreshCommandCenter()
     if not self.commandStatus then
         self.commandStatus=CreateFrame("Frame",nil,parent,"BackdropTemplate")
         self.commandStatus:SetFrameLevel(parent:GetFrameLevel()+3)
+        self.commandStatus.line=self.commandStatus:CreateFontString(nil,"OVERLAY")
+        self.commandStatus.line:SetFont("Fonts\\FRIZQT__.TTF",9,"")
+        self.commandStatus.line:SetAllPoints() self.commandStatus.line:SetJustifyH("LEFT") self.commandStatus.line:SetWordWrap(false)
         local function button(caption,x,width,action)
             local b=CreateFrame("Button",nil,parent,"UIPanelButtonTemplate,BackdropTemplate")
-            b:SetFrameLevel(parent:GetFrameLevel()+5) b:SetPoint("TOPLEFT",x,-76) b:SetSize(width,22) b:SetText(caption)
+            b:SetFrameStrata("MEDIUM") b:SetFrameLevel(parent:GetFrameLevel()+5)
+            b:SetPoint("TOPLEFT",x,-25) b:SetSize(width,18) b:SetText(caption)
+            b:RegisterForClicks("LeftButtonUp") b:EnableMouse(true)
             b:SetScript("OnClick",function() if InCombatLockdown() then SD.Print("Open Command Center controls after combat.") return end SD:Run(caption,action) end)
             return b
         end
@@ -137,18 +139,23 @@ function SD:RefreshCommandCenter()
             menu=create("Frame",nil,UIParent,"BackdropTemplate") SD.commandMenu=menu
             menu:SetSize(270,320) menu:SetPoint("BOTTOMRIGHT",SD.commandMenuButton,"TOPRIGHT",0,8)
             menu:SetFrameStrata("DIALOG") menu:SetClampedToScreen(true) SD:StyleCard(menu,true)
-            H.text(menu,"COMMAND CENTER",15,14,-14,240):SetTextColor(SD:CardAccent())
+            H.text(menu,"TOOLS",15,14,-14,240):SetTextColor(SD:CardAccent())
             for i,entry in ipairs({{"gathering","Expedition & fishing"},{"readiness","Readiness"},{"session","Session statistics"},{"waypoints","Saved locations"},{"quests","Quest notebook"},{"profiles","Profiles & backups"},{"master","Settings"}}) do
                 H.button(menu,entry[2],12,-43-(i-1)*38,246,function()menu:Hide() SD:OpenSettingsTab(entry[1])end)
             end
         end)
     end
-    self.commandStatus:ClearAllPoints() self.commandStatus:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-28)
-    self.commandStatus:SetSize(self.geometry.right.w-24,42) self:StyleCard(self.commandStatus,false) self.commandStatus:Show()
+    self.commandStatus:ClearAllPoints() self.commandStatus:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-7)
+    self.commandStatus:SetSize(self.geometry.right.w-24,14) self.commandStatus:SetBackdrop(nil) self.commandStatus:Show()
+    local condition=self.noteDurability and self.noteDurability[1] or 100
+    local gold=GetMoney() if not plain(gold) then gold=0 end
+    local _,_,home,world=GetNetStats()
+    self.commandStatus.line:SetText(string.format("%d%% gear | %dg | %s | %d fps / %d ms",condition,math.floor((gold or 0)/10000),date("%I:%M %p"),math.floor(GetFramerate()+.5),world or home or 0))
+    self.commandStatus.line:SetTextColor(.80,.80,.76)
     self.commandMenuButton:Show() self.commandExpeditionButton:Show()
     self.commandMenuButton:EnableMouse(not self.editing) self.commandExpeditionButton:EnableMouse(not self.editing)
     self:StyleAction(self.commandMenuButton) self:StyleAction(self.commandExpeditionButton)
-    parent.caption:SetText("COMMAND CENTER")
+    parent.caption:SetText("")
 end
 SD:On("PLAYER_REGEN_DISABLED",function()if SD.commandMenu then SD.commandMenu:Hide()end end)
 SD:On("GLOBAL_MOUSE_DOWN",function(button)

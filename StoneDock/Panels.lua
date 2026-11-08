@@ -88,7 +88,7 @@ function SD:CreatePanels()
     self.panels = {
         base = panel(self.canvas),
         left = panel(self.canvas),
-        right = panel(self.canvas, "COMMAND CENTER"),
+        right = panel(self.canvas),
         leftWell = panel(self.canvas),
         rightWell = panel(self.canvas),
         map = panel(self.canvas),

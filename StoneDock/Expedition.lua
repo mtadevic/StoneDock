@@ -43,7 +43,8 @@ function SD:UpdateExpeditionCard(bagText)
         card.progress:SetHeight(3)
         card.progress:SetColorTexture(.35,.82,.57,1)
         local function control(caption,x,width,action)
-            local button=CreateFrame("Button",nil,card,"UIPanelButtonTemplate")
+            local button=CreateFrame("Button",nil,card,"UIPanelButtonTemplate,BackdropTemplate")
+            button:SetFrameStrata("MEDIUM") button:RegisterForClicks("LeftButtonUp")
             button:SetPoint("BOTTOMLEFT",x,4)
             button:SetSize(width,19)
             button:SetText(caption)
@@ -67,25 +68,50 @@ function SD:UpdateExpeditionCard(bagText)
     card:SetShown(visible)
     if not visible then return end
     local g=self.geometry or self:GetGeometry()
-    local height=math.max(65,math.min(100,g.right.h-106-g.utilityY-20.4-8))
+    local available=g.right.h-48-g.utilityY-20.4-6
+    if available<24 then
+        card:Hide()
+        if self.commandExpeditionButton then self.commandExpeditionButton:SetText(details.active and details.title or "Expedition") end
+        return
+    end
+    local height=math.min(46,available)
+    if self.commandExpeditionButton then self.commandExpeditionButton:SetText("Expedition") end
     self:StyleCard(card,details.active)
     card:ClearAllPoints()
-    card:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-106)
+    card:SetPoint("TOPLEFT",parent,"TOPLEFT",12,-48)
     card:SetSize(g.right.w-24,height)
     local state=self.gathering or {}
     local fishing=state.mode=="fishing"
     local icon=state.targetID and C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(state.targetID)
+    card.icon:Hide()
+    card.title:ClearAllPoints() card.title:SetPoint("TOPLEFT",8,-5) card.title:SetWidth(g.right.w-134)
+    card.title:SetFont("Fonts\\FRIZQT__.TTF",10,"")
+    card.detail:Hide()
+    card.count:ClearAllPoints() card.count:SetPoint("TOPLEFT",8,-22) card.count:SetWidth(g.right.w-44)
+    card.count:SetShown(details.active and height>=40)
+    card.configure:Hide()
+    card.skip:ClearAllPoints() card.skip:SetPoint("TOPRIGHT",card,"TOPRIGHT",-48,-3) card.skip:SetSize(25,18) card.skip:SetText(">")
+    card.stop:ClearAllPoints() card.stop:SetPoint("TOPRIGHT",card,"TOPRIGHT",-4,-3) card.stop:SetSize(40,18)
+    self:StyleAction(card.skip) self:StyleAction(card.stop)
     card.icon:SetTexture(icon or (fishing and "Interface\\Icons\\Trade_Fishing" or "Interface\\Icons\\Trade_Mining"))
-    card.title:SetText(details.title)
+    card.title:SetText(details.active and (details.paused and (details.title.." (paused)") or details.title) or "No expedition")
     card.title:SetTextColor(self:CardAccent())
     card.detail:SetText(details.paused or (self.oreRoute and details.detail) or details.destination or (details.active and details.detail or "Choose Expedition to plan your next trip."))
     card.count:SetText(details.active and (details.count.."  |  "..(bagText or "")) or (bagText or ""))
     card.track:SetShown(details.active and height>=76)
     card.progress:SetShown(details.active and height>=76)
     card.progress:SetColorTexture(self:CardAccent())
+    card:SetScript("OnEnter",function()
+        GameTooltip:SetOwner(card,"ANCHOR_LEFT") GameTooltip:SetText(details.title)
+        GameTooltip:AddLine(details.paused or details.detail,.8,.8,.8,true)
+        if details.destination then GameTooltip:AddLine(details.destination,.8,.8,.8,true) end
+        GameTooltip:AddLine(details.count,.8,.8,.8,true) GameTooltip:Show()
+    end)
+    card:SetScript("OnLeave",function()GameTooltip:Hide()end)
+    card:EnableMouse(not self.editing)
     card.progress:SetWidth(math.max(1,(g.right.w-44)*(details.progress or 0)))
     for _,button in ipairs({card.skip,card.configure,card.stop}) do button:EnableMouse(not self.editing) end
     card.stop:SetShown(details.active)
     card.skip:SetShown(details.active and (self.oreRoute~=nil or state.targetID~=nil))
-    if parent.caption then parent.caption:SetText("COMMAND CENTER") end
+    if parent.caption then parent.caption:SetText("") end
 end
