@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.11.3"
+SD.name, SD.version = addonName, "0.12.0"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -12,6 +12,7 @@ SD.defaults = {
     noteRows = {},
     noteActions = {},
     showInfo = true,
+    chatStyle = false,
     showLabels = true,
     showGuides = false,
     showHUD = false,

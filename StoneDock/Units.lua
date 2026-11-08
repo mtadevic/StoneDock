@@ -62,6 +62,7 @@ function SD:RefreshUnitTrim()
     local active=self.db.enabled and self:IsOurLayoutActive()
     self:RefreshGroupClassColors(active)
     self:RefreshGroupIndicators(active)
+    self:RefreshOrnamentalFrames(active)
     local show=self.db.stoneUnits and active
     local function apply(frame) trim(frame,show) end
     -- Portrait frames have large invisible bounds; edging those bounds made an
@@ -221,13 +222,21 @@ function SD:GetGroupRows(count,geometry)
     -- Leave room for the native tracking frame's gold trim and the compact
     -- unit frames' bottom aura/power strip, not just their nominal rectangles.
     local bottom=math.max(g.leftWell.y+g.leftWell.h,g.rightWell.y+g.rightWell.h)+math.max(22, 20/g.scale)+self.db.groupOffsetY
-    local available=math.max(40,g.left.y+g.left.h+12-bottom)
+    local chatBounds
+    if g.variant=="gulveig" then
+        chatBounds=self:GetGulveigChatBounds(g)
+        -- Chat tabs/art, then the item row, then a separate group row.
+        bottom=math.max(bottom,chatBounds.y+chatBounds.h+44+24*.85+16+self.db.groupOffsetY)
+    end
+    local available=chatBounds and (rows*self.db.groupHeight+(rows-1)*4)
+        or math.max(40,g.left.y+g.left.h+12-bottom)
     local gap=4
     local height=math.max(16,math.min(self.db.groupHeight,math.floor((available-(rows-1)*gap)/rows)))
     local result={}
     for i=1,groups do
         local isLeft=i<=left
         local well=isLeft and g.leftWell or g.rightWell
+        if isLeft and chatBounds then well={x=chatBounds.x-22,w=chatBounds.w+44} end
         local row=isLeft and i or i-left
         local rowWidth=(well.w-12)*self.db.groupRowWidth/100
         local width=(rowWidth-4*gap)/5

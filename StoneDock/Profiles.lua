@@ -107,7 +107,7 @@ function SD:RestoreSnapshotData(snapshot)
     if self:IsBusy() or not snapshot then return false end
     -- Only restore our active native layout; no other named layout is edited.
     if snapshot.layout and not self:IsOurLayoutActive() then SD.Print("Activate StoneDock before restoring its native layout.") return false end
-    if snapshot.layout and snapshot.layout.layoutName~=self.layoutName then SD.Print("Select the snapshot’s layout before restoring it.") return false end
+    if snapshot.layout and snapshot.layout.layoutName~=self.layoutName then SD.Print("Select the snapshotâ€™s layout before restoring it.") return false end
     self.profileSwitching=true
     local ok=true
     if snapshot.layout then

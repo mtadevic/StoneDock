@@ -179,6 +179,7 @@ function SD:RefreshPanels()
     end
     for _, key in ipairs({ "base", "leftWell", "rightWell", "map" }) do self.panels[key].caption:Hide() end
     self:RefreshVariantArt(g)
+    self:RefreshMapTheme()
     self.brand:SetShown(self.db.showLabels and not g.variant)
     for _, label in pairs(self.info) do label:SetShown(self.db.showInfo) end
     self.info.hint:Hide()
@@ -219,6 +220,7 @@ end
 function SD:SetEditing(editing)
     self.editing = editing
     if not editing and self.welcomePending then self:PromptForLayout() end
+    if not editing and self.chatGroupDeferred then self:QueueChatGroupLayout() end
     if editing and self.commandMenu then self.commandMenu:Hide() end
     if not editing and self.CheckLoginAlignment then C_Timer.After(0.1,function() SD:CheckLoginAlignment() end) end
     if self.canvas then self:RefreshPanels() end

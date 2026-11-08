@@ -11,7 +11,7 @@ local function plain(value) return type(value)=="string" and safe(value) and val
 local function number(value) return tonumber(((value or ""):gsub("[, ]",""))) or 0 end
 local function amount(text,word,maximum)
     local best = 0
-    text = text:gsub("–", "-"):gsub("—", "-"):gsub(" to ", "-")
+    text = text:gsub("â€“", "-"):gsub("â€”", "-"):gsub(" to ", "-")
     for low, high, percent in text:gmatch("([%d,.]+)%s*%-%s*([%d,.]+)(%%?)%s+"..word.."%f[%A]") do
         local value = (number(low) + number(high)) / 2
         if percent == "%" then value = value * (maximum or 0) / 100 end

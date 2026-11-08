@@ -237,8 +237,8 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     local mapWidth = (mapContainer and mapContainer:GetWidth()) or 215
     local mapPercent = (g.map.w - 10) * s / mapWidth * 100
     displaySetting(minimap, Enum.EditModeMinimapSetting.Size, mapPercent)
-    displaySetting(minimap, Enum.EditModeMinimapSetting.HeaderUnderneath, 0)
-    anchor(minimap, "CENTER", "BOTTOM", (g.map.x+g.map.w/2-960)*s-10, (g.map.y + g.map.h / 2) * s + 15)
+    displaySetting(minimap, Enum.EditModeMinimapSetting.HeaderUnderneath, 1)
+    anchor(minimap, "CENTER", "BOTTOM", (g.map.x+g.map.w/2-960)*s-10, (g.map.y + g.map.h / 2 + 24*g.density) * s + 15)
 
     if self.db.arrangeChat and not dashboardOnly then
         local chat = findSystem(layout, E.ChatFrame)

@@ -1,6 +1,6 @@
 # StoneDock — Dark Stone
 
-Version 0.11.3 adds Gulveig Bar as a separate selectable native layout with Celtic artwork, compact centered action rows and separate saved placement.
+Version 0.12.0 adds Gulveig Bar as a separate selectable native layout with Celtic artwork, compact centered action rows and separate saved placement.
 
 ## Updating an existing layout
 
@@ -216,3 +216,6 @@ Gulveig refinement: the action rows, ornamental surround and tracking-bar width 
 The Gulveig chat border follows ChatFrame1 directly as it moves or resizes; its dark fill is inset inside the artwork. The action bank uses overlapping opaque black interior fills beneath the metal seams, independent of artwork opacity and still following dashboard fading. The middle row now has eight buttons. Legacy generated far-edge player/target anchors migrate inward; other manual placements remain intact.
 
 Gulveig button counts are stored as native integer counts, bypassing display-slider quantization. The chat border has wider text margins and the item row anchors above the live chat window. Diagnostics include saved counts for the three native rows. Login applies the revised geometry once, including scale-normalized legacy unit anchors.
+
+
+Version 0.12.0: Both layouts place the minimap zone and clock below the map. Gulveig adds Celtic unit-frame and map trim. Appearance > Panel details > Style chat with artwork and background enables optional chat decoration (off by default). The Gulveig party row follows chat resizing and clears the item row; movement waits until combat ends. Reload outside combat after updating.
