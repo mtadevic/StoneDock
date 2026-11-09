@@ -37,6 +37,53 @@ local function bagButtons()
     return frames
 end
 
+local function actionRow(bar,count)
+    local buttons={}
+    for i=1,count do
+        local button=bar.actionButtons and bar.actionButtons[i]
+        if not button or not button:IsShown() then return end
+        buttons[i]=button
+    end
+    return union(buttons)
+end
+
+function SD:RestoreGulveigTopRow()
+    local fit=self.gulveigTopRow
+    if not fit then return end
+    self.gulveigTopRow=nil
+    local bar=fit.bar
+    if bar:GetScale()==fit.scale then bar:SetScale(fit.originalScale) end
+    local point,relative,relativePoint,x,y=bar:GetPoint()
+    if point=="CENTER" and relative==UIParent and relativePoint=="BOTTOMLEFT" and x==fit.x and y==fit.y then
+        bar:ClearAllPoints()
+        for _,anchor in ipairs(fit.anchors) do bar:SetPoint(unpack(anchor,1,5)) end
+    end
+end
+
+function SD:FitGulveigTopRow()
+    if self:IsBusy() then return end
+    local top,middle=MainActionBar,MultiBarBottomLeft
+    if not top or not middle or not top:IsVisible() or not middle:IsVisible() then return end
+    local x,y,width,height=actionRow(top,6)
+    local middleX,_,middleWidth=actionRow(middle,8)
+    if not width or not middleWidth then return end
+    local factor=middleWidth/width
+    if math.abs(middleWidth-width)<.01 and math.abs(middleX-x)<.01 then return end
+    local centerX,centerY=top:GetCenter()
+    if not centerX or not centerY then return end
+    local oldEffective=top:GetEffectiveScale()/UIParent:GetEffectiveScale()
+    local newEffective=oldEffective*factor
+    local fit={bar=top,originalScale=top:GetScale(),anchors={}}
+    for i=1,top:GetNumPoints() do fit.anchors[i]={top:GetPoint(i)} end
+    fit.scale=fit.originalScale*factor
+    fit.x=middleX/newEffective+centerX-x/oldEffective
+    fit.y=(y+height*(factor-1)/2)/newEffective+centerY-y/oldEffective
+    top:SetScale(fit.scale)
+    top:ClearAllPoints()
+    top:SetPoint("CENTER",UIParent,"BOTTOMLEFT",fit.x,fit.y)
+    self.gulveigTopRow=fit
+end
+
 -- Forever's native tracking bars start at 1192 units, and their Edit Mode
 -- slider cannot shrink them far enough for a dashboard well. Resize the
 -- existing native containers and their native contents; never replace XP data.
@@ -85,6 +132,7 @@ function SD:PrecisionAlign(bagsOnly)
     local index = full.activeLayout
     local layout = full.layouts[index]
     local g = self:GetGeometry()
+    if not bagsOnly then self:RestoreGulveigTopRow() end
     local changed = false
     local function correct(system, systemIndex, frames, targetX, targetY)
         local x, y = union(frames)
@@ -174,7 +222,11 @@ function SD:PrecisionAlign(bagsOnly)
             (g.bagDrawer.x + g.bagDrawer.w / 2) * g.scale,
             (g.bagDrawer.y + g.bagDrawer.h / 2 + 1) * g.scale)
     end
-    if changed then self:SaveAndRefreshLayout(full, index) end
+    if changed then
+        self:RestoreGulveigTopRow()
+        self:SaveAndRefreshLayout(full, index)
+    end
+    if (not bagsOnly or changed) and g.variant=="gulveig" and self.db.enabled then self:FitGulveigTopRow() end
 end
 
 function SD:SchedulePrecisionAlignment(bagsOnly)
@@ -236,6 +288,9 @@ end
 
 function SD:RefreshDocking()
     if InCombatLockdown() then return end
+    if self.gulveigTopRow and (not self.db.enabled or self.layoutName~="Gulveig Bar" or not self:IsOurLayoutActive() or self.editing) then
+        self:RestoreGulveigTopRow()
+    end
     self:RefreshVariantControls()
     self:FitTrackingBars()
     local active = self.db.enabled and self.db.arrangeUtility and self:IsOurLayoutActive() and not self.editing
@@ -320,7 +375,12 @@ SD:On("PLAYER_ENTERING_WORLD",function()
     end)
 end)
 SD:On("PLAYER_REGEN_ENABLED",function() SD:CheckLoginAlignment() end)
-SD:On("EDIT_MODE_LAYOUTS_UPDATED",function() SD:CheckLoginAlignment() end)
+SD:On("EDIT_MODE_LAYOUTS_UPDATED",function()
+    SD:CheckLoginAlignment()
+    if SD.db and SD.db.enabled and SD.layoutName=="Gulveig Bar" and not SD.layoutWriteBusy then
+        SD:SchedulePrecisionAlignment(false)
+    end
+end)
 
 local resizeQueued
 local function queueResizeAlignment()
