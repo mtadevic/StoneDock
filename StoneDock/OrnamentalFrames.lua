@@ -4,10 +4,18 @@ local unitArt=setmetatable({}, {__mode="k"})
 local castArt=setmetatable({}, {__mode="k"})
 local nativeAlpha=setmetatable({}, {__mode="k"})
 
+local function usableNumber(value)
+    return (not issecretvalue or not issecretvalue(value)) and type(value)=="number"
+end
+
 local function suppress(region,state)
     if not region or not region.GetAlpha then return end
     if state then
-        if nativeAlpha[region]==nil then nativeAlpha[region]=region:GetAlpha() end
+        if nativeAlpha[region]==nil then
+            local alpha=region:GetAlpha()
+            if not usableNumber(alpha) then return end
+            nativeAlpha[region]=alpha
+        end
         region:SetAlpha(0)
     elseif nativeAlpha[region]~=nil then region:SetAlpha(nativeAlpha[region]) nativeAlpha[region]=nil end
 end
@@ -72,8 +80,8 @@ local function createCompactRail(parent, portraitOnRight)
     return rail
 end
 
-local function fitCompactRail(rail, bar, top, bottom)
-    local height=bar:GetHeight()+top+bottom
+local function fitCompactRail(rail, bar, barHeight, top, bottom)
+    local height=barHeight+top+bottom
     local cap=height*(.10*3/.63)
     local edge=height*(.13/.63)
     local left=rail.left and cap*.72 or 2
@@ -103,8 +111,10 @@ end
 local function rect(region,parent)
     if not region or not region.GetRect then return end
     local x,y,w,h=region:GetRect()
-    if type(x)~="number" or type(y)~="number" or type(w)~="number" or type(h)~="number" or w<=0 or h<=0 then return end
-    local s=region:GetEffectiveScale()/parent:GetEffectiveScale()
+    if not usableNumber(x) or not usableNumber(y) or not usableNumber(w) or not usableNumber(h) or w<=0 or h<=0 then return end
+    local scale,parentScale=region:GetEffectiveScale(),parent:GetEffectiveScale()
+    if not usableNumber(scale) or not usableNumber(parentScale) or parentScale<=0 then return end
+    local s=scale/parentScale
     return x*s,y*s,w*s,h*s
 end
 
@@ -117,7 +127,9 @@ function SD:RefreshOrnamentalFrames(active)
             local container=frame.PlayerFrameContainer or frame.TargetFrameContainer
             local portrait=frame.portrait or frame.Portrait or (container and container.Portrait) or _G[entry[3]]
             local bar=barRegion(frame)
-            local fitted=show and portrait and bar and portrait.GetWidth and bar.GetWidth
+            local width=show and portrait and portrait.GetWidth and portrait:GetWidth()
+            local height=show and bar and bar.GetHeight and bar:GetHeight()
+            local fitted=usableNumber(width) and width>0 and usableNumber(height) and height>0
             local art=unitArt[frame]
             if fitted and not art then
                 art={ring=frame:CreateTexture(nil,"OVERLAY",nil,6),border=createCompactRail(frame,mirror)}
@@ -129,13 +141,12 @@ function SD:RefreshOrnamentalFrames(active)
                 art.ring:SetShown(not not fitted) art.border:SetShown(not not fitted)
                 if fitted then
                     -- Measured alpha opening, not the full bitmap canvas: center .562/.489, diameter .618/.633.
-                    local d=portrait:GetWidth()*.91
+                    local d=width*.91
                     local w,h=d/.618,d/.633
                     art.ring:SetSize(w,h) art.ring:ClearAllPoints()
                     art.ring:SetTexCoord(mirror and 1 or 0,mirror and 0 or 1,0,1)
                     art.ring:SetPoint("CENTER",portrait,"CENTER",(mirror and 1 or -1)*w*.062,-h*.011)
                     local _,by,_,bh=rect(bar,frame)
-                    local height=bar:GetHeight()
                     local top,bottom=height*.85,height*.5
                     if by then
                         local power=frame.manabar or frame.ManaBar or frame.powerBar
@@ -145,7 +156,7 @@ function SD:RefreshOrnamentalFrames(active)
                         if ny then top=math.max(2,ny+nh-by-bh+5) end
                         if py then bottom=math.max(2,by-py+4) end
                     end
-                    fitCompactRail(art.border,bar,top,bottom)
+                    fitCompactRail(art.border,bar,height,top,bottom)
                 end
             end
             local cast=frame.spellbar or frame.CastBar
@@ -176,12 +187,14 @@ end
 
 function SD:StyleGulveigCast(cast,show)
     if not cast then return end
+    local height=show and cast:GetHeight()
+    show=usableNumber(height) and height>0
     local art=castArt[cast]
     if show and not art then
         art=createCompactRail(cast) castArt[cast]=art cast.stoneDockCastTrim=art
     end
     if art then
-        if show then fitCompactRail(art,cast,2,2) end
+        if show then fitCompactRail(art,cast,height,2,2) end
         art:SetShown(not not show)
     end
     suppress(cast.Border or cast.border,show)
