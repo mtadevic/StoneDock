@@ -101,7 +101,7 @@ function SD:PrecisionAlign(bagsOnly)
         end
     end
     if not bagsOnly then
-        local nativeBars = { MainActionBar, MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight }
+        local nativeBars = { MainActionBar, MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft }
         for n, spec in ipairs(g.bars) do
             local bar, buttons = nativeBars[n], {}
             if bar and bar.actionButtons then
@@ -137,7 +137,7 @@ function SD:PrecisionAlign(bagsOnly)
             end
         end
         correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
-            (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + 24*g.density) * g.scale)
+            (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + (g.variant=="tofu" and 0 or 24)*g.density) * g.scale)
         if self.db.arrangeUtility then
             correct(Enum.EditModeSystem.MicroMenu, nil, { MicroMenu },
                 (g.menuDrawer.x + g.menuDrawer.w / 2) * g.scale,

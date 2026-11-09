@@ -229,6 +229,9 @@ function SD:GetGroupRows(count,geometry)
     -- Leave room for the native tracking frame's gold trim and the compact
     -- unit frames' bottom aura/power strip, not just their nominal rectangles.
     local bottom=math.max(g.leftWell.y+g.leftWell.h,g.rightWell.y+g.rightWell.h)+math.max(22, 20/g.scale)+self.db.groupOffsetY
+    if g.variant=="tofu" then
+        return self:GetTofuGroupRows(groups,g)
+    end
     local chatBounds
     if g.variant=="gulveig" then
         chatBounds=self:GetGulveigChatBounds(g)

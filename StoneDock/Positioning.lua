@@ -12,7 +12,9 @@ function SD:ConfigurePetLayout(layout)
     local info=H.find(layout,Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Pet)
     if not info then return end
     info.anchorInfo={point="BOTTOMRIGHT",relativeTo="PlayerFrame",relativePoint="BOTTOMLEFT",offsetX=self.db.petOffsetX*self:GetGeometry().scale,offsetY=self.db.petOffsetY*self:GetGeometry().scale}
-    if self.layoutName=="Gulveig Bar" then
+    if self.layoutName=="Tofu Bar" then
+        info.anchorInfo.offsetX=info.anchorInfo.offsetX-8*self:GetGeometry().scale
+    elseif self.layoutName=="Gulveig Bar" then
         info.anchorInfo.point="TOPLEFT"
         info.anchorInfo.offsetX=(24+self.db.petOffsetX)*self:GetGeometry().scale
         info.anchorInfo.offsetY=(-26+self.db.petOffsetY)*self:GetGeometry().scale

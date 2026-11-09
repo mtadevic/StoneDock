@@ -417,7 +417,7 @@ function SD:RefreshUtilityButtons(scan)
     -- Secure controls only change visibility and position outside combat.
     -- Keep both ends fixed to the bag drawer regardless of available categories.
     local size,spacing=24*.85,4
-    local width=g.bagDrawer.w-12
+    local width=g.itemWell and g.itemWell.w or g.bagDrawer.w-12
     local trinkets,items={},{}
     for _,b in ipairs(self.utilityButtons) do
         local available=b.hearth and b.hasAvailable or (not b.hearth and b.itemID~=nil)
@@ -436,7 +436,9 @@ function SD:RefreshUtilityButtons(scan)
         b:ClearAllPoints() b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",width-size-(#items-i)*(size+spacing),0)
     end
     self.utilityRoot:ClearAllPoints()
-    if g.variant=="gulveig" and ChatFrame1 then
+    if g.itemWell then
+        self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.itemWell.x,g.itemWell.y)
+    elseif g.variant=="gulveig" and ChatFrame1 then
         -- A live native anchor preserves clearance as chat moves or grows.
         -- This secure root is positioned only in this out-of-combat refresh.
         self.utilityRoot:SetPoint("BOTTOMRIGHT",ChatFrame1,"TOPRIGHT",22,44)

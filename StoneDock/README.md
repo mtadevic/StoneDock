@@ -221,3 +221,7 @@ Gulveig button counts are stored as native integer counts, bypassing display-sli
 Version 0.12.2: Both layouts place the minimap zone and clock below the map. Gulveig adds Celtic unit-frame and map trim. Appearance > Panel details > Style chat with artwork and background enables optional chat decoration (off by default). The Gulveig party row follows chat resizing and clears the item row; movement waits until combat ends. Reload outside combat after updating.
 
 Gulveig 0.12.2 unifies the dark metal/bronze/emerald styling across unit, pet, cast, party/raid, minimap and optional chat frames. Original replacement portrait and border artwork is fitted by its transparent opening. Chat decoration remains off by default.
+
+## Tofu Bar
+
+Choose **Tofu Bar** in **Theme & layout**. The dark metal surround holds the central action banks with space for damage on the left and healing on the right. Open Details windows 1 and 2, then run `/stonedock tofumeters` outside combat to place them and save their positions in Details. Details is optional and installed separately.

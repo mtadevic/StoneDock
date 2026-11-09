@@ -109,6 +109,7 @@ local function rect(region,parent)
 end
 
 function SD:RefreshOrnamentalFrames(active)
+    self:RefreshTofuUnitArt(active,barRegion,rect)
     local show=active and self.layoutName=="Gulveig Bar" and self.db.stoneUnits
     for _,entry in ipairs({{PlayerFrame,false,"PlayerPortrait"},{TargetFrame,true,"TargetFramePortrait"},{FocusFrame,true,"FocusFramePortrait"},{PetFrame,false,"PetPortrait"}}) do
         local frame,mirror=entry[1],entry[2]
@@ -203,7 +204,7 @@ function SD:UpdateMapCaption()
 end
 
 function SD:RefreshMapTheme()
-    local active=self.db.enabled and self:IsOurLayoutActive()
+    local active=self.db.enabled and self.layoutName~="Tofu Bar" and self:IsOurLayoutActive()
     if not Minimap then return end
     if not self.mapThemeSizeHooked and Minimap.HookScript then
         self.mapThemeSizeHooked=true

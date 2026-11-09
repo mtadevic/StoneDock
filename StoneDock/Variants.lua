@@ -1,6 +1,6 @@
 local _, SD = ...
 
-local names={stone="StoneDock - Dark Stone",gulveig="Gulveig Bar"}
+local names={stone="StoneDock - Dark Stone",gulveig="Gulveig Bar",tofu="Tofu Bar"}
 
 local function variant(name)
 
@@ -30,11 +30,12 @@ end
 
 function SD:GetVariantProfileStore()
 
-    if self.layoutName~=names.gulveig then return self.profile,"native" end
+    local key=variant(self.layoutName)
+    if not key or key=="stone" then return self.profile,"native" end
 
     self.profile.variantNative=self.profile.variantNative or {}
 
-    return self.profile.variantNative,"gulveig"
+    return self.profile.variantNative,key
 
 end
 
@@ -214,7 +215,7 @@ function SD:RefreshVariantArt(g)
 
     for _,key in ipairs({"base","leftWell","rightWell","map","right","menuDrawer","bagDrawer"}) do
 
-        self.panels[key]:SetShown(not gulveig)
+        self.panels[key]:SetShown(not g.variant)
 
     end
 
@@ -254,7 +255,7 @@ function SD:RefreshVariantArt(g)
 
     end
 
-    chat:SetShown(not gulveig or self.db.chatStyle==true)
+    chat:SetShown(not g.variant or gulveig and self.db.chatStyle==true)
 
     self.gulveigChatTrim:SetShown(false)
     if not self.gulveigChatBorder then
@@ -295,6 +296,7 @@ function SD:RefreshVariantArt(g)
 
     else chat.fill:SetAllPoints(chat) chat.shadow:Show() end
 
+    self:RefreshTofuArt(g)
     self:RefreshGulveigTrackingArt(gulveig and self.db.enabled and self:IsOurLayoutActive())
     if not gulveig and not self.gulveigBacking then return end
     if not self.gulveigBacking then
@@ -378,7 +380,7 @@ function SD:PromptForLayout()
 
         f.selection=self.db.layoutVariant or "stone"
 
-        f.choice=self:SettingsDropdown(f,"Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"}},
+        f.choice=self:SettingsDropdown(f,"Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"}},
 
             function()return f.selection end,function(key)f.selection=key end,create)
 

@@ -8,7 +8,7 @@ local function section(title, controls) return {title=title,controls=controls} e
 local schemas = {
     appearance = {title="Theme & layout", description="Choose the look and spacing of your dashboard.", sections={
         section("Appearance",{
-            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"}}),
+            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"}}),
             selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"},{"kintsugi","Onyx Kintsugi"}}),
             selectOption("accent","Accent color",{{"silver","Silver"},{"violet","Violet"},{"green","Moss"},{"bronze","Bronze"}}),
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),

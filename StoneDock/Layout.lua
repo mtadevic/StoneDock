@@ -192,7 +192,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
         local info = findSystem(layout, E.ActionBar, bar.index)
         anchor(info, "CENTER", "BOTTOMLEFT", bar.x * s, bar.y * s)
         displaySetting(info, A.Orientation, Enum.ActionBarOrientation.Horizontal)
-        displaySetting(info, A.NumRows, 1)
+        displaySetting(info, A.NumRows, bar.rows or 1)
         -- NumIcons is consumed as a raw integer by UpdateSystemSettingNumIcons.
         -- Do not quantize it through a client-specific display slider step.
         rawSetting(info, A.NumIcons, bar.icons or 12)
@@ -208,7 +208,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     -- Hide inherited extra rows in this layout only, so a prior multi-column
     -- layout cannot leave bars over the chat well. Their action slots stay intact.
     if self.db.useExtraBars then
-        for index = g.variant=="gulveig" and 4 or 5, 8 do
+        for index = #g.bars+1, 8 do
             displaySetting(findSystem(layout, E.ActionBar, index), A.VisibleSetting, Enum.ActionBarVisibleSetting.Hidden)
         end
     end
@@ -363,6 +363,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     if self.ConfigureNativeParty then
         self:ConfigureNativeParty(findSystem(layout,E.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party),g)
     end
+    if g.variant=="tofu" then self:FinishTofuLayout(layout,g,dashboardOnly) end
     if g.variant=="gulveig" then self:FinishGulveigLayout(layout,g,base.layoutName~=self.layoutName) end
     return layout
 end

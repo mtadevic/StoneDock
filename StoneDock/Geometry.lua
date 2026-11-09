@@ -30,6 +30,8 @@ function SD:GetGeometry(width, height, density)
     local function rect(x, y, w, h)
         return { x = x, y = y * rise, w = w, h = h * rise }
     end
+    if self.layoutName == "Tofu Bar" then return self:GetTofuGeometry(width,height,rise) end
+
     if self.layoutName == "Gulveig Bar" then return self:GetGulveigGeometry(width,height,rise) end
     return {
         width = width, height = height, scale = scale, density = rise, revision = 1,
