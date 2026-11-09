@@ -22,7 +22,14 @@ local function trim(frame,show)
         end
         styled[frame]=edges
     end
-    for _,t in ipairs(styled[frame]) do t:SetShown(show) end
+    local gulveig=SD.layoutName=="Gulveig Bar"
+    if gulveig and show and not frame.stoneDockGroupTrim then
+        frame.stoneDockGroupTrim=SD:CreateGulveigBorder(frame)
+        frame.stoneDockGroupTrim:SetPoint("TOPLEFT",frame,"TOPLEFT",-4,6)
+        frame.stoneDockGroupTrim:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",4,-6)
+    end
+    if frame.stoneDockGroupTrim then frame.stoneDockGroupTrim:SetShown(show and gulveig) end
+    for _,t in ipairs(styled[frame]) do t:SetShown(show and not gulveig) end
 end
 
 local function applyGroupPreference(key, stateKey, active, value)
