@@ -138,18 +138,21 @@ function SD:PrecisionAlign(bagsOnly)
             elseif frame then buttons[1]=frame end
             local _,_,w,h=union(buttons)
             if w then
-                local edge=(spec[4] and well.x+well.w-12 or well.x+12)*g.scale
+                local alignRight=spec[4]
+                if g.auxTopInset then alignRight=not alignRight end
+                local edge=(alignRight and well.x+well.w-12 or well.x+12)*g.scale
                 local bottom=(well.y+well.h-18*g.density)*g.scale
                 if g.auxTopInset then
-                    bottom=(well.y+well.h-g.auxTopInset*g.density)*g.scale-h
+                    local top=alignRight and g.auxRightTop or well.y+well.h-g.auxTopInset*g.density
+                    bottom=top*g.scale-h
                 end
                 local main=spec[5]
                 local _,_,mainWidth,mainHeight=union(main and (main.actionButtons or {main}) or {})
                 if mainWidth and spec[6] and not g.variant then
-                    edge=spec[6].x*g.scale+(spec[4] and mainWidth/2 or -mainWidth/2)
+                    edge=spec[6].x*g.scale+(alignRight and mainWidth/2 or -mainWidth/2)
                     bottom=spec[6].y*g.scale+mainHeight/2+4*g.scale
                 end
-                local targetX=edge+(spec[4] and -w/2 or w/2)
+                local targetX=edge+(alignRight and -w/2 or w/2)
                 correct(Enum.EditModeSystem.ActionBar,spec[1],buttons,targetX,bottom+h/2)
             end
         end

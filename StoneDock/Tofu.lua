@@ -29,10 +29,10 @@ function SD:GetTofuGeometry(width,height,rise)
     local right=box(center+outerInner,0,1920-center-outerInner,326)
     local leftMeterPlate,rightMeterPlate=pair(meterInner,214,0,meterBase)
     local trayWidth=144
-    local leftTray,rightTray=pair(meterInner,trayWidth,meterBase,34)
+    local leftTray,rightTray=pair(outerInner-trayWidth,trayWidth,meterBase,34)
     local centerPlate=box(center-centerHalf,0,2*centerHalf,186+dy)
     return {
-        variant="tofu",revision=4,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=5,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
@@ -41,6 +41,7 @@ function SD:GetTofuGeometry(width,height,rise)
         itemWell=box(rightTray.x+6+self.db.tofuItemOffsetX,168+self.db.tofuItemOffsetY,rightTray.w-12,24),utilityY=168*rise,
         trackingWell=box(423,0,1074,25),
         auxLeft=leftTray,auxRight=rightTray,auxTopInset=7,
+        auxRightTop=rightTray.y+rightTray.h+26*rise,
         cast={x=center-960,y=centerPlate.h+16*rise},
         player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
         party={x=620,y=395*rise},raid={x=620,y=466*rise},
@@ -78,9 +79,9 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
     if self.db.arrangeUtility then
         anchor(E.StatusTrackingBar,1,"TOP","TOP",0,-12*g.density)
         anchor(E.StatusTrackingBar,2,"TOP","TOP",0,-28*g.density)
-        anchor(E.ActionBar,11,"TOPRIGHT","BOTTOMLEFT",g.auxLeft.x+g.auxLeft.w-12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset*g.density)
+        anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",g.auxLeft.x+12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset*g.density)
         for index=12,13 do
-            anchor(E.ActionBar,index,"TOPLEFT","BOTTOMLEFT",g.auxRight.x+12,g.auxRight.y+g.auxRight.h-g.auxTopInset*g.density)
+            anchor(E.ActionBar,index,"TOPRIGHT","BOTTOMLEFT",g.auxRight.x+g.auxRight.w-12,g.auxRightTop)
         end
         if not dashboardOnly then anchor(E.ObjectiveTracker,nil,"TOPRIGHT","TOPRIGHT",-16,-362*g.density) end
     end
@@ -100,39 +101,36 @@ end
 local function plate(parent,cornerSize)
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
-    -- Two strips fill the interior. The four textured corners carry their own alpha.
+    local texture="Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga"
     local center=f:CreateTexture(nil,"BACKGROUND")
-    center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,0)
-    center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,0)
-    center:SetColorTexture(.037,.040,.044,1)
-    local sides=f:CreateTexture(nil,"BACKGROUND")
-    sides:SetPoint("TOPLEFT",f,"TOPLEFT",0,-cornerSize)
-    sides:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",0,cornerSize)
-    sides:SetColorTexture(.037,.040,.044,1)
-    for i=1,3 do
-        local inset=.75+(i-1)*1.1
-        local shade=({.075,.34,.13})[i]
-        for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
-            local edge=f:CreateTexture(nil,"BORDER")
-            edge:SetColorTexture(shade,shade*1.04,shade*1.09,1)
-            if side=="TOP" or side=="BOTTOM" then
-                local y=side=="TOP" and -inset or inset
-                edge:SetPoint(side.."LEFT",f,side.."LEFT",cornerSize,y)
-                edge:SetPoint(side.."RIGHT",f,side.."RIGHT",-cornerSize,y)
-                edge:SetHeight(1.1)
-            else
-                local x=side=="LEFT" and inset or -inset
-                edge:SetPoint("TOP"..side,f,"TOP"..side,x,-cornerSize)
-                edge:SetPoint("BOTTOM"..side,f,"BOTTOM"..side,x,cornerSize)
-                edge:SetWidth(1.1)
-            end
+    center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,-cornerSize)
+    center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,cornerSize)
+    center:SetColorTexture(9/255,10/255,11/255,1)
+    -- Stretch the last texel of each corner into a straight edge. Each piece
+    -- owns its own area so the canvas opacity is applied exactly once.
+    local seam=63.5/64
+    for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+        local edge=f:CreateTexture(nil,"BACKGROUND")
+        edge:SetTexture(texture)
+        if side=="TOP" or side=="BOTTOM" then
+            local top=side=="TOP"
+            edge:SetPoint(side.."LEFT",f,side.."LEFT",cornerSize,0)
+            edge:SetPoint(side.."RIGHT",f,side.."RIGHT",-cornerSize,0)
+            edge:SetHeight(cornerSize)
+            edge:SetTexCoord(seam,seam,top and 0 or 1,top and 1 or 0)
+        else
+            local left=side=="LEFT"
+            edge:SetPoint("TOP"..side,f,"TOP"..side,0,-cornerSize)
+            edge:SetPoint("BOTTOM"..side,f,"BOTTOM"..side,0,cornerSize)
+            edge:SetWidth(cornerSize)
+            edge:SetTexCoord(left and 0 or 1,left and 1 or 0,seam,seam)
         end
     end
     for _,side in ipairs({"TOPLEFT","TOPRIGHT","BOTTOMLEFT","BOTTOMRIGHT"}) do
         local right=side:find("RIGHT",1,true)~=nil
         local bottom=side:find("BOTTOM",1,true)~=nil
         local corner=f:CreateTexture(nil,"OVERLAY")
-        corner:SetTexture("Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga")
+        corner:SetTexture(texture)
         corner:SetTexCoord(right and 1 or 0,right and 0 or 1,bottom and 1 or 0,bottom and 0 or 1)
         corner:SetPoint(side)
         corner:SetSize(cornerSize,cornerSize)
