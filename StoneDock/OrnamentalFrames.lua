@@ -50,6 +50,51 @@ function SD:CreateGulveigBorder(parent, endWidth, edgeHeight)
     return f
 end
 
+-- Keep the sculpted ends at their original aspect ratio. Only the straight
+-- metal rails span the variable distance between the ends.
+local function createCompactRail(parent, portraitOnRight)
+    local rail=CreateFrame("Frame",nil,parent)
+    rail:EnableMouse(false)
+    rail.fill=parent:CreateTexture(nil,"BACKGROUND",nil,-7)
+    rail.fill:SetColorTexture(0,0,0,.94)
+    rail:SetScript("OnShow",function() rail.fill:Show() end)
+    rail:SetScript("OnHide",function() rail.fill:Hide() end)
+    local function piece(u1,u2,v1,v2)
+        local texture=rail:CreateTexture(nil,"OVERLAY")
+        texture:SetTexture(media.."GulveigRailV2.tga")
+        texture:SetTexCoord(u1,u2,v1,v2)
+        return texture
+    end
+    rail.top=piece(.10,.90,.18,.31)
+    rail.bottom=piece(.10,.90,.68,.81)
+    if portraitOnRight~=false then rail.left=piece(0,.10,.18,.81) end
+    if portraitOnRight~=true then rail.right=piece(.90,1,.18,.81) end
+    return rail
+end
+
+local function fitCompactRail(rail, bar, top, bottom)
+    local height=bar:GetHeight()+top+bottom
+    local cap=height*(.10*3/.63)
+    local edge=height*(.13/.63)
+    local left=rail.left and cap*.72 or 2
+    local right=rail.right and cap*.72 or 2
+    rail:ClearAllPoints()
+    rail:SetPoint("TOPLEFT",bar,"TOPLEFT",-left,top)
+    rail:SetPoint("BOTTOMRIGHT",bar,"BOTTOMRIGHT",right,-bottom)
+    local leftInset=rail.left and cap or 0
+    local rightInset=rail.right and cap or 0
+    if rail.left then rail.left:SetPoint("LEFT") rail.left:SetSize(cap,height) end
+    if rail.right then rail.right:SetPoint("RIGHT") rail.right:SetSize(cap,height) end
+    rail.top:SetPoint("TOPLEFT",rail,"TOPLEFT",leftInset,0)
+    rail.top:SetPoint("TOPRIGHT",rail,"TOPRIGHT",-rightInset,0)
+    rail.top:SetHeight(edge)
+    rail.bottom:SetPoint("BOTTOMLEFT",rail,"BOTTOMLEFT",leftInset,0)
+    rail.bottom:SetPoint("BOTTOMRIGHT",rail,"BOTTOMRIGHT",-rightInset,0)
+    rail.bottom:SetHeight(edge)
+    rail.fill:SetPoint("TOPLEFT",rail,"TOPLEFT",leftInset*.65,-edge*.66)
+    rail.fill:SetPoint("BOTTOMRIGHT",rail,"BOTTOMRIGHT",-rightInset*.65,edge*.66)
+end
+
 local function barRegion(frame)
     local content=frame.PlayerFrameContent or frame.TargetFrameContent
     local main=content and (content.PlayerFrameContentMain or content.Main)
@@ -74,7 +119,7 @@ function SD:RefreshOrnamentalFrames(active)
             local fitted=show and portrait and bar and portrait.GetWidth and bar.GetWidth
             local art=unitArt[frame]
             if fitted and not art then
-                art={ring=frame:CreateTexture(nil,"OVERLAY",nil,6),border=self:CreateGulveigBorder(frame)}
+                art={ring=frame:CreateTexture(nil,"OVERLAY",nil,6),border=createCompactRail(frame,mirror)}
                 art.ring:SetTexture(media.."GulveigPortraitV2.tga") unitArt[frame]=art frame.stoneDockTrim=art
             end
             local nativeTexture=(container and (container.FrameTexture or container.Texture)) or (frame.GetName and _G[(frame:GetName() or "").."Texture"])
@@ -89,25 +134,17 @@ function SD:RefreshOrnamentalFrames(active)
                     art.ring:SetTexCoord(mirror and 1 or 0,mirror and 0 or 1,0,1)
                     art.ring:SetPoint("CENTER",portrait,"CENTER",(mirror and 1 or -1)*w*.062,-h*.011)
                     local _,by,_,bh=rect(bar,frame)
-                    local top,bottom=20,12
+                    local height=bar:GetHeight()
+                    local top,bottom=height*.85,height*.5
                     if by then
                         local power=frame.manabar or frame.ManaBar or frame.powerBar
                         local name=frame.name or frame.Name or (frame.GetName and _G[(frame:GetName() or "").."Name"])
                         local _,ny,_,nh=rect(name,frame)
                         local _,py=rect(power,frame)
-                        local nameBackground=frame.nameBackground or frame.NameBackground
-                        if not nameBackground and frame.GetName then
-                            nameBackground=_G[(frame:GetName() or "").."NameBackground"]
-                        end
-                        local _,backgroundY,_,backgroundHeight=rect(nameBackground,frame)
-                        top=mirror and math.max(26,bh) or 20
-                        if ny then top=math.max(top,ny+nh-(by+bh)+2) end
-                        if backgroundY then top=math.max(top,backgroundY+backgroundHeight-(by+bh)+2) end
-                        if py then bottom=math.max(0,by-py)+2 end
+                        if ny then top=math.max(2,ny+nh-by-bh+5) end
+                        if py then bottom=math.max(2,by-py+4) end
                     end
-                    art.border:ClearAllPoints()
-                    art.border:SetPoint("TOPLEFT",bar,"TOPLEFT",-5,top+6)
-                    art.border:SetPoint("BOTTOMRIGHT",bar,"BOTTOMRIGHT",5,-bottom-6)
+                    fitCompactRail(art.border,bar,top,bottom)
                 end
             end
             local cast=frame.spellbar or frame.CastBar
@@ -140,11 +177,12 @@ function SD:StyleGulveigCast(cast,show)
     if not cast then return end
     local art=castArt[cast]
     if show and not art then
-        art=self:CreateGulveigBorder(cast) castArt[cast]=art cast.stoneDockCastTrim=art
-        art:SetPoint("TOPLEFT",cast,"TOPLEFT",-5,6)
-        art:SetPoint("BOTTOMRIGHT",cast,"BOTTOMRIGHT",5,-6)
+        art=createCompactRail(cast) castArt[cast]=art cast.stoneDockCastTrim=art
     end
-    if art then art:SetShown(not not show) end
+    if art then
+        if show then fitCompactRail(art,cast,2,2) end
+        art:SetShown(not not show)
+    end
     suppress(cast.Border or cast.border,show)
 end
 
