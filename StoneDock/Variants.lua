@@ -295,13 +295,21 @@ function SD:RefreshVariantArt(g)
 
     else chat.fill:SetAllPoints(chat) chat.shadow:Show() end
 
+    self:RefreshGulveigTrackingArt(gulveig and self.db.enabled and self:IsOurLayoutActive())
     if not gulveig and not self.gulveigBacking then return end
     if not self.gulveigBacking then
         self.gulveigBacking=CreateFrame("Frame",nil,UIParent)
         self.gulveigBacking:SetFrameStrata("BACKGROUND")
         self.gulveigBacking:EnableMouse(false)
-        self.gulveigRows={}
-        for i=1,3 do self.gulveigRows[i]=self:CreateGulveigBorder(self.gulveigBacking,26) end
+        local backing=self.gulveigBacking
+        self.gulveigArt=backing:CreateTexture(nil,"ARTWORK")
+        self.gulveigArt:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigBarV2.tga")
+        self.gulveigFills={}
+        for i=1,2 do
+            local fill=backing:CreateTexture(nil,"BACKGROUND")
+            fill:SetColorTexture(0,0,0,1)
+            self.gulveigFills[i]=fill
+        end
     end
     local backing=self.gulveigBacking
     backing:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
@@ -311,21 +319,17 @@ function SD:RefreshVariantArt(g)
     backing:SetShown(gulveig and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides))
     if not gulveig then return end
 
-    local nativeBars={MainActionBar,MultiBarBottomLeft,MultiBarBottomRight}
-    for i,spec in ipairs(g.bars) do
-        local row=self.gulveigRows[i]
-        local bar=nativeBars[i]
-        local buttons=bar and bar.actionButtons
-        local first,last=buttons and buttons[1],buttons and buttons[spec.icons]
-        row:ClearAllPoints()
-        if first and last then
-            row:SetPoint("TOPLEFT",first,"TOPLEFT",-22,8)
-            row:SetPoint("BOTTOMRIGHT",last,"BOTTOMRIGHT",22,-8)
-        else
-            row:SetPoint("CENTER",backing,"BOTTOMLEFT",spec.x,spec.y)
-            row:SetSize(spec.icons*(spec.iconSize+2)+44,spec.iconSize+16)
-        end
-    end
+    local ornament=g.ornament
+    self.gulveigArt:ClearAllPoints()
+    self.gulveigArt:SetPoint("BOTTOM",backing,"BOTTOMLEFT",g.bars[1].x,ornament.y)
+    self.gulveigArt:SetSize(ornament.w,ornament.h)
+
+    -- Two overlapping fills cover the openings while leaving the outer wings transparent.
+    local centerFill,middleFill=unpack(self.gulveigFills)
+    centerFill:SetPoint("CENTER",self.gulveigArt,"CENTER",0,0)
+    centerFill:SetSize(ornament.w*.46,ornament.h*.84)
+    middleFill:SetPoint("CENTER",self.gulveigArt,"CENTER",0,-ornament.h*.01)
+    middleFill:SetSize(ornament.w*.73,ornament.h*.35)
 end
 
 function SD:ChooseFirstLayout(key)

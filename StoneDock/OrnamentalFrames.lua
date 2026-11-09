@@ -13,16 +13,17 @@ local function suppress(region,state)
 end
 
 -- Nine pieces keep the small metal bevels intact as native frames change size.
-function SD:CreateGulveigBorder(parent, endWidth)
+function SD:CreateGulveigBorder(parent, endWidth, edgeHeight)
     endWidth=endWidth or 6
+    edgeHeight=edgeHeight or 6
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
     f.fill=parent:CreateTexture(nil,"BACKGROUND",nil,-7)
     f:SetScript("OnShow",function() f.fill:Show() end)
     f:SetScript("OnHide",function() f.fill:Hide() end)
     f.fill:SetColorTexture(0,0,0,.92)
-    f.fill:SetPoint("TOPLEFT",f,"TOPLEFT",endWidth*.72,-6)
-    f.fill:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-endWidth*.72,6)
+    f.fill:SetPoint("TOPLEFT",f,"TOPLEFT",endWidth*.72,-edgeHeight)
+    f.fill:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-endWidth*.72,edgeHeight)
     local u,v={0,.1,.9,1},{.18,.31,.68,.81}
     for row=1,3 do
         for col=1,3 do
@@ -32,14 +33,14 @@ function SD:CreateGulveigBorder(parent, endWidth)
                 t:SetTexCoord(u[col],u[col+1],v[row],v[row+1])
                 local left=col==1 and 0 or endWidth
                 local right=col==3 and 0 or -endWidth
-                local top=row==1 and 0 or -6
-                local bottom=row==3 and 0 or 6
+                local top=row==1 and 0 or -edgeHeight
+                local bottom=row==3 and 0 or edgeHeight
                 t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -endWidth or left,top)
                 t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and endWidth or right,bottom)
-                if row==1 then t:SetHeight(6) t:ClearAllPoints()
+                if row==1 then t:SetHeight(edgeHeight) t:ClearAllPoints()
                     t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -endWidth or left,0)
                     t:SetPoint("TOPRIGHT",f,col==1 and "TOPLEFT" or "TOPRIGHT",col==1 and endWidth or right,0)
-                elseif row==3 then t:SetHeight(6) t:ClearAllPoints()
+                elseif row==3 then t:SetHeight(edgeHeight) t:ClearAllPoints()
                     t:SetPoint("BOTTOMLEFT",f,col==3 and "BOTTOMRIGHT" or "BOTTOMLEFT",col==3 and -endWidth or left,0)
                     t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and endWidth or right,0)
                 end
@@ -94,7 +95,14 @@ function SD:RefreshOrnamentalFrames(active)
                         local name=frame.name or frame.Name or (frame.GetName and _G[(frame:GetName() or "").."Name"])
                         local _,ny,_,nh=rect(name,frame)
                         local _,py=rect(power,frame)
-                        if ny then top=math.max(0,ny+nh-(by+bh))+2 end
+                        local nameBackground=frame.nameBackground or frame.NameBackground
+                        if not nameBackground and frame.GetName then
+                            nameBackground=_G[(frame:GetName() or "").."NameBackground"]
+                        end
+                        local _,backgroundY,_,backgroundHeight=rect(nameBackground,frame)
+                        top=mirror and math.max(26,bh) or 20
+                        if ny then top=math.max(top,ny+nh-(by+bh)+2) end
+                        if backgroundY then top=math.max(top,backgroundY+backgroundHeight-(by+bh)+2) end
                         if py then bottom=math.max(0,by-py)+2 end
                     end
                     art.border:ClearAllPoints()
@@ -107,6 +115,25 @@ function SD:RefreshOrnamentalFrames(active)
         end
     end
     for _,cast in pairs({PlayerCastingBarFrame,CastingBarFrame,PetCastingBarFrame}) do self:StyleGulveigCast(cast,show) end
+end
+
+function SD:RefreshGulveigTrackingArt(show)
+    for _,bar in pairs({MainStatusTrackingBarContainer,SecondaryStatusTrackingBarContainer}) do
+        local nativeBorder=bar.BarFrameTexture
+        if nativeBorder then
+            local trim=bar.stoneDockTrackingTrim
+            if show and not trim then
+                trim=self:CreateGulveigBorder(bar,16,3)
+                trim:SetPoint("TOPLEFT",nativeBorder,"TOPLEFT",-13,2)
+                trim:SetPoint("BOTTOMRIGHT",nativeBorder,"BOTTOMRIGHT",13,-2)
+                bar.stoneDockTrackingTrim=trim
+            end
+            if trim then
+                trim:SetShown(show)
+                suppress(nativeBorder,show)
+            end
+        end
+    end
 end
 
 function SD:StyleGulveigCast(cast,show)
