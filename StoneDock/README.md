@@ -224,4 +224,4 @@ Gulveig 0.12.2 unifies the dark metal/bronze/emerald styling across unit, pet, c
 
 ## Tofu Bar
 
-Choose **Tofu Bar** in **Theme & layout**. The dark metal surround holds the central action banks with space for damage on the left and healing on the right. Open Details windows 1 and 2, then run `/stonedock tofumeters` outside combat to place them and save their positions in Details. Details is optional and installed separately.
+Choose **Tofu Bar** in **Theme & layout**. The dark metal surround holds the central action banks with space for damage on the left and healing on the right. Open Details windows 1 and 2, then run `/stonedock tofumeters` outside combat to place them and save their positions in Details. Details is optional and installed separately. Move the item row with **Action bars & fading > Tofu item bar**, then click **Apply**.

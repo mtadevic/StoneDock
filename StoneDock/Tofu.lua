@@ -20,24 +20,25 @@ function SD:GetTofuGeometry(width,height,rise)
         return box(center-inner-w,y,w,h),box(center+inner,y,w,h)
     end
     local centerHalf=snap(130*zoom)
-    local gap=snap(4)
-    local leftBank,rightBank=pair(centerHalf+gap,98*zoom,0,181+dy)
-    local meterInner=centerHalf+2*gap+leftBank.w
+    local meterBase=161
+    local leftBank,rightBank=pair(centerHalf,98*zoom,0,181+dy)
+    local meterInner=centerHalf+leftBank.w
     local leftMeter,rightMeter=pair(meterInner,214,4,157)
-    local outerInner=meterInner+leftMeter.w+gap
+    local outerInner=meterInner+leftMeter.w
     local left=box(0,0,center-outerInner,326)
     local right=box(center+outerInner,0,1920-center-outerInner,326)
-    local leftTray,rightTray=pair(meterInner,214,165,56)
+    local leftMeterPlate,rightMeterPlate=pair(meterInner,214,0,meterBase)
+    local leftTray,rightTray=pair(meterInner,214,meterBase,60)
     return {
-        variant="tofu",revision=2,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=3,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
-        silhouette={left,right,leftMeter,rightMeter,leftBank,rightBank,box(center-centerHalf,0,2*centerHalf,224+dy),leftTray,rightTray},
+        silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,box(center-centerHalf,0,2*centerHalf,224+dy),leftTray,rightTray},
         chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
-        itemWell=box(rightTray.x+5,181,rightTray.w-10,24),utilityY=181*rise,
+        itemWell=box(rightTray.x+5+self.db.tofuItemOffsetX,181+self.db.tofuItemOffsetY,rightTray.w-10,24),utilityY=181*rise,
         trackingWell=box(423,0,1074,25),
-        auxLeft=box(leftTray.x,171,214,43),auxRight=box(1420,214,240,51),
+        auxLeft=leftTray,auxRight=rightTray,auxTopInset=9,
         cast={x=dx,y=(194+dy)*rise},
         player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
         party={x=620,y=395*rise},raid={x=620,y=466*rise},
@@ -75,9 +76,9 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
     if self.db.arrangeUtility then
         anchor(E.StatusTrackingBar,1,"TOP","TOP",0,-12*g.density)
         anchor(E.StatusTrackingBar,2,"TOP","TOP",0,-28*g.density)
-        anchor(E.ActionBar,11,"BOTTOMLEFT","BOTTOMLEFT",g.auxLeft.x+12,g.auxLeft.y+g.auxLeft.h-18*g.density)
+        anchor(E.ActionBar,11,"TOPRIGHT","BOTTOMLEFT",g.auxLeft.x+g.auxLeft.w-12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset*g.density)
         for index=12,13 do
-            anchor(E.ActionBar,index,"BOTTOMLEFT","BOTTOMLEFT",g.auxRight.x+12,g.auxRight.y+g.auxRight.h-18*g.density)
+            anchor(E.ActionBar,index,"TOPLEFT","BOTTOMLEFT",g.auxRight.x+12,g.auxRight.y+g.auxRight.h-g.auxTopInset*g.density)
         end
         if not dashboardOnly then anchor(E.ObjectiveTracker,nil,"TOPRIGHT","TOPRIGHT",-16,-362*g.density) end
     end

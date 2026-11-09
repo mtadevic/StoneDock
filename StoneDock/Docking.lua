@@ -126,6 +126,9 @@ function SD:PrecisionAlign(bagsOnly)
             if w then
                 local edge=(spec[4] and well.x+well.w-12 or well.x+12)*g.scale
                 local bottom=(well.y+well.h-18*g.density)*g.scale
+                if g.auxTopInset then
+                    bottom=(well.y+well.h-g.auxTopInset*g.density)*g.scale-h
+                end
                 local main=spec[5]
                 local _,_,mainWidth,mainHeight=union(main and (main.actionButtons or {main}) or {})
                 if mainWidth and spec[6] and not g.variant then

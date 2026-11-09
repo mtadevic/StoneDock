@@ -24,6 +24,8 @@ local schemas = {
     bars = {title="Action bars & fading",description="Move the action banks together and choose their out-of-combat visibility.",sections={
         section("Action banks",{range("barOffsetX","Horizontal offset",-100,100,1),range("barOffsetY","Vertical offset",-15,180,1),
             range("barSpread","Distance from center",-100,100,1),range("barWidth","Width (%)",70,110,1)}),
+        section("Tofu item bar",{range("tofuItemOffsetX","Horizontal offset",-500,500,1),
+            range("tofuItemOffsetY","Vertical offset",-180,350,1)}),
         section("Out of combat",{check("fadeUI","Fade the dashboard"),range("uiRestAlpha","Dashboard opacity",0,1,0.05),
             check("fadeHUD","Fade the curved HUD"),range("hudRestAlpha","HUD opacity",0,1,0.05),check("revealOnHover","Reveal the dashboard on mouseover")}),
     }},
