@@ -10,26 +10,42 @@ function SD:GetTofuGeometry(width,height,rise)
     local function bar(index,x,y,icons,rows,size)
         return {index=index,x=960+(x-960)*zoom+dx,y=(y+dy)*rise,icons=icons,rows=rows,iconSize=size*zoom*rise}
     end
-    local leftMeter=box(520,5,215,157)
-    local rightMeter=box(1192,5,212,157)
+    local physicalHeight
+    if GetPhysicalScreenSize then local _; _,physicalHeight=GetPhysicalScreenSize() end
+    local pixel=physicalHeight and screenHeight/physicalHeight or 1
+    local function snap(value) return math.floor(value/pixel+.5)*pixel end
+    local center=960+snap(dx)
+    local function pair(inner,w,y,h)
+        inner,w=snap(inner),snap(w)
+        return box(center-inner-w,y,w,h),box(center+inner,y,w,h)
+    end
+    local centerHalf=snap(130*zoom)
+    local gap=snap(4)
+    local leftBank,rightBank=pair(centerHalf+gap,98*zoom,0,181+dy)
+    local meterInner=centerHalf+2*gap+leftBank.w
+    local leftMeter,rightMeter=pair(meterInner,214,4,157)
+    local outerInner=meterInner+leftMeter.w+gap
+    local left=box(0,0,center-outerInner,326)
+    local right=box(center+outerInner,0,1920-center-outerInner,326)
+    local leftTray,rightTray=pair(meterInner,214,165,56)
     return {
-        variant="tofu",revision=1,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
-        left=box(0,0,517,332),right=box(1408,0,512,310),base=box(0,0,1920,3),
-        map={x=1618,y=screenHeight-324*rise,w=286,h=286*rise},
-        leftWell=leftMeter,rightWell=rightMeter,
-        meters={leftMeter,rightMeter},
-        chat=box(28,30,475,274),menuDrawer=box(831,1,258,34),bagDrawer=box(1640,10,264,40),
-        itemWell=box(1178,173,250,24),utilityY=173*rise,
+        variant="tofu",revision=2,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        left=left,right=right,base=box(0,0,1920,3),
+        map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
+        leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
+        silhouette={left,right,leftMeter,rightMeter,leftBank,rightBank,box(center-centerHalf,0,2*centerHalf,224+dy),leftTray,rightTray},
+        chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
+        itemWell=box(rightTray.x+5,181,rightTray.w-10,24),utilityY=181*rise,
         trackingWell=box(423,0,1074,25),
-        auxLeft=box(520,160,130,69),auxRight=box(1408,205,240,51),
-        cast={x=0,y=(191+dy)*rise},
-        player={x=651,y=209*rise},target={x=1272,y=209*rise},
+        auxLeft=box(leftTray.x,171,214,43),auxRight=box(1420,214,240,51),
+        cast={x=dx,y=(194+dy)*rise},
+        player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
         party={x=620,y=395*rise},raid={x=620,y=466*rise},
         bars={
             bar(1,960,160,5,1,46),
             bar(2,960,86,10,2,46),
-            bar(3,781,91,8,4,38),
-            bar(4,1146,91,8,4,38),
+            bar(3,960-(center-leftBank.x-leftBank.w/2)/zoom,91,8,4,38),
+            bar(4,960+(rightBank.x+rightBank.w/2-center)/zoom,91,8,4,38),
         },
     }
 end
@@ -73,27 +89,50 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
         anchor(E.UnitFrame,U.Pet,"BOTTOMRIGHT","BOTTOMLEFT",g.player.x-8,g.player.y)
     end
     if not dashboardOnly then
+        anchor(E.CastBar,nil,"BOTTOM","BOTTOM",g.cast.x,g.cast.y)
         H.setting(H.find(layout,E.CastBar),Enum.EditModeCastBarSetting.BarSize,75*s)
     end
 end
 
 local function plate(parent,alpha)
-    local f=CreateFrame("Frame",nil,parent,"BackdropTemplate")
+    local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
-    f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize=10,insets={left=3,right=3,top=3,bottom=3}})
-    f:SetBackdropColor(.035,.032,.030,alpha or .97)
-    f:SetBackdropBorderColor(.62,.57,.50,1)
-    -- A dark inset and a narrow highlight read as an engraved metal edge.
-    local rim=f:CreateTexture(nil,"BORDER",nil,1)
-    rim:SetColorTexture(.48,.43,.36,.7)
-    rim:SetPoint("TOPLEFT",f,"TOPLEFT",8,-4)
-    rim:SetPoint("TOPRIGHT",f,"TOPRIGHT",-8,-4)
-    rim:SetHeight(1)
+    local fill=f:CreateTexture(nil,"BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetColorTexture(.037,.040,.044,alpha)
+    for i=1,3 do
+        local inset=(i-1)*1.5
+        local shade=({.075,.34,.13})[i]
+        for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
+            local edge=f:CreateTexture(nil,"BORDER")
+            edge:SetColorTexture(shade,shade*1.04,shade*1.09,1)
+            if side=="TOP" or side=="BOTTOM" then
+                local y=side=="TOP" and -inset or inset
+                edge:SetPoint(side.."LEFT",f,side.."LEFT",inset,y)
+                edge:SetPoint(side.."RIGHT",f,side.."RIGHT",-inset,y)
+                edge:SetHeight(1.5)
+            else
+                local x=side=="LEFT" and inset or -inset
+                edge:SetPoint("TOP"..side,f,"TOP"..side,x,-inset)
+                edge:SetPoint("BOTTOM"..side,f,"BOTTOM"..side,x,inset)
+                edge:SetWidth(1.5)
+            end
+        end
+    end
+    for _,side in ipairs({"TOPLEFT","TOPRIGHT","BOTTOMLEFT","BOTTOMRIGHT"}) do
+        local right=side:find("RIGHT",1,true)~=nil
+        local bottom=side:find("BOTTOM",1,true)~=nil
+        local corner=f:CreateTexture(nil,"OVERLAY")
+        corner:SetTexture("Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga")
+        corner:SetTexCoord(right and 1 or 0,right and 0 or 1,bottom and 1 or 0,bottom and 0 or 1)
+        corner:SetPoint(side)
+        corner:SetSize(18,18)
+    end
     return f
 end
 
 function SD:RefreshTofuArt(g)
+    self:FitTofuTopRow()
     local show=g.variant=="tofu" and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides or self.editing)
     if not self.tofuArt then
         if not show then return end
@@ -102,27 +141,16 @@ function SD:RefreshTofuArt(g)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
         art.plates={}
-        for i=1,10 do art.plates[i]=plate(art,i==1 and 0 or .95) end
+        for i=1,10 do art.plates[i]=plate(art,i==1 and 0 or 1) end
         self.tofuArt=art
     end
     local art=self.tofuArt
     art:SetShown(show)
     if not show then return end
-    local r=g.density
-    local center=g.bars[1].x
-    local zoom=self.db.barWidth/100
-    local shapes={
-        {x=0,y=0,w=1920,h=g.screenHeight},
-        g.left,g.right,g.meters[1],g.meters[2],
-        {x=g.bars[3].x-49*zoom,y=0,w=98*zoom,h=(183+self.db.barOffsetY)*r},
-        {x=g.bars[4].x-49*zoom,y=0,w=98*zoom,h=(186+self.db.barOffsetY)*r},
-        {x=center-130*zoom,y=0,w=260*zoom,h=226*r},
-        {x=520,y=162*r,w=128,h=59*r},
-        {x=1278,y=162*r,w=130,h=59*r},
-    }
-    shapes[8].h=math.max(35*r,(226+self.db.barOffsetY)*r)
-    for i,rect in ipairs(shapes) do
-        local f=art.plates[i]
+    art.plates[1]:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",0,0)
+    art.plates[1]:SetSize(1920,g.screenHeight)
+    for i,rect in ipairs(g.silhouette) do
+        local f=art.plates[i+1]
         f:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
         f:SetSize(rect.w,rect.h)
     end
@@ -136,7 +164,7 @@ function SD:RefreshTofuUnitArt(active,barRegion,rect)
         FocusFrame and (FocusFrame.spellbar or FocusFrame.CastBar)}) do
         local trim=unitPlates[frame]
         if show and not trim then
-            trim=plate(frame,.9)
+            trim=plate(frame,1)
             trim:SetFrameLevel(math.max(0,frame:GetFrameLevel()-1))
             unitPlates[frame]=trim
         end
@@ -188,3 +216,42 @@ function SD:DockTofuMeters()
     end
     SD.Print("Details placed: Damage Done on the left, Healing Done on the right.")
 end
+local function queueTopRow()
+    if SD.tofuTopRowQueued then return end
+    SD.tofuTopRowQueued=true
+    C_Timer.After(0,function()
+        SD.tofuTopRowQueued=nil
+        SD:FitTofuTopRow()
+    end)
+end
+
+function SD:FitTofuTopRow()
+    local bar=MainActionBar
+    if not bar or not bar.UpdateShownButtons or not bar.MarkGridLayoutDirty then return end
+    if self:IsBusy() then return end
+    local active=self.db.enabled and self.layoutName=="Tofu Bar" and self:IsOurLayoutActive()
+    if active and bar.numButtonsShowable and bar.numButtonsShowable>5 then
+        self.tofuNativeButtonCount=bar.numButtonsShowable
+        bar.numButtonsShowable=5
+    elseif not active and self.tofuNativeButtonCount then
+        local previous=self.tofuNativeButtonCount
+        self.tofuNativeButtonCount=nil
+        if bar.numButtonsShowable~=5 then return end
+        bar.numButtonsShowable=previous
+    else return end
+    bar:UpdateShownButtons()
+    bar:MarkGridLayoutDirty()
+    self:SchedulePrecisionAlignment(false)
+end
+
+SD:On("PLAYER_LOGIN",function()
+    if hooksecurefunc and MainActionBar and MainActionBar.UpdateSystemSettingNumIcons then
+        hooksecurefunc(MainActionBar,"UpdateSystemSettingNumIcons",function()
+            if SD.layoutName=="Tofu Bar" then queueTopRow() end
+        end)
+    end
+end)
+local function finishTopRow()
+    if SD.layoutName=="Tofu Bar" or SD.tofuNativeButtonCount then queueTopRow() end
+end
+SD:On("PLAYER_REGEN_ENABLED",finishTopRow)

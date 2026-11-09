@@ -428,6 +428,15 @@ function SD:RefreshUtilityButtons(scan)
             group[#group+1]=b
         end
     end
+    if g.itemWell then
+        local count=#trinkets+#items
+        if count>0 then
+            size=math.min(size,(width-math.max(0,count-1)*spacing)/count)
+            for _,group in ipairs({trinkets,items}) do
+                for _,b in ipairs(group) do b:SetSize(size,size) end
+            end
+        end
+    end
     for i,b in ipairs(trinkets) do
         b:ClearAllPoints() b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",(i-1)*(size+spacing),0)
     end
