@@ -295,92 +295,38 @@ function SD:RefreshVariantArt(g)
 
     else chat.fill:SetAllPoints(chat) chat.shadow:Show() end
 
-    if not self.gulveigBackdrops then
-
-        self.gulveigBackdrops={}
-
+    if not gulveig and not self.gulveigBacking then return end
+    if not self.gulveigBacking then
         self.gulveigBacking=CreateFrame("Frame",nil,UIParent)
-
         self.gulveigBacking:SetFrameStrata("BACKGROUND")
-
-        self.gulveigBacking:SetFrameLevel(0)
-
         self.gulveigBacking:EnableMouse(false)
+        self.gulveigRows={}
+        for i=1,3 do self.gulveigRows[i]=self:CreateGulveigBorder(self.gulveigBacking,26) end
+    end
+    local backing=self.gulveigBacking
+    backing:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
+    backing:SetSize(1920,g.screenHeight)
+    backing:SetScale(g.scale)
+    backing:SetAlpha(self.currentUIAlpha or 1)
+    backing:SetShown(gulveig and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides))
+    if not gulveig then return end
 
-        self.canvas:SetFrameLevel(1)
-
-        for i=1,3 do
-
-            local background=self.gulveigBacking:CreateTexture(nil,"BACKGROUND")
-
-            background:SetColorTexture(0,0,0,1)
-
-            self.gulveigBackdrops[i]=background
-
+    local nativeBars={MainActionBar,MultiBarBottomLeft,MultiBarBottomRight}
+    for i,spec in ipairs(g.bars) do
+        local row=self.gulveigRows[i]
+        local bar=nativeBars[i]
+        local buttons=bar and bar.actionButtons
+        local first,last=buttons and buttons[1],buttons and buttons[spec.icons]
+        row:ClearAllPoints()
+        if first and last then
+            row:SetPoint("TOPLEFT",first,"TOPLEFT",-22,8)
+            row:SetPoint("BOTTOMRIGHT",last,"BOTTOMRIGHT",22,-8)
+        else
+            row:SetPoint("CENTER",backing,"BOTTOMLEFT",spec.x,spec.y)
+            row:SetSize(spec.icons*(spec.iconSize+2)+44,spec.iconSize+16)
         end
-
     end
-
-    self.gulveigBacking:ClearAllPoints()
-
-    self.gulveigBacking:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
-
-    self.gulveigBacking:SetSize(1920,g.screenHeight)
-
-    self.gulveigBacking:SetScale(g.scale)
-
-    self.gulveigBacking:SetAlpha(self.currentUIAlpha or 1)
-
-    self.gulveigBacking:SetShown(gulveig and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides))
-
-    for _,background in ipairs(self.gulveigBackdrops) do background:SetShown(gulveig) end
-
-    if not self.gulveigArt then
-
-        local art=self.canvas:CreateTexture(nil,"ARTWORK")
-
-        art:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigBar.tga")
-
-        self.gulveigArt=art
-
-    end
-
-    self.gulveigArt:SetShown(gulveig)
-    self.gulveigArt:SetVertexColor(.62,.57,.49)
-
-    if gulveig then
-
-        local r=g.ornament
-
-        self.gulveigArt:ClearAllPoints()
-
-        self.gulveigArt:SetPoint("BOTTOMLEFT",self.canvas,"BOTTOMLEFT",r.x+(900-r.w)/2,r.y)
-
-        self.gulveigArt:SetSize(r.w,r.h)
-
-        -- Overlapping interior slabs extend beneath the metal seams, closing
-
-        -- the bright strips between rows without painting outside the wings.
-
-        local fills={{.445,.88,.50},{.74,.40,.49},{.445,.28,.19}}
-
-        for i,fill in ipairs(fills) do
-
-            local background=self.gulveigBackdrops[i]
-
-            background:ClearAllPoints()
-
-            background:SetPoint("CENTER",self.gulveigBacking,"BOTTOMLEFT",g.bars[1].x,r.y+r.h*fill[3])
-
-            background:SetSize(r.w*fill[1],r.h*fill[2])
-
-        end
-
-    end
-
 end
-
-
 
 function SD:ChooseFirstLayout(key)
 

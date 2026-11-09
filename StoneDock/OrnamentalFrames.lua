@@ -13,15 +13,16 @@ local function suppress(region,state)
 end
 
 -- Nine pieces keep the small metal bevels intact as native frames change size.
-function SD:CreateGulveigBorder(parent)
+function SD:CreateGulveigBorder(parent, endWidth)
+    endWidth=endWidth or 6
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
     f.fill=parent:CreateTexture(nil,"BACKGROUND",nil,-7)
     f:SetScript("OnShow",function() f.fill:Show() end)
     f:SetScript("OnHide",function() f.fill:Hide() end)
     f.fill:SetColorTexture(0,0,0,.92)
-    f.fill:SetPoint("TOPLEFT",f,"TOPLEFT",5,-6)
-    f.fill:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-5,6)
+    f.fill:SetPoint("TOPLEFT",f,"TOPLEFT",endWidth*.72,-6)
+    f.fill:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-endWidth*.72,6)
     local u,v={0,.1,.9,1},{.18,.31,.68,.81}
     for row=1,3 do
         for col=1,3 do
@@ -29,18 +30,18 @@ function SD:CreateGulveigBorder(parent)
                 local t=f:CreateTexture(nil,"OVERLAY",nil,5)
                 t:SetTexture(media.."GulveigRailV2.tga")
                 t:SetTexCoord(u[col],u[col+1],v[row],v[row+1])
-                local left=col==1 and 0 or 6
-                local right=col==3 and 0 or -6
+                local left=col==1 and 0 or endWidth
+                local right=col==3 and 0 or -endWidth
                 local top=row==1 and 0 or -6
                 local bottom=row==3 and 0 or 6
-                t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -6 or left,top)
-                t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and 6 or right,bottom)
+                t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -endWidth or left,top)
+                t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and endWidth or right,bottom)
                 if row==1 then t:SetHeight(6) t:ClearAllPoints()
-                    t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -6 or left,0)
-                    t:SetPoint("TOPRIGHT",f,col==1 and "TOPLEFT" or "TOPRIGHT",col==1 and 6 or right,0)
+                    t:SetPoint("TOPLEFT",f,col==3 and "TOPRIGHT" or "TOPLEFT",col==3 and -endWidth or left,0)
+                    t:SetPoint("TOPRIGHT",f,col==1 and "TOPLEFT" or "TOPRIGHT",col==1 and endWidth or right,0)
                 elseif row==3 then t:SetHeight(6) t:ClearAllPoints()
-                    t:SetPoint("BOTTOMLEFT",f,col==3 and "BOTTOMRIGHT" or "BOTTOMLEFT",col==3 and -6 or left,0)
-                    t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and 6 or right,0)
+                    t:SetPoint("BOTTOMLEFT",f,col==3 and "BOTTOMRIGHT" or "BOTTOMLEFT",col==3 and -endWidth or left,0)
+                    t:SetPoint("BOTTOMRIGHT",f,col==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",col==1 and endWidth or right,0)
                 end
             end
         end
@@ -81,7 +82,7 @@ function SD:RefreshOrnamentalFrames(active)
                 art.ring:SetShown(not not fitted) art.border:SetShown(not not fitted)
                 if fitted then
                     -- Measured alpha opening, not the full bitmap canvas: center .562/.489, diameter .618/.633.
-                    local d=portrait:GetWidth()+4
+                    local d=portrait:GetWidth()*.91
                     local w,h=d/.618,d/.633
                     art.ring:SetSize(w,h) art.ring:ClearAllPoints()
                     art.ring:SetTexCoord(mirror and 1 or 0,mirror and 0 or 1,0,1)
@@ -146,19 +147,19 @@ function SD:RefreshMapTheme()
     if not self.mapCaption then
         local f=CreateFrame("Frame",nil,MinimapCluster or Minimap,"BackdropTemplate") self.mapCaption=f
         f:EnableMouse(false)
-        f:SetSize(180,36) f:SetPoint("TOP",Minimap,"BOTTOM",0,-31)
+        f:SetSize(180,32) f:SetPoint("TOP",Minimap,"BOTTOM",0,-31)
         f.zone=label(f,12) f.zone:SetPoint("TOP",f,"TOP",0,-3) f.zone:SetWidth(170)
         f.clock=label(f,11) f.clock:SetPoint("BOTTOM",f,"BOTTOM",0,3)
         f.trim=f:CreateTexture(nil,"BORDER") f.trim:SetAllPoints()
         self.mapRim=Minimap:CreateTexture(nil,"OVERLAY",nil,6)
-        self.mapRim:SetTexture(media.."GulveigMap.tga")
-        self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.145,Minimap:GetHeight()*.145)
-        self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.145,-Minimap:GetHeight()*.145)
+        self.mapRim:SetTexture(media.."GulveigMapV2.tga")
+        self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.125,Minimap:GetHeight()*.125)
+        self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.125,-Minimap:GetHeight()*.125)
     end
     local gulveig=self.layoutName=="Gulveig Bar"
     self.mapRim:ClearAllPoints()
-    self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.145,Minimap:GetHeight()*.145)
-    self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.145,-Minimap:GetHeight()*.145)
+    self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.125,Minimap:GetHeight()*.125)
+    self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.125,-Minimap:GetHeight()*.125)
     self.mapRim:SetVertexColor(.64,.57,.47)
     if not self.mapCaption.border then
         self.mapCaption.border=self:CreateGulveigBorder(self.mapCaption)
@@ -168,6 +169,8 @@ function SD:RefreshMapTheme()
     self.mapCaption.border:SetShown(active and gulveig)
     self.mapCaption:SetShown(active)
     self.mapRim:SetShown(active and gulveig)
+    self.mapCaption:ClearAllPoints()
+    self.mapCaption:SetPoint("TOP",Minimap,"BOTTOM",0,gulveig and -(Minimap:GetHeight()*.112+8) or -31)
     self.mapCaption:SetWidth(math.max(140,Minimap:GetWidth()*.9))
     self.mapCaption.zone:SetWidth(math.max(130,Minimap:GetWidth()*.9-18))
     self.mapCaption:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
