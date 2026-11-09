@@ -148,7 +148,7 @@ function SD:PrecisionAlign(bagsOnly)
                 local edge=(alignRight and well.x+well.w-12 or well.x+12)*g.scale
                 local bottom=(well.y+well.h-18*g.density)*g.scale
                 if g.auxTopInset then
-                    local top=alignRight and g.auxRightTop or well.y+well.h-g.auxTopInset*g.density
+                    local top=alignRight and g.auxRightTop or well.y+well.h-g.auxTopInset
                     bottom=top*g.scale-h
                 end
                 local main=spec[5]

@@ -31,6 +31,7 @@ end
 
 function SD:SetFadeAlphas(ui, hud)
     if self.canvas then self.canvas:SetAlpha(self.db.opacity * ui) end
+    if self.tofuArt then self.tofuArt:SetAlpha(ui) end
     if self.gulveigBacking then self.gulveigBacking:SetAlpha(ui) end
     if self.hud then self.hud:SetAlpha(hud) end
     self.fadeOriginalAlphas = self.fadeOriginalAlphas or {}

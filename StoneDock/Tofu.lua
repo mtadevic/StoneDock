@@ -30,17 +30,21 @@ function SD:GetTofuGeometry(width,height,rise)
     local leftMeterPlate,rightMeterPlate=pair(meterInner,214,0,meterBase)
     local trayWidth=144
     local leftTray,rightTray=pair(outerInner-trayWidth,trayWidth,meterBase,34)
+    local utilityIconSize=24*.85
+    local utilityY=leftTray.y+(leftTray.h-utilityIconSize)/2
     local centerPlate=box(center-centerHalf,0,2*centerHalf,186+dy)
     return {
-        variant="tofu",revision=6,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=7,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
         silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,centerPlate,leftTray,rightTray},
         chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
-        itemWell=box(rightTray.x+6+self.db.tofuItemOffsetX,168+self.db.tofuItemOffsetY,rightTray.w-12,24),utilityY=168*rise,
+        itemWell={x=rightTray.x+5+self.db.tofuItemOffsetX,y=utilityY+self.db.tofuItemOffsetY*rise,
+            w=rightTray.w-10,h=utilityIconSize},
+        utilityY=utilityY,utilityIconSize=utilityIconSize,
         trackingWell=box(423,0,1074,25),
-        auxLeft=leftTray,auxRight=rightTray,auxTopInset=7,
+        auxLeft=leftTray,auxRight=rightTray,auxTopInset=(leftTray.h-utilityIconSize)/2,
         auxRightTop=rightTray.y+rightTray.h+26*rise,
         cast={x=center-960,y=centerPlate.h+16*rise},
         player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
@@ -79,7 +83,10 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
     if self.db.arrangeUtility then
         anchor(E.StatusTrackingBar,1,"TOP","TOP",0,-12*g.density)
         anchor(E.StatusTrackingBar,2,"TOP","TOP",0,-28*g.density)
-        anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",g.auxLeft.x+12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset*g.density)
+        local stance=H.find(layout,E.ActionBar,11)
+        local nativeSize=ActionButton1 and ActionButton1:GetWidth() or 45
+        H.setting(stance,Enum.EditModeActionBarSetting.IconSize,100*g.utilityIconSize*s/nativeSize)
+        anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",g.auxLeft.x+12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset)
         for index=12,13 do
             anchor(E.ActionBar,index,"TOPRIGHT","BOTTOMLEFT",g.auxRight.x+g.auxRight.w-12,g.auxRightTop)
         end
@@ -98,14 +105,18 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
     H.setting(cast,Enum.EditModeCastBarSetting.BarSize,75*s)
 end
 
-local function plate(parent,cornerSize)
+local function plate(parent,cornerSize,trimOnly)
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
     local texture="Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga"
-    local center=f:CreateTexture(nil,"BACKGROUND")
-    center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,-cornerSize)
-    center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,cornerSize)
-    center:SetColorTexture(9/255,10/255,11/255,1)
+    if trimOnly then
+        texture="Interface\\AddOns\\StoneDock\\Media\\TofuTrim.tga"
+    else
+        local center=f:CreateTexture(nil,"BACKGROUND")
+        center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,-cornerSize)
+        center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,cornerSize)
+        center:SetColorTexture(9/255,10/255,11/255,1)
+    end
     -- Stretch the last texel of each corner into a straight edge. Each piece
     -- owns its own area so the canvas opacity is applied exactly once.
     local seam=63.5/64
@@ -143,18 +154,34 @@ function SD:RefreshTofuArt(g)
     local show=g.variant=="tofu" and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides or self.editing)
     if not self.tofuArt then
         if not show then return end
-        local art=CreateFrame("Frame",nil,self.canvas)
-        art:SetAllPoints()
+        local art=CreateFrame("Frame",nil,UIParent)
+        art:SetPoint("BOTTOM",UIParent,"BOTTOM")
+        art:SetFrameLevel(0)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
         art.plates={}
-        for i=1,#g.silhouette do art.plates[i]=plate(art,12) end
+        art.surface={}
+        for i=1,#g.silhouette do
+            local fill=art:CreateTexture(nil,"BACKGROUND")
+            fill:SetTexture("Interface\\AddOns\\StoneDock\\Media\\WeatheredStone.tga","REPEAT","REPEAT")
+            fill:SetVertexColor(.25,.26,.29,1)
+            art.surface[i]=fill
+            art.plates[i]=plate(art,12,true)
+        end
         self.tofuArt=art
     end
     local art=self.tofuArt
     art:SetShown(show)
     if not show then return end
+    art:SetScale(g.scale)
+    art:SetSize(1920,g.screenHeight)
+    art:SetAlpha(self.currentUIAlpha or 1)
     for i,rect in ipairs(g.silhouette) do
+        local fill=art.surface[i]
+        fill:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
+        fill:SetSize(rect.w,rect.h)
+        -- Sample one continuous texture in viewport coordinates.
+        fill:SetTexCoord(rect.x/512,(rect.x+rect.w)/512,-(rect.y+rect.h)/512,-rect.y/512)
         local f=art.plates[i]
         f:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
         f:SetSize(rect.w,rect.h)
