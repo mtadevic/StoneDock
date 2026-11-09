@@ -406,7 +406,7 @@ SD:On("PLAYER_REGEN_ENABLED",function()if SD.welcomePending then SD:PromptForLay
 
 -- Hide only these native controls, outside combat, and restore their former
 
--- visibility when leaving Gulveig. No parenting or secure attributes change.
+-- visibility when leaving the layout. No parenting or secure attributes change.
 
 function SD:RefreshVariantControls()
 
@@ -414,13 +414,16 @@ function SD:RefreshVariantControls()
 
     self.variantControlsBusy=true
 
-    local hide=self.db.enabled and self.layoutName==names.gulveig and self:IsOurLayoutActive() and not self.editing
+    local active=self.db.enabled and not self.editing and self:IsOurLayoutActive()
+    local hideGulveig=active and self.layoutName==names.gulveig
+    local hideTofuBags=active and self.layoutName==names.tofu and not self.db.tofuShowBagBar
 
     self.variantHiddenControls=self.variantHiddenControls or {}
 
     self.variantControlHooks=self.variantControlHooks or {}
 
-    for _,frame in ipairs({MicroMenuContainer or MicroMenu,BagsBar}) do
+    for control,frame in pairs({menu=MicroMenuContainer or MicroMenu,bags=BagsBar}) do
+        local hide=hideGulveig or (control=="bags" and hideTofuBags)
 
         if not self.variantControlHooks[frame] and frame.HookScript then
 

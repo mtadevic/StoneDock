@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.4"
+SD.name, SD.version = addonName, "0.13.5"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -26,6 +26,7 @@ SD.defaults = {
     hudTicks = true,
     hudPowerColor = true,
     hudHealthColor = "red",
+    tofuShowBagBar = false,
     tofuItemOffsetX = 0,
     tofuItemOffsetY = 0,
     barOffsetX = 0,

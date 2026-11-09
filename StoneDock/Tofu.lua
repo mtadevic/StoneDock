@@ -32,7 +32,7 @@ function SD:GetTofuGeometry(width,height,rise)
     local leftTray,rightTray=pair(outerInner-trayWidth,trayWidth,meterBase,34)
     local centerPlate=box(center-centerHalf,0,2*centerHalf,186+dy)
     return {
-        variant="tofu",revision=5,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=6,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
@@ -246,6 +246,7 @@ function SD:FitTofuTopRow()
     else return end
     bar:UpdateShownButtons()
     bar:MarkGridLayoutDirty()
+    if bar.UpdateGridLayout then bar:UpdateGridLayout() end
     self:SchedulePrecisionAlignment(false)
 end
 

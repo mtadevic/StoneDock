@@ -123,7 +123,12 @@ function SD:PrecisionAlign(bagsOnly)
                     if bar.actionButtons[i] then table.insert(buttons, bar.actionButtons[i]) end
                 end
             elseif bar then table.insert(buttons, bar) end
-            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
+            -- FitTofuTopRow queues a fresh measurement after the native grid shrinks.
+            local waitingForTofuTopRow=g.variant=="tofu" and n==1 and bar
+                and bar.numButtonsShowable and bar.numButtonsShowable>5
+            if not waitingForTofuTopRow then
+                correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
+            end
         end
         -- Native auxiliary frames have invisible padding; align visible icons.
         for _,spec in ipairs({

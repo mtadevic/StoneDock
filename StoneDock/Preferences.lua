@@ -18,6 +18,7 @@ local schemas = {
         section("Native layout management",{
             check("arrangeUnits","Arrange player, target and focus"),check("arrangeGroups","Arrange party and raid"),
             check("arrangeChat","Arrange chat"),check("arrangeUtility","Arrange bags, menu and tracking bars"),
+            check("tofuShowBagBar","Show native bag bar in Tofu Bar"),
             check("useExtraBars","Enable the four dashboard action bars"),
         }),
     }},
