@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.2"
+SD.name, SD.version = addonName, "0.13.3"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",

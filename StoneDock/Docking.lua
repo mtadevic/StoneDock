@@ -102,6 +102,20 @@ function SD:PrecisionAlign(bagsOnly)
     end
     if not bagsOnly then
         local nativeBars = { MainActionBar, MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft }
+        local tofuTopY
+        if g.variant=="tofu" then
+            local lower=MultiBarBottomLeft and MultiBarBottomLeft.actionButtons
+            local upper=MainActionBar and MainActionBar.actionButtons
+            if lower and upper and lower[1] and lower[6] then
+                local _,_,_,rowHeight=union({lower[1]})
+                local _,_,_,upperHeight=union({upper[1]})
+                local _,_,_,lowerHeight=union({lower[1],lower[6]})
+                if rowHeight and upperHeight and lowerHeight and lowerHeight>2*rowHeight then
+                    local gap=lowerHeight-2*rowHeight
+                    tofuTopY=g.bars[2].y*g.scale+lowerHeight/2+gap+upperHeight/2
+                end
+            end
+        end
         for n, spec in ipairs(g.bars) do
             local bar, buttons = nativeBars[n], {}
             if bar and bar.actionButtons then
@@ -109,7 +123,7 @@ function SD:PrecisionAlign(bagsOnly)
                     if bar.actionButtons[i] then table.insert(buttons, bar.actionButtons[i]) end
                 end
             elseif bar then table.insert(buttons, bar) end
-            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, spec.y * g.scale)
+            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
         end
         -- Native auxiliary frames have invisible padding; align visible icons.
         for _,spec in ipairs({

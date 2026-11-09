@@ -197,7 +197,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
         -- Do not quantize it through a client-specific display slider step.
         rawSetting(info, A.NumIcons, bar.icons or 12)
         displaySetting(info, A.IconSize, bar.iconSize and bar.iconSize*s/nativeButtonSize*100 or iconPercent)
-        displaySetting(info, A.IconPadding, 2)
+        displaySetting(info, A.IconPadding, bar.iconPadding or 2)
         displaySetting(info, A.AlwaysShowButtons, 1)
         displaySetting(info, A.HideBarArt, 1)
         displaySetting(info, A.HideBarScrolling, 1)

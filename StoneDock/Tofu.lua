@@ -8,7 +8,7 @@ function SD:GetTofuGeometry(width,height,rise)
     local zoom=self.db.barWidth/100
     local function box(x,y,w,h) return {x=x,y=y*rise,w=w,h=h*rise} end
     local function bar(index,x,y,icons,rows,size)
-        return {index=index,x=960+(x-960)*zoom+dx,y=(y+dy)*rise,icons=icons,rows=rows,iconSize=size*zoom*rise}
+        return {index=index,x=x,y=(y+dy)*rise,icons=icons,rows=rows,iconSize=size*zoom*rise,iconPadding=4}
     end
     local physicalHeight
     if GetPhysicalScreenSize then local _; _,physicalHeight=GetPhysicalScreenSize() end
@@ -21,32 +21,34 @@ function SD:GetTofuGeometry(width,height,rise)
     end
     local centerHalf=snap(130*zoom)
     local meterBase=161
-    local leftBank,rightBank=pair(centerHalf,98*zoom,0,181+dy)
+    local leftBank,rightBank=pair(centerHalf,94*zoom,0,179+dy)
     local meterInner=centerHalf+leftBank.w
     local leftMeter,rightMeter=pair(meterInner,214,4,157)
     local outerInner=meterInner+leftMeter.w
     local left=box(0,0,center-outerInner,326)
     local right=box(center+outerInner,0,1920-center-outerInner,326)
     local leftMeterPlate,rightMeterPlate=pair(meterInner,214,0,meterBase)
-    local leftTray,rightTray=pair(meterInner,214,meterBase,60)
+    local trayWidth=144
+    local leftTray,rightTray=pair(meterInner,trayWidth,meterBase,34)
+    local centerPlate=box(center-centerHalf,0,2*centerHalf,186+dy)
     return {
-        variant="tofu",revision=3,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=4,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
-        silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,box(center-centerHalf,0,2*centerHalf,224+dy),leftTray,rightTray},
+        silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,centerPlate,leftTray,rightTray},
         chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
-        itemWell=box(rightTray.x+5+self.db.tofuItemOffsetX,181+self.db.tofuItemOffsetY,rightTray.w-10,24),utilityY=181*rise,
+        itemWell=box(rightTray.x+6+self.db.tofuItemOffsetX,168+self.db.tofuItemOffsetY,rightTray.w-12,24),utilityY=168*rise,
         trackingWell=box(423,0,1074,25),
-        auxLeft=leftTray,auxRight=rightTray,auxTopInset=9,
-        cast={x=dx,y=(194+dy)*rise},
+        auxLeft=leftTray,auxRight=rightTray,auxTopInset=7,
+        cast={x=center-960,y=centerPlate.h+16*rise},
         player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
         party={x=620,y=395*rise},raid={x=620,y=466*rise},
         bars={
-            bar(1,960,160,5,1,46),
-            bar(2,960,86,10,2,46),
-            bar(3,960-(center-leftBank.x-leftBank.w/2)/zoom,91,8,4,38),
-            bar(4,960+(rightBank.x+rightBank.w/2-center)/zoom,91,8,4,38),
+            bar(1,center,158,5,1,44),
+            bar(2,center,86,10,2,44),
+            bar(3,leftBank.x+leftBank.w/2,91,8,4,38),
+            bar(4,rightBank.x+rightBank.w/2,91,8,4,38),
         },
     }
 end
@@ -89,34 +91,40 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
         end
         anchor(E.UnitFrame,U.Pet,"BOTTOMRIGHT","BOTTOMLEFT",g.player.x-8,g.player.y)
     end
-    if not dashboardOnly then
-        anchor(E.CastBar,nil,"BOTTOM","BOTTOM",g.cast.x,g.cast.y)
-        H.setting(H.find(layout,E.CastBar),Enum.EditModeCastBarSetting.BarSize,75*s)
-    end
+    local cast=H.find(layout,E.CastBar)
+    anchor(E.CastBar,nil,"BOTTOM","BOTTOM",g.cast.x,g.cast.y)
+    H.setting(cast,Enum.EditModeCastBarSetting.LockToPlayerFrame,0)
+    H.setting(cast,Enum.EditModeCastBarSetting.BarSize,75*s)
 end
 
-local function plate(parent,alpha)
+local function plate(parent,cornerSize)
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
-    local fill=f:CreateTexture(nil,"BACKGROUND")
-    fill:SetAllPoints()
-    fill:SetColorTexture(.037,.040,.044,alpha)
+    -- Two strips fill the interior. The four textured corners carry their own alpha.
+    local center=f:CreateTexture(nil,"BACKGROUND")
+    center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,0)
+    center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,0)
+    center:SetColorTexture(.037,.040,.044,1)
+    local sides=f:CreateTexture(nil,"BACKGROUND")
+    sides:SetPoint("TOPLEFT",f,"TOPLEFT",0,-cornerSize)
+    sides:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",0,cornerSize)
+    sides:SetColorTexture(.037,.040,.044,1)
     for i=1,3 do
-        local inset=(i-1)*1.5
+        local inset=.75+(i-1)*1.1
         local shade=({.075,.34,.13})[i]
         for _,side in ipairs({"TOP","BOTTOM","LEFT","RIGHT"}) do
             local edge=f:CreateTexture(nil,"BORDER")
             edge:SetColorTexture(shade,shade*1.04,shade*1.09,1)
             if side=="TOP" or side=="BOTTOM" then
                 local y=side=="TOP" and -inset or inset
-                edge:SetPoint(side.."LEFT",f,side.."LEFT",inset,y)
-                edge:SetPoint(side.."RIGHT",f,side.."RIGHT",-inset,y)
-                edge:SetHeight(1.5)
+                edge:SetPoint(side.."LEFT",f,side.."LEFT",cornerSize,y)
+                edge:SetPoint(side.."RIGHT",f,side.."RIGHT",-cornerSize,y)
+                edge:SetHeight(1.1)
             else
                 local x=side=="LEFT" and inset or -inset
-                edge:SetPoint("TOP"..side,f,"TOP"..side,x,-inset)
-                edge:SetPoint("BOTTOM"..side,f,"BOTTOM"..side,x,inset)
-                edge:SetWidth(1.5)
+                edge:SetPoint("TOP"..side,f,"TOP"..side,x,-cornerSize)
+                edge:SetPoint("BOTTOM"..side,f,"BOTTOM"..side,x,cornerSize)
+                edge:SetWidth(1.1)
             end
         end
     end
@@ -127,7 +135,7 @@ local function plate(parent,alpha)
         corner:SetTexture("Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga")
         corner:SetTexCoord(right and 1 or 0,right and 0 or 1,bottom and 1 or 0,bottom and 0 or 1)
         corner:SetPoint(side)
-        corner:SetSize(18,18)
+        corner:SetSize(cornerSize,cornerSize)
     end
     return f
 end
@@ -142,16 +150,14 @@ function SD:RefreshTofuArt(g)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
         art.plates={}
-        for i=1,10 do art.plates[i]=plate(art,i==1 and 0 or 1) end
+        for i=1,#g.silhouette do art.plates[i]=plate(art,12) end
         self.tofuArt=art
     end
     local art=self.tofuArt
     art:SetShown(show)
     if not show then return end
-    art.plates[1]:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",0,0)
-    art.plates[1]:SetSize(1920,g.screenHeight)
     for i,rect in ipairs(g.silhouette) do
-        local f=art.plates[i+1]
+        local f=art.plates[i]
         f:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
         f:SetSize(rect.w,rect.h)
     end
@@ -165,7 +171,7 @@ function SD:RefreshTofuUnitArt(active,barRegion,rect)
         FocusFrame and (FocusFrame.spellbar or FocusFrame.CastBar)}) do
         local trim=unitPlates[frame]
         if show and not trim then
-            trim=plate(frame,1)
+            trim=plate(frame,9)
             trim:SetFrameLevel(math.max(0,frame:GetFrameLevel()-1))
             unitPlates[frame]=trim
         end
