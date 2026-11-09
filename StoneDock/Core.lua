@@ -1,10 +1,10 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.6"
+SD.name, SD.version = addonName, "0.13.7"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
     density = 1,
-    opacity = 0.94,
+    opacity = 1,
     accent = "silver",
     gatheringEnabled = false,
     stoneTexture = "weathered",
@@ -134,7 +134,7 @@ function SD:InitializeDB()
     end
     local db = StoneDockDB
     db.density = SD.Clamp(tonumber(db.density) or 1, 0.8, 1.2)
-    db.opacity = SD.Clamp(tonumber(db.opacity) or 0.94, 0.4, 1)
+    db.opacity = SD.Clamp(tonumber(db.opacity) or self.defaults.opacity, 0.4, 1)
     db.hudScale = SD.Clamp(tonumber(db.hudScale) or 1, 0.6, 1.4)
     for key, bounds in pairs({unitSize={100,200},groupWidth={72,160},groupRowWidth={70,100},groupHeight={24,72},groupOffsetX={-350,700},groupOffsetY={-100,500},hudOffsetX={-600,600},hudOffsetY={-450,450},hudGap={60,500},hudHeight={140,280},hudArcWidth={32,72},tofuItemOffsetX={-500,500},tofuItemOffsetY={-180,350},barOffsetX={-100,100},barOffsetY={-15,180},barSpread={-100,100},barWidth={70,110},uiRestAlpha={0,1},hudRestAlpha={0,1}}) do
         db[key] = SD.Clamp(tonumber(db[key]) or self.defaults[key], bounds[1], bounds[2])

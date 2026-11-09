@@ -105,18 +105,14 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
     H.setting(cast,Enum.EditModeCastBarSetting.BarSize,75*s)
 end
 
-local function plate(parent,cornerSize,trimOnly)
+local function plate(parent,cornerSize)
     local f=CreateFrame("Frame",nil,parent)
     f:EnableMouse(false)
     local texture="Interface\\AddOns\\StoneDock\\Media\\TofuCorner.tga"
-    if trimOnly then
-        texture="Interface\\AddOns\\StoneDock\\Media\\TofuTrim.tga"
-    else
-        local center=f:CreateTexture(nil,"BACKGROUND")
-        center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,-cornerSize)
-        center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,cornerSize)
-        center:SetColorTexture(9/255,10/255,11/255,1)
-    end
+    local center=f:CreateTexture(nil,"BACKGROUND")
+    center:SetPoint("TOPLEFT",f,"TOPLEFT",cornerSize,-cornerSize)
+    center:SetPoint("BOTTOMRIGHT",f,"BOTTOMRIGHT",-cornerSize,cornerSize)
+    center:SetColorTexture(9/255,10/255,11/255,1)
     -- Stretch the last texel of each corner into a straight edge. Each piece
     -- owns its own area so the canvas opacity is applied exactly once.
     local seam=63.5/64
@@ -149,6 +145,122 @@ local function plate(parent,cornerSize,trimOnly)
     return f
 end
 
+local media="Interface\\AddOns\\StoneDock\\Media\\"
+local radius=12
+local seam=63.5/64
+
+-- Each column covers a disjoint slice of the silhouette. Draw trim only on
+-- the outer contour, so touching trays and banks never draw competing corners.
+local function contourColumns(rects)
+    local edges, columns={},{}
+    for _,r in ipairs(rects) do
+        edges[#edges+1]=r.x
+        edges[#edges+1]=r.x+r.w
+    end
+    table.sort(edges)
+    for i=1,#edges-1 do
+        local x,right=edges[i],edges[i+1]
+        if right>x then
+            local height=0
+            local mid=(x+right)/2
+            for _,r in ipairs(rects) do
+                if mid>=r.x and mid<r.x+r.w then height=math.max(height,r.y+r.h) end
+            end
+            local last=columns[#columns]
+            if last and last.h==height then last.right=right
+            else columns[#columns+1]={x=x,right=right,h=height} end
+        end
+    end
+    return columns
+end
+
+local function drawTofuContour(art,rects)
+    local fills, trims, corners=0,0,0
+    local function place(region,x,y,w,h)
+        region:ClearAllPoints()
+        region:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",x,y)
+        region:SetSize(w,h)
+        region:Show()
+    end
+    local function fill(x,y,w,h,corner)
+        if w<=0 or h<=0 then return end
+        local region
+        if corner then region=corner.fill
+        else
+            fills=fills+1
+            region=art.surface[fills]
+        end
+        if not region then
+            region=art:CreateTexture(nil,"BACKGROUND")
+            region:SetTexture(media.."WeatheredStone.tga","REPEAT","REPEAT")
+            region:SetVertexColor(.25,.26,.29,1)
+            if corner then
+                corner.fill=region
+                corner.mask=art:CreateMaskTexture(nil,"BACKGROUND")
+                corner.mask:SetTexture(media.."TofuCorner.tga","CLAMPTOBLACKADDITIVE","CLAMPTOBLACKADDITIVE")
+                region:AddMaskTexture(corner.mask)
+            else art.surface[fills]=region end
+        end
+        place(region,x,y,w,h)
+        region:SetTexCoord(x/512,(x+w)/512,-(y+h)/512,-y/512)
+    end
+    local function trim(x,y,w,h,u1,u2,v1,v2)
+        if w<=0 or h<=0 then return end
+        trims=trims+1
+        local region=art.trim[trims]
+        if not region then
+            region=art:CreateTexture(nil,"ARTWORK")
+            region:SetTexture(media.."TofuTrim.tga")
+            art.trim[trims]=region
+        end
+        place(region,x,y,w,h)
+        region:SetTexCoord(u1,u2,v1,v2)
+    end
+    local function corner(x,y,flipX,flipY)
+        corners=corners+1
+        local piece=art.corners[corners] or {}
+        art.corners[corners]=piece
+        local u1,u2=flipX and 1 or 0,flipX and 0 or 1
+        local v1,v2=flipY and 1 or 0,flipY and 0 or 1
+        fill(x,y,radius,radius,piece)
+        place(piece.mask,x,y,radius,radius)
+        piece.mask:SetTexCoord(u1,u2,v1,v2)
+        trim(x,y,radius,radius,u1,u2,v1,v2)
+    end
+
+    local columns=contourColumns(rects)
+    for i,c in ipairs(columns) do
+        local before=columns[i-1] and columns[i-1].h or 0
+        local after=columns[i+1] and columns[i+1].h or 0
+        local leftInset=c.h>before and radius or 0
+        local rightInset=c.h>after and radius or 0
+        local floor=(i==1 or i==#columns) and radius or 0
+        local width=c.right-c.x
+        fill(c.x,floor,width,c.h-radius-floor)
+        fill(c.x+leftInset,c.h-radius,width-leftInset-rightInset,radius)
+        trim(c.x+leftInset,c.h-radius,width-leftInset-rightInset,radius,seam,seam,0,1)
+        if leftInset>0 then
+            corner(c.x,c.h-radius,false,false)
+            local y=math.max(before,floor)
+            trim(c.x,y,radius,c.h-radius-y,0,1,seam,seam)
+        end
+        if rightInset>0 then
+            corner(c.right-radius,c.h-radius,true,false)
+            local y=math.max(after,floor)
+            trim(c.right-radius,y,radius,c.h-radius-y,1,0,seam,seam)
+        end
+        if floor>0 then
+            local left=i==1
+            fill(c.x+(left and radius or 0),0,width-radius,radius)
+            corner(left and c.x or c.right-radius,0,not left,true)
+        end
+    end
+    trim(radius,0,1920-2*radius,radius,seam,seam,1,0)
+    for i=fills+1,#art.surface do art.surface[i]:Hide() end
+    for i=trims+1,#art.trim do art.trim[i]:Hide() end
+    for i=corners+1,#art.corners do art.corners[i].fill:Hide() art.corners[i].mask:Hide() end
+end
+
 function SD:RefreshTofuArt(g)
     self:FitTofuTopRow()
     local show=g.variant=="tofu" and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides or self.editing)
@@ -159,15 +271,7 @@ function SD:RefreshTofuArt(g)
         art:SetFrameLevel(0)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
-        art.plates={}
-        art.surface={}
-        for i=1,#g.silhouette do
-            local fill=art:CreateTexture(nil,"BACKGROUND")
-            fill:SetTexture("Interface\\AddOns\\StoneDock\\Media\\WeatheredStone.tga","REPEAT","REPEAT")
-            fill:SetVertexColor(.25,.26,.29,1)
-            art.surface[i]=fill
-            art.plates[i]=plate(art,12,true)
-        end
+        art.surface,art.trim,art.corners={},{},{}
         self.tofuArt=art
     end
     local art=self.tofuArt
@@ -175,23 +279,18 @@ function SD:RefreshTofuArt(g)
     if not show then return end
     art:SetScale(g.scale)
     art:SetSize(1920,g.screenHeight)
-    art:SetAlpha(self.currentUIAlpha or 1)
-    for i,rect in ipairs(g.silhouette) do
-        local fill=art.surface[i]
-        fill:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
-        fill:SetSize(rect.w,rect.h)
-        -- Sample one continuous texture in viewport coordinates.
-        fill:SetTexCoord(rect.x/512,(rect.x+rect.w)/512,-(rect.y+rect.h)/512,-rect.y/512)
-        local f=art.plates[i]
-        f:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",rect.x,rect.y)
-        f:SetSize(rect.w,rect.h)
+    art:SetAlpha(self.db.opacity*(self.currentUIAlpha or 1))
+    local key=table.concat({g.density,self.db.barWidth,self.db.barOffsetX,self.db.barOffsetY,g.width,g.height},"/")
+    if art.geometryKey~=key then
+        drawTofuContour(art,g.silhouette)
+        art.geometryKey=key
     end
 end
 
 local unitPlates=setmetatable({}, {__mode="k"})
 function SD:RefreshTofuUnitArt(active,barRegion,rect)
     local show=active and self.layoutName=="Tofu Bar" and self.db.stoneUnits
-    for _,frame in pairs({PlayerFrame,TargetFrame,FocusFrame,PetFrame,PlayerCastingBarFrame,CastingBarFrame,
+    for _,frame in pairs({FocusFrame,PetFrame,PlayerCastingBarFrame,CastingBarFrame,
         PetCastingBarFrame,TargetFrame and (TargetFrame.spellbar or TargetFrame.CastBar),
         FocusFrame and (FocusFrame.spellbar or FocusFrame.CastBar)}) do
         local trim=unitPlates[frame]
