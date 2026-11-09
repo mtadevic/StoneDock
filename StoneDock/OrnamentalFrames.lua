@@ -235,7 +235,15 @@ function SD:RefreshMapTheme()
     self.mapCaption:SetShown(active)
     self.mapRim:SetShown(active and gulveig)
     self.mapCaption:ClearAllPoints()
-    self.mapCaption:SetPoint("TOP",Minimap,"BOTTOM",0,gulveig and -(Minimap:GetHeight()*.112+8) or -31)
+    local mapPanel=self.panels and self.panels.map
+    if gulveig or not mapPanel then
+        self.mapCaption:SetHeight(32)
+        self.mapCaption:SetPoint("TOP",Minimap,"BOTTOM",0,-(Minimap:GetHeight()*.112+8))
+    else
+        -- The dashboard map sits at the screen edge. Keep both labels inside its panel.
+        self.mapCaption:SetHeight(25)
+        self.mapCaption:SetPoint("BOTTOM",mapPanel,"BOTTOM",0,4)
+    end
     self.mapCaption:SetWidth(math.max(140,Minimap:GetWidth()*.9))
     self.mapCaption.zone:SetWidth(math.max(130,Minimap:GetWidth()*.9-18))
     self.mapCaption:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})

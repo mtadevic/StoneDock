@@ -14,7 +14,7 @@ local schemas = {
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),
             range("opacity","Panel opacity",0.4,1,0.05),
         }),
-        section("Panel details",{check("chatStyle","Style chat with artwork and background"),check("showLabels","Show panel headings"),check("showGuides","Show placement guides")}),
+        section("Panel details",{check("chatStyle","Style Gulveig chat with artwork and background"),check("showLabels","Show panel headings"),check("showGuides","Show placement guides")}),
         section("Native layout management",{
             check("arrangeUnits","Arrange player, target and focus"),check("arrangeGroups","Arrange party and raid"),
             check("arrangeChat","Arrange chat"),check("arrangeUtility","Arrange bags, menu and tracking bars"),

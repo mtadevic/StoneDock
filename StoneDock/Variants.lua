@@ -228,7 +228,7 @@ function SD:RefreshVariantArt(g)
 
         if region and region.GetAlpha then
 
-            if not self.db.chatStyle then
+            if gulveig and not self.db.chatStyle then
 
                 if self.nativeChatAlphas[region]==nil then self.nativeChatAlphas[region]=region:GetAlpha() end
 
@@ -254,7 +254,7 @@ function SD:RefreshVariantArt(g)
 
     end
 
-    self.panels.left:SetShown(self.db.chatStyle==true)
+    chat:SetShown(not gulveig or self.db.chatStyle==true)
 
     self.gulveigChatTrim:SetShown(false)
     if not self.gulveigChatBorder then
