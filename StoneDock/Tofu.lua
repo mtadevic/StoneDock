@@ -39,6 +39,7 @@ function SD:GetTofuGeometry(width,height,rise)
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
         silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,centerPlate,leftTray,rightTray},
+        buttonRecesses={leftTray,leftBank,centerPlate,rightBank,rightTray},
         chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
         itemWell={x=rightTray.x+5+self.db.tofuItemOffsetX,y=utilityY+self.db.tofuItemOffsetY*rise,
             w=rightTray.w-10,h=utilityIconSize},
@@ -174,7 +175,7 @@ local function contourColumns(rects)
     return columns
 end
 
-local function drawTofuContour(art,rects)
+local function drawTofuContour(art,g)
     local fills, trims, corners=0,0,0
     local function place(region,x,y,w,h)
         region:ClearAllPoints()
@@ -228,7 +229,7 @@ local function drawTofuContour(art,rects)
         trim(x,y,radius,radius,u1,u2,v1,v2)
     end
 
-    local columns=contourColumns(rects)
+    local columns=contourColumns(g.silhouette)
     for i,c in ipairs(columns) do
         local before=columns[i-1] and columns[i-1].h or 0
         local after=columns[i+1] and columns[i+1].h or 0
@@ -261,6 +262,60 @@ local function drawTofuContour(art,rects)
     for i=corners+1,#art.corners do art.corners[i].fill:Hide() art.corners[i].mask:Hide() end
 end
 
+local function drawTofuDetail(art,g)
+    local count=0
+    local function detail(layer,texture,x,y,w,h,vertical,alpha)
+        count=count+1
+        local region=art.detail[count]
+        if not region then
+            region=art:CreateTexture(nil,"ARTWORK",nil,layer)
+            art.detail[count]=region
+        end
+        region:SetTexture(media..texture)
+        region:SetAlpha(alpha)
+        region:ClearAllPoints()
+        region:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",x,y)
+        region:SetSize(w,h)
+        region:Show()
+        if vertical then region:SetTexCoord(1,0,0,0,1,1,0,1)
+        else region:SetTexCoord(0,1,0,1) end
+    end
+
+    -- Inset only the button areas. Keep the shared stone visible through the
+    -- shaded recess and leave the silhouette and its rounded tips intact.
+    for _,r in ipairs(g.buttonRecesses) do
+        detail(-2,"TofuRecess.tga",r.x+6,r.y+5,r.w-12,r.h-10,false,.74)
+    end
+    local function upright(x,h)
+        detail(0,"TofuSilverRail.tga",x-2,5,4,h-10,true,1)
+    end
+    local function ledge(tray)
+        detail(0,"TofuSilverRail.tga",tray.x+2,tray.y-2,tray.w-4,4,false,1)
+    end
+    local columns=contourColumns(g.silhouette)
+    for i,column in ipairs(columns) do
+        local before=columns[i-1]
+        local after=columns[i+1]
+        local left=column.x+((not before or column.h>before.h) and radius or 0)
+        local right=column.right-((not after or column.h>after.h) and radius or 0)
+        if right>left then
+            detail(0,"TofuSilverRail.tga",left,column.h-4,right-left,4,false,1)
+        end
+    end
+    -- A single shared divider at each join gives both panels the same edge.
+    upright(g.left.w,g.auxLeft.y+g.auxLeft.h)
+    upright(g.right.x,g.auxRight.y+g.auxRight.h)
+    for _,well in ipairs(g.meters) do
+        upright(well==g.leftWell and well.x+well.w or well.x,well.y+well.h)
+    end
+    local leftBank,centerPlate,rightBank=unpack(g.buttonRecesses,2,4)
+    upright(centerPlate.x,leftBank.h)
+    upright(rightBank.x,rightBank.h)
+    ledge(g.auxLeft)
+    ledge(g.auxRight)
+    for i=count+1,#art.detail do art.detail[i]:Hide() end
+end
+
 function SD:RefreshTofuArt(g)
     self:FitTofuTopRow()
     local show=g.variant=="tofu" and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides or self.editing)
@@ -271,7 +326,7 @@ function SD:RefreshTofuArt(g)
         art:SetFrameLevel(0)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
-        art.surface,art.trim,art.corners={},{},{}
+        art.surface,art.trim,art.corners,art.detail={},{},{},{}
         self.tofuArt=art
     end
     local art=self.tofuArt
@@ -282,7 +337,8 @@ function SD:RefreshTofuArt(g)
     art:SetAlpha(self.db.opacity*(self.currentUIAlpha or 1))
     local key=table.concat({g.density,self.db.barWidth,self.db.barOffsetX,self.db.barOffsetY,g.width,g.height},"/")
     if art.geometryKey~=key then
-        drawTofuContour(art,g.silhouette)
+        drawTofuContour(art,g)
+        drawTofuDetail(art,g)
         art.geometryKey=key
     end
 end
