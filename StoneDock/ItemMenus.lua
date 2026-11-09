@@ -94,8 +94,8 @@ function SD:ShowUtilityFlyout(owner,key)
         b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
         if C_Item and C_Item.GetItemCooldown then local start,duration=C_Item.GetItemCooldown(item.id) if start and duration then b.cooldown:SetCooldown(start,duration) end end
         b:RegisterForClicks('AnyUp','AnyDown')
-        b:SetAttribute('type1',item.toy and 'toy' or 'item')
-        b:SetAttribute('toy1',item.id) b:SetAttribute('item1',item.slot and tostring(item.slot) or ('item:'..item.id))
+        self:BindUtilityItem(b,item)
+        b:SetAttribute('toy1',item.id)
         b:SetScript('OnEnter',function() GameTooltip:SetOwner(b,'ANCHOR_RIGHT') GameTooltip:SetItemByID(item.id) GameTooltip:Show() end)
         b:SetScript('OnLeave',function() GameTooltip:Hide() end)
         b.flyout=f

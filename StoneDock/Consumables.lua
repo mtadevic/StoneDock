@@ -49,8 +49,53 @@ local utilityWords={"invisibility","invisible","movement speed","swim speed","wa
 local function isWeaponStone(name)
     local text=plain(name)
     return not text:find(":",1,true)
-        and (text:match("weight%s*stone$") or text:match("sharpening%s+stone$")) ~= nil
+        and (text:match("weight%s*stone$") or text:match("sharpening%s+stone$") or text:match("whet%s*stone$")) ~= nil
 end
+local function weaponEnchant(slot)
+    if GetWeaponEnchantInfo then
+        local main,_,_,_,off = GetWeaponEnchantInfo()
+        if slot==16 then return main end
+        return off
+    end
+    local slots=Enum and Enum.WeaponSlot
+    local weaponSlot=slots and (slot==16 and slots.MainHand or slot==17 and slots.OffHand)
+    if weaponSlot and C_Item and C_Item.GetWeaponEnchantInfo then
+        for _,enchant in pairs(C_Item.GetWeaponEnchantInfo(weaponSlot) or {}) do
+            if enchant.hasEnchant then return true end
+        end
+        return false
+    end
+end
+
+local function updateWeaponStone(button, mouseButton)
+    if mouseButton~="LeftButton" or not button.weaponStone or InCombatLockdown() then return end
+    local getInfo=C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+    local target
+    if getInfo and GetInventoryItemID then
+        for slot=16,17 do
+            local id=GetInventoryItemID("player",slot)
+            local _,_,_,_,_,classID
+            if id then _,_,_,_,_,classID=getInfo(id) end
+            if classID==2 and weaponEnchant(slot)==false then
+                target=slot
+                break
+            end
+        end
+    end
+    button:SetAttribute("macrotext1",target and ("/use [nocombat] item:"..button.weaponStone.."\n/use [nocombat] "..target) or nil)
+end
+
+function SD:BindUtilityItem(button,item)
+    button.weaponStone=item and not item.toy and not item.slot and isWeaponStone(item.name) and item.id or nil
+    if button.weaponStone and not button.weaponStoneClickInstalled then
+        button:HookScript("PreClick",updateWeaponStone)
+        button.weaponStoneClickInstalled=true
+    end
+    button:SetAttribute("type1",button.weaponStone and "macro" or item and item.toy and "toy" or "item")
+    button:SetAttribute("macrotext1",nil)
+    button:SetAttribute("item1",item and (item.slot and tostring(item.slot) or "item:"..item.id) or nil)
+end
+
 local roleWeights = {
     TANK = {stamina=2.3, armor=0.2, defense=2, resistance=0.5, versatility=1.25},
     HEALER = {intellect=2, spirit=1.5, ["spell power"]=1.2, haste=1.15, ["attack power"]=0.05},
@@ -306,6 +351,9 @@ function SD:CreateUtilityButtons()
             if self.inventorySlot and GameTooltip.SetInventoryItem then GameTooltip:SetInventoryItem("player",self.inventorySlot)
             elseif self.itemID and GameTooltip.SetItemByID then GameTooltip:SetItemByID(self.itemID)
             else GameTooltip:AddLine(self.label) end
+            if self.weaponStone then
+                GameTooltip:AddLine("Applies to the main hand first, then the off-hand. Skips weapons with a temporary enchant.",.65,.75,.85,true)
+            end
             if self.category then
                 GameTooltip:AddLine("Right-click: expand available items upward. Configure defaults in Item settings.",.65,.75,.85,true)
                 GameTooltip:AddLine(self.pinned and "Pinned for this spec" or "Auto: strongest suitable item found in your bags",.65,.75,.85,true)
@@ -358,7 +406,7 @@ function SD:RefreshUtilityButtons(scan)
         else
             local item,pinned=self:GetChosenItem(b.category.key)
             b.itemID,b.pinned=item and item.id,pinned
-            b:SetAttribute("item1",item and ("item:"..item.id) or nil)
+            self:BindUtilityItem(b,item)
             b.icon:SetTexture(item and item.icon or 134400)
             b.empty:SetText(item and "" or b.category.short)
             b.icon:SetDesaturated(not item)
