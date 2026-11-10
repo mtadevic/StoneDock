@@ -91,6 +91,7 @@ function SD:PrecisionAlign(bagsOnly)
     local index = full.activeLayout
     local layout = full.layouts[index]
     local g = self:GetGeometry()
+    if g.variant=="gulveig" and bagsOnly then return end
     local changed = false
     local function correct(system, systemIndex, frames, targetX, targetY)
         local x, y = union(frames)
@@ -171,13 +172,13 @@ function SD:PrecisionAlign(bagsOnly)
             correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
                 (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + (g.variant=="tofu" and 0 or 24)*g.density) * g.scale)
         end
-        if self.db.arrangeUtility then
+        if self.db.arrangeUtility and g.variant~="gulveig" then
             correct(Enum.EditModeSystem.MicroMenu, nil, { MicroMenu },
                 (g.menuDrawer.x + g.menuDrawer.w / 2) * g.scale,
                 (g.menuDrawer.y + g.menuDrawer.h / 2 + 2) * g.scale)
         end
     end
-    if self.db.arrangeUtility then
+    if self.db.arrangeUtility and g.variant~="gulveig" then
         correct(Enum.EditModeSystem.Bags, nil, bagButtons(),
             (g.bagDrawer.x + g.bagDrawer.w / 2) * g.scale,
             (g.bagDrawer.y + g.bagDrawer.h / 2 + 1) * g.scale)
@@ -278,7 +279,8 @@ function SD:CreateDocking()
     if not self.bagControlsHooked and BagsBar and BagsBar.Layout then
         self.bagControlsHooked = true
         hooksecurefunc(BagsBar, "Layout", function()
-            if SD.db and SD.db.enabled and SD:IsOurLayoutActive() and not SD.precisionBusy then
+            if SD.db and SD.db.enabled and SD.layoutName~="Gulveig Bar"
+                and not SD.layoutWriteBusy and not SD.precisionBusy and SD:IsOurLayoutActive() then
                 SD:SchedulePrecisionAlignment(true)
             end
         end)
@@ -332,9 +334,6 @@ end)
 SD:On("PLAYER_REGEN_ENABLED",function() SD:CheckLoginAlignment() end)
 SD:On("EDIT_MODE_LAYOUTS_UPDATED",function()
     SD:CheckLoginAlignment()
-    if SD.db and SD.db.enabled and SD.layoutName=="Gulveig Bar" and not SD.layoutWriteBusy then
-        SD:SchedulePrecisionAlignment(false)
-    end
 end)
 
 local resizeQueued

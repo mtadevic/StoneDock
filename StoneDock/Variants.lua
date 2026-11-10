@@ -131,7 +131,7 @@ function SD:GetGulveigGeometry(width,height,rise)
         menuDrawer=r(25,4,410,38),bagDrawer=r(25,47,410,36),utilityY=260*rise,
 
         bars={
-            {index=1,x=960+dx,y=(18+268*.715+dy)*rise,icons=6,iconPercent=130},
+            {index=1,x=960+dx,y=(18+268*.715+dy)*rise,icons=6,iconPercent=150},
             {index=2,x=960+dx,y=(18+268*.477+dy)*rise,icons=8,iconSize=46*stretch*rise},
             {index=3,x=960+dx,y=(18+268*.267+dy)*rise,icons=6,iconSize=44*stretch*rise},
         },
@@ -503,7 +503,7 @@ end
 
 function SD:QueueChatGroupLayout()
 
-    if not self.db or self.layoutName~=names.gulveig or self.chatGroupBusy or self.chatGroupQueued then return end
+    if not self.db or self.layoutName~=names.gulveig or self.layoutWriteBusy or self.chatGroupBusy or self.chatGroupQueued then return end
 
     self.chatGroupQueued=true
 
