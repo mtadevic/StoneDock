@@ -115,34 +115,27 @@ function SD:GetGulveigGeometry(width,height,rise)
 
     local stretch=self.db.barWidth/100
 
-    local compact=.8
 
     local function r(x,y,w,h)return {x=x,y=y*rise,w=w,h=h*rise}end
 
     return {
 
-        variant="gulveig",revision=6,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
+        variant="gulveig",revision=8,width=width,height=height,scale=scale,density=rise,screenHeight=height/scale,
 
         base=r(0,0,1920,1),left=r(20,90,420,160),right=r(1440,300,440,160),
 
         leftWell=r(40,250,440,20),rightWell=r(1440,250,440,20),
 
-        map=r(1640,22,250,260),chat=r(30,100,400,135),
+        map=r(1640,42,250,260),chat=r(30,100,400,135),
 
         menuDrawer=r(25,4,410,38),bagDrawer=r(25,47,410,36),utilityY=260*rise,
 
         bars={
-
-            {index=1,x=960+dx,y=(24+(241-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
-
-            {index=2,x=960+dx,y=(24+(156-24)*compact+dy)*rise,icons=8,iconSize=70*compact*stretch*rise},
-
-            {index=3,x=960+dx,y=(24+(75-24)*compact+dy)*rise,icons=6,iconSize=58*compact*stretch*rise},
-
+            {index=1,x=960+dx,y=(18+268*.715+dy)*rise,icons=6,iconPercent=130},
+            {index=2,x=960+dx,y=(18+268*.477+dy)*rise,icons=8,iconSize=46*stretch*rise},
+            {index=3,x=960+dx,y=(18+268*.267+dy)*rise,icons=6,iconSize=44*stretch*rise},
         },
-
-        ornament=r(510+dx,24+dy,900*compact*stretch,270*compact),
-
+        ornament=r(510+dx,18+dy,750*stretch,268),
         trackingWell=r(576,-100,768,115),
 
         auxLeft=r(770+dx,258+dy,180,20),auxRight=r(970+dx,258+dy,180,20),
@@ -305,19 +298,13 @@ function SD:RefreshVariantArt(g)
         self.gulveigBacking:EnableMouse(false)
         local backing=self.gulveigBacking
         self.gulveigArt=backing:CreateTexture(nil,"ARTWORK")
-        self.gulveigArt:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigBarV2.tga")
-        self.gulveigFills={}
-        for i=1,2 do
-            local fill=backing:CreateTexture(nil,"BACKGROUND")
-            fill:SetColorTexture(0,0,0,1)
-            self.gulveigFills[i]=fill
-        end
+        self.gulveigArt:SetTexture("Interface\\AddOns\\StoneDock\\Media\\GulveigBarV3.tga")
     end
     local backing=self.gulveigBacking
     backing:SetPoint("BOTTOM",UIParent,"BOTTOM",0,0)
     backing:SetSize(1920,g.screenHeight)
     backing:SetScale(g.scale)
-    backing:SetAlpha(self.currentUIAlpha or 1)
+    backing:SetAlpha(self.db.opacity * (self.currentUIAlpha or 1))
     backing:SetShown(gulveig and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides))
     if not gulveig then return end
 
@@ -326,12 +313,7 @@ function SD:RefreshVariantArt(g)
     self.gulveigArt:SetPoint("BOTTOM",backing,"BOTTOMLEFT",g.bars[1].x,ornament.y)
     self.gulveigArt:SetSize(ornament.w,ornament.h)
 
-    -- Two overlapping fills cover the openings while leaving the outer wings transparent.
-    local centerFill,middleFill=unpack(self.gulveigFills)
-    centerFill:SetPoint("CENTER",self.gulveigArt,"CENTER",0,0)
-    centerFill:SetSize(ornament.w*.46,ornament.h*.84)
-    middleFill:SetPoint("CENTER",self.gulveigArt,"CENTER",0,-ornament.h*.01)
-    middleFill:SetSize(ornament.w*.73,ornament.h*.35)
+
 end
 
 function SD:ChooseFirstLayout(key)

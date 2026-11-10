@@ -4,8 +4,11 @@ local unitArt=setmetatable({}, {__mode="k"})
 local castArt=setmetatable({}, {__mode="k"})
 local nativeAlpha=setmetatable({}, {__mode="k"})
 
+local function readable(value)
+    return not issecretvalue or not issecretvalue(value)
+end
 local function usableNumber(value)
-    return (not issecretvalue or not issecretvalue(value)) and type(value)=="number"
+    return readable(value) and type(value)=="number"
 end
 
 local function suppress(region,state)
@@ -106,7 +109,9 @@ end
 local function barRegion(frame)
     local content=frame.PlayerFrameContent or frame.TargetFrameContent
     local main=content and (content.PlayerFrameContentMain or content.Main)
+    local name=frame.GetName and frame:GetName()
     return frame.healthbar or frame.HealthBar or (main and main.HealthBarsContainer and main.HealthBarsContainer.HealthBar)
+        or (name and (_G[name.."HealthBar"] or _G[name.."Healthbar"]))
 end
 local function rect(region,parent)
     if not region or not region.GetRect then return end
@@ -118,11 +123,69 @@ local function rect(region,parent)
     return x*s,y*s,w*s,h*s
 end
 
+local auraRows={}
+local auraFilters={"HELPFUL","HARMFUL"}
+
+local function updateAuraRow(row)
+    for i,icon in ipairs(row.icons) do
+        local aura=C_UnitAuras.GetAuraDataByIndex(row.unit,1,auraFilters[i])
+        local texture=readable(aura) and aura and aura.icon
+        if readable(texture) and texture then
+            icon:SetTexture(texture)
+            icon:Show()
+        else
+            icon:Hide()
+        end
+    end
+end
+
+local function showAuraRow(art,frame,bar,unit,mirror,compact,show)
+    local row=art.auras
+    if show and not row then
+        row=CreateFrame("Frame",nil,frame)
+        row.unit,row.icons=unit,{}
+        row:SetSize(compact and 30 or 42,compact and 13 or 18)
+        row:SetPoint(mirror and "TOPRIGHT" or "TOPLEFT",bar,mirror and "BOTTOMRIGHT" or "BOTTOMLEFT",0,-(compact and 3 or 5))
+        for i=1,2 do
+            local icon=row:CreateTexture(nil,"ARTWORK")
+            icon:SetSize(compact and 13 or 18,compact and 13 or 18)
+            icon:SetPoint("LEFT",row,"LEFT",(i-1)*(compact and 16 or 21),0)
+            row.icons[i]=icon
+        end
+        row:SetScript("OnShow",updateAuraRow)
+        art.auras=row
+    end
+    auraRows[unit]=show and row or nil
+    if row then
+        row:SetShown(not not show)
+        if show and row:IsVisible() then updateAuraRow(row) end
+    end
+end
+
+SD:On("UNIT_AURA",function(unit)
+    local row=auraRows[unit]
+    if row and row:IsVisible() then updateAuraRow(row) end
+end)
+local function updateChangedUnit(unit)
+    local row=auraRows[unit]
+    if row and row:IsVisible() then updateAuraRow(row) end
+end
+SD:On("PLAYER_TARGET_CHANGED",function() updateChangedUnit("target") updateChangedUnit("targettarget") end)
+SD:On("PLAYER_FOCUS_CHANGED",function() updateChangedUnit("focus") end)
+SD:On("UNIT_TARGET",function(unit) if unit=="target" then updateChangedUnit("targettarget") end end)
+SD:On("UNIT_PET",function(unit) if unit=="player" then updateChangedUnit("pet") end end)
+
 function SD:RefreshOrnamentalFrames(active)
     self:RefreshTofuUnitArt(active,barRegion,rect)
     local show=active and self.layoutName=="Gulveig Bar" and self.db.stoneUnits
-    for _,entry in ipairs({{PlayerFrame,false,"PlayerPortrait"},{TargetFrame,true,"TargetFramePortrait"},{FocusFrame,true,"FocusFramePortrait"},{PetFrame,false,"PetPortrait"}}) do
-        local frame,mirror=entry[1],entry[2]
+    for _,entry in ipairs({
+        {PlayerFrame,false,"PlayerPortrait","player"},
+        {TargetFrame,true,"TargetFramePortrait","target"},
+        {FocusFrame,true,"FocusFramePortrait","focus",true},
+        {PetFrame,false,"PetPortrait","pet",true},
+        {TargetFrameToT or (TargetFrame and (TargetFrame.totFrame or TargetFrame.ToT)),true,"TargetFrameToTPortrait","targettarget",true},
+    }) do
+        local frame,mirror,unit,compact=entry[1],entry[2],entry[4],entry[5]
         if frame then
             local container=frame.PlayerFrameContainer or frame.TargetFrameContainer
             local portrait=frame.portrait or frame.Portrait or (container and container.Portrait) or _G[entry[3]]
@@ -133,7 +196,9 @@ function SD:RefreshOrnamentalFrames(active)
             local art=unitArt[frame]
             if fitted and not art then
                 art={ring=frame:CreateTexture(nil,"OVERLAY",nil,6),border=createCompactRail(frame,mirror)}
-                art.ring:SetTexture(media.."GulveigPortraitV2.tga") unitArt[frame]=art frame.stoneDockTrim=art
+                art.ring:SetTexture(media.."GulveigPortraitV2.tga")
+                art.ring:SetVertexColor(1,.88,.72)
+                unitArt[frame]=art frame.stoneDockTrim=art
             end
             local nativeTexture=(container and (container.FrameTexture or container.Texture)) or (frame.GetName and _G[(frame:GetName() or "").."Texture"])
             suppress(nativeTexture,fitted)
@@ -141,7 +206,7 @@ function SD:RefreshOrnamentalFrames(active)
                 art.ring:SetShown(not not fitted) art.border:SetShown(not not fitted)
                 if fitted then
                     -- Measured alpha opening, not the full bitmap canvas: center .562/.489, diameter .618/.633.
-                    local d=width*.91
+                    local d=width
                     local w,h=d/.618,d/.633
                     art.ring:SetSize(w,h) art.ring:ClearAllPoints()
                     art.ring:SetTexCoord(mirror and 1 or 0,mirror and 0 or 1,0,1)
@@ -158,6 +223,8 @@ function SD:RefreshOrnamentalFrames(active)
                     end
                     fitCompactRail(art.border,bar,height,top,bottom)
                 end
+                showAuraRow(art,frame,art.border,unit,mirror,compact,
+                    fitted and self.db.attachPlayerAuras and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex)
             end
             local cast=frame.spellbar or frame.CastBar
             if cast then self:StyleGulveigCast(cast,show) end
@@ -219,6 +286,8 @@ end
 function SD:RefreshMapTheme()
     local active=self.db.enabled and self.layoutName~="Tofu Bar" and self:IsOurLayoutActive()
     if not Minimap then return end
+    local mapWidth,mapHeight=Minimap:GetWidth(),Minimap:GetHeight()
+    if not usableNumber(mapWidth) or not usableNumber(mapHeight) or mapWidth<=0 or mapHeight<=0 then return end
     if not self.mapThemeSizeHooked and Minimap.HookScript then
         self.mapThemeSizeHooked=true
         Minimap:HookScript("OnSizeChanged",function() SD:RefreshMapTheme() end)
@@ -232,18 +301,41 @@ function SD:RefreshMapTheme()
         f.trim=f:CreateTexture(nil,"BORDER") f.trim:SetAllPoints()
         self.mapRim=Minimap:CreateTexture(nil,"OVERLAY",nil,6)
         self.mapRim:SetTexture(media.."GulveigMapV2.tga")
-        self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.125,Minimap:GetHeight()*.125)
-        self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.125,-Minimap:GetHeight()*.125)
+        self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-mapWidth*.125,mapHeight*.125)
+        self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",mapWidth*.125,-mapHeight*.125)
     end
     local gulveig=self.layoutName=="Gulveig Bar"
     self.mapRim:ClearAllPoints()
-    self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-Minimap:GetWidth()*.125,Minimap:GetHeight()*.125)
-    self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",Minimap:GetWidth()*.125,-Minimap:GetHeight()*.125)
-    self.mapRim:SetVertexColor(.64,.57,.47)
+    self.mapRim:SetPoint("TOPLEFT",Minimap,"TOPLEFT",-mapWidth*.125,mapHeight*.125)
+    self.mapRim:SetPoint("BOTTOMRIGHT",Minimap,"BOTTOMRIGHT",mapWidth*.125,-mapHeight*.125)
+    self.mapRim:SetVertexColor(1,.94,.80)
     if not self.mapCaption.border then
         self.mapCaption.border=self:CreateGulveigBorder(self.mapCaption)
         self.mapCaption.border:SetPoint("TOPLEFT",self.mapCaption,"TOPLEFT",-4,6)
         self.mapCaption.border:SetPoint("BOTTOMRIGHT",self.mapCaption,"BOTTOMRIGHT",4,-6)
+    end
+    if not self.gulveigZonePlate then
+        local plate=CreateFrame("Frame",nil,self.mapCaption)
+        plate:EnableMouse(false)
+        plate:SetPoint("BOTTOM",Minimap,"TOP",0,mapHeight*.12+4)
+        plate:SetHeight(19)
+        plate.border=self:CreateGulveigBorder(plate,10,4)
+        plate.border:SetAllPoints()
+        self.gulveigZonePlate=plate
+        self.mapNorth=label(Minimap,12)
+        self.mapNorth:SetPoint("TOP",Minimap,"TOP",0,5)
+    end
+    self.gulveigZonePlate:ClearAllPoints()
+    self.gulveigZonePlate:SetPoint("BOTTOM",Minimap,"TOP",0,mapHeight*.12+4)
+    self.gulveigZonePlate:SetWidth(math.max(120,mapWidth*.85))
+    self.gulveigZonePlate:SetShown(active and gulveig)
+    self.mapNorth:SetText("N")
+    self.mapNorth:SetShown(active and gulveig and not (GetCVarBool and GetCVarBool("rotateMinimap")))
+    self.mapCaption.zone:ClearAllPoints()
+    if gulveig then
+        self.mapCaption.zone:SetPoint("CENTER",self.gulveigZonePlate,"CENTER")
+    else
+        self.mapCaption.zone:SetPoint("TOP",self.mapCaption,"TOP",0,-3)
     end
     self.mapCaption.border:SetShown(active and gulveig)
     self.mapCaption:SetShown(active)
@@ -251,15 +343,15 @@ function SD:RefreshMapTheme()
     self.mapCaption:ClearAllPoints()
     local mapPanel=self.panels and self.panels.map
     if gulveig or not mapPanel then
-        self.mapCaption:SetHeight(32)
-        self.mapCaption:SetPoint("TOP",Minimap,"BOTTOM",0,-(Minimap:GetHeight()*.112+8))
+        self.mapCaption:SetHeight(gulveig and 17 or 32)
+        self.mapCaption:SetPoint("TOP",Minimap,"BOTTOM",0,-(mapHeight*.112+4))
     else
         -- The dashboard map sits at the screen edge. Keep both labels inside its panel.
         self.mapCaption:SetHeight(25)
         self.mapCaption:SetPoint("BOTTOM",mapPanel,"BOTTOM",0,4)
     end
-    self.mapCaption:SetWidth(math.max(140,Minimap:GetWidth()*.9))
-    self.mapCaption.zone:SetWidth(math.max(130,Minimap:GetWidth()*.9-18))
+    self.mapCaption:SetWidth(gulveig and 78 or math.max(140,mapWidth*.9))
+    self.mapCaption.zone:SetWidth(math.max(130,mapWidth*.9-18))
     self.mapCaption:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
     self.mapCaption:SetBackdropColor(0,0,0,gulveig and 0 or .95)
     local color=self.colors[self.db.accent]

@@ -183,7 +183,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     local g, E = geometry or self:GetGeometry(), Enum.EditModeSystem
     local s = g.scale
     local A = Enum.EditModeActionBarSetting
-    local nativeButtonSize = (ActionButton1 and ActionButton1:GetWidth()) or 45
+    local nativeButtonSize = g.variant=="gulveig" and 45 or (ActionButton1 and ActionButton1:GetWidth()) or 45
     -- Size every native row to its well. Minimum/step limits are owned by Blizzard.
     local targetWidth = g.leftWell.w * s - 22 * s
     local iconPercent = ((targetWidth - 11 * 2) / 12) / nativeButtonSize * 100
@@ -196,7 +196,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
         -- NumIcons is consumed as a raw integer by UpdateSystemSettingNumIcons.
         -- Do not quantize it through a client-specific display slider step.
         rawSetting(info, A.NumIcons, bar.icons or 12)
-        displaySetting(info, A.IconSize, bar.iconSize and bar.iconSize*s/nativeButtonSize*100 or iconPercent)
+        displaySetting(info, A.IconSize, bar.iconPercent or (bar.iconSize and bar.iconSize*s/nativeButtonSize*100 or iconPercent))
         displaySetting(info, A.IconPadding, bar.iconPadding or 2)
         displaySetting(info, A.AlwaysShowButtons, 1)
         displaySetting(info, A.HideBarArt, 1)

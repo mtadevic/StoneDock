@@ -10,7 +10,8 @@ local function readable(value)
 end
 
 local function spellName(id)
-    if C_Spell and C_Spell.GetSpellName then return C_Spell.GetSpellName(id) end
+    local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+    if readable(name) and name then return name end
     if GetSpellInfo then return GetSpellInfo(id) end
 end
 
@@ -18,9 +19,17 @@ local function poleEquipped()
     local id = GetInventoryItemID and GetInventoryItemID("player", 16)
     if not readable(id) or not id then return false end
     local get = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
-    if not get then return false end
-    local _, _, _, _, _, class, subclass = get(id)
-    return class == 2 and subclass == 20
+    local class, subclass
+    if get then
+        local _, _, _, _, _, itemClass, weaponSubclass = get(id)
+        class, subclass = itemClass, weaponSubclass
+    end
+    if not readable(class) or not readable(subclass) then return false end
+    if class == nil or subclass == nil then
+        local info = C_Item and C_Item.GetItemInfo or GetItemInfo
+        if info then class, subclass = select(12, info(id)) end
+    end
+    return readable(class) and readable(subclass) and class == 2 and subclass == 20
 end
 
 local function setFishingReach(enabled)
@@ -53,13 +62,15 @@ end
 
 local function fishingKeys(configured)
     local keys,seen={},{}
-    local function add(key)
+    local function add(key, isInteract)
         if type(key)~="string" or key=="" or seen[key] then return end
         local action=GetBindingAction and GetBindingAction(key) or ""
-        if action~="" and action~="INTERACTTARGET" then return end
+        if not isInteract and action~="" and action~="INTERACTTARGET" then return end
         seen[key]=true keys[#keys+1]=key
     end
-    if GetBindingKey then local first,second=GetBindingKey("INTERACTTARGET") add(first) add(second) end
+    if GetBindingKey then
+        for _, key in ipairs({GetBindingKey("INTERACTTARGET")}) do add(key, true) end
+    end
     add(configured)
     return keys
 end
@@ -470,10 +481,8 @@ function SD:StartGathering(mode, automatic)
             if readable(name) and name then state.gatherNames[name] = true end
         end
     end
-    local binding = mode == "fishing" and state.key ~= "" and GetBindingAction and GetBindingAction(state.key) or ""
-    if mode == "fishing" and state.key ~= "" and state.fishingName
-        and ClearOverrideBindings and SetOverrideBinding and SetOverrideBindingClick
-        and (binding == "" or binding == "INTERACTTARGET") then
+    if mode == "fishing" and state.fishingName
+        and ClearOverrideBindings and SetOverrideBinding and SetOverrideBindingClick then
         state.owner = self.fishingBindingOwner or CreateFrame("Frame")
         self.fishingBindingOwner = state.owner
         if not StoneDockFishingCast then
@@ -667,23 +676,23 @@ end)
 SD:On("PLAYER_LOGOUT", function() setFishingReach(false) end)
 
 -- Binding changes rebuild only our temporary overrides, outside protected states.
-SD:On("UPDATE_BINDINGS",function()
+local function refreshFishingKeys()
     if SD:IsBusy() then SD.fishingBindingsPending=true return end
+    SD.fishingBindingsPending=nil
     local state=SD.gathering
-    if SD.fishingRebinding or not state or not state.active or state.mode~="fishing" then return end
-    if SD.Equal(state.keys,fishingKeys(SD.db.gatheringKey)) then return end
-    SD.fishingRebinding=true
-    local ok,err=pcall(function()
-        if SD:StartGathering("fishing",state.automatic) then
-            for _,key in ipairs({"count","last","targetID","destination","channel","inReach","loot","slots"}) do SD.gathering[key]=state[key] end
-            SD:RefreshExpeditionPause()
-        end
-    end)
-    SD.fishingRebinding=nil
-    if not ok then SD:ReportError("Refresh fishing bindings",err) end
+    if not state or not state.active or not state.owner then return end
+    local keys = fishingKeys(SD.db.gatheringKey)
+    if SD.Equal(state.keys, keys) then return end
+    ClearOverrideBindings(state.owner)
+    state.bound = nil
+    state.keys = keys
+    state.key = state.keys[1] or ""
+    updateBinding(state)
+end
+SD:On("UPDATE_BINDINGS",function()
+    local state = SD.gathering
+    if state and state.active and state.owner then refreshFishingKeys() end
 end)
 SD:On("PLAYER_REGEN_ENABLED",function()
-    if not SD.fishingBindingsPending or SD:IsBusy() then return end
-    SD.fishingBindingsPending=nil
-    SD:UpdatePoleFishing()
+    if SD.fishingBindingsPending then refreshFishingKeys() end
 end)

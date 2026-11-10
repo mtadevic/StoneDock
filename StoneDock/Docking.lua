@@ -2,11 +2,17 @@ local _, SD = ...
 
 -- Frame coordinates are expressed in each frame's effective scale. Normalize
 -- them before comparing Blizzard controls with the design canvas.
+local function readableNumber(value)
+    return (not issecretvalue or not issecretvalue(value)) and type(value)=="number"
+end
+
 local function rootRect(frame)
     if not frame or not frame.GetRect then return end
     local x, y, w, h = frame:GetRect()
-    if not x or not y or not w or not h then return end
-    local factor = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
+    if not (readableNumber(x) and readableNumber(y) and readableNumber(w) and readableNumber(h)) then return end
+    local scale, rootScale = frame:GetEffectiveScale(), UIParent:GetEffectiveScale()
+    if not (readableNumber(scale) and readableNumber(rootScale) and rootScale > 0) then return end
+    local factor = scale / rootScale
     return x * factor, y * factor, w * factor, h * factor
 end
 
@@ -35,53 +41,6 @@ local function bagButtons()
     end
     if BagBarExpandToggle then table.insert(frames, BagBarExpandToggle) end
     return frames
-end
-
-local function actionRow(bar,count)
-    local buttons={}
-    for i=1,count do
-        local button=bar.actionButtons and bar.actionButtons[i]
-        if not button or not button:IsShown() then return end
-        buttons[i]=button
-    end
-    return union(buttons)
-end
-
-function SD:RestoreGulveigTopRow()
-    local fit=self.gulveigTopRow
-    if not fit then return end
-    self.gulveigTopRow=nil
-    local bar=fit.bar
-    if bar:GetScale()==fit.scale then bar:SetScale(fit.originalScale) end
-    local point,relative,relativePoint,x,y=bar:GetPoint()
-    if point=="CENTER" and relative==UIParent and relativePoint=="BOTTOMLEFT" and x==fit.x and y==fit.y then
-        bar:ClearAllPoints()
-        for _,anchor in ipairs(fit.anchors) do bar:SetPoint(unpack(anchor,1,5)) end
-    end
-end
-
-function SD:FitGulveigTopRow()
-    if self:IsBusy() then return end
-    local top,middle=MainActionBar,MultiBarBottomLeft
-    if not top or not middle or not top:IsVisible() or not middle:IsVisible() then return end
-    local x,y,width,height=actionRow(top,6)
-    local middleX,_,middleWidth=actionRow(middle,8)
-    if not width or not middleWidth then return end
-    local factor=middleWidth/width
-    if math.abs(middleWidth-width)<.01 and math.abs(middleX-x)<.01 then return end
-    local centerX,centerY=top:GetCenter()
-    if not centerX or not centerY then return end
-    local oldEffective=top:GetEffectiveScale()/UIParent:GetEffectiveScale()
-    local newEffective=oldEffective*factor
-    local fit={bar=top,originalScale=top:GetScale(),anchors={}}
-    for i=1,top:GetNumPoints() do fit.anchors[i]={top:GetPoint(i)} end
-    fit.scale=fit.originalScale*factor
-    fit.x=middleX/newEffective+centerX-x/oldEffective
-    fit.y=(y+height*(factor-1)/2)/newEffective+centerY-y/oldEffective
-    top:SetScale(fit.scale)
-    top:ClearAllPoints()
-    top:SetPoint("CENTER",UIParent,"BOTTOMLEFT",fit.x,fit.y)
-    self.gulveigTopRow=fit
 end
 
 -- Forever's native tracking bars start at 1192 units, and their Edit Mode
@@ -132,7 +91,6 @@ function SD:PrecisionAlign(bagsOnly)
     local index = full.activeLayout
     local layout = full.layouts[index]
     local g = self:GetGeometry()
-    if not bagsOnly then self:RestoreGulveigTopRow() end
     local changed = false
     local function correct(system, systemIndex, frames, targetX, targetY)
         local x, y = union(frames)
@@ -209,8 +167,10 @@ function SD:PrecisionAlign(bagsOnly)
                 correct(Enum.EditModeSystem.ActionBar,spec[1],buttons,targetX,bottom+h/2)
             end
         end
-        correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
-            (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + (g.variant=="tofu" and 0 or 24)*g.density) * g.scale)
+        if g.variant~="gulveig" then
+            correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
+                (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + (g.variant=="tofu" and 0 or 24)*g.density) * g.scale)
+        end
         if self.db.arrangeUtility then
             correct(Enum.EditModeSystem.MicroMenu, nil, { MicroMenu },
                 (g.menuDrawer.x + g.menuDrawer.w / 2) * g.scale,
@@ -223,10 +183,8 @@ function SD:PrecisionAlign(bagsOnly)
             (g.bagDrawer.y + g.bagDrawer.h / 2 + 1) * g.scale)
     end
     if changed then
-        self:RestoreGulveigTopRow()
         self:SaveAndRefreshLayout(full, index)
     end
-    if (not bagsOnly or changed) and g.variant=="gulveig" and self.db.enabled then self:FitGulveigTopRow() end
 end
 
 function SD:SchedulePrecisionAlignment(bagsOnly)
@@ -288,9 +246,6 @@ end
 
 function SD:RefreshDocking()
     if InCombatLockdown() then return end
-    if self.gulveigTopRow and (not self.db.enabled or self.layoutName~="Gulveig Bar" or not self:IsOurLayoutActive() or self.editing) then
-        self:RestoreGulveigTopRow()
-    end
     self:RefreshVariantControls()
     self:FitTrackingBars()
     local active = self.db.enabled and self.db.arrangeUtility and self:IsOurLayoutActive() and not self.editing
