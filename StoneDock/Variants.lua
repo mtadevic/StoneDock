@@ -131,9 +131,9 @@ function SD:GetGulveigGeometry(width,height,rise)
         menuDrawer=r(25,4,410,38),bagDrawer=r(25,47,410,36),utilityY=260*rise,
 
         bars={
-            {index=1,x=960+dx,y=(18+268*.715+dy)*rise,icons=6,iconPercent=150},
-            {index=2,x=960+dx,y=(18+268*.477+dy)*rise,icons=8,iconSize=46*stretch*rise},
-            {index=3,x=960+dx,y=(18+268*.267+dy)*rise,icons=6,iconSize=44*stretch*rise},
+            {index=1,x=960+dx,y=(18+268*.715+dy)*rise,icons=6,iconPercent=110},
+            {index=2,x=960+dx,y=(18+268*.477+dy)*rise,icons=6,iconSize=46*stretch*rise},
+            {index=3,x=960+dx,y=(18+268*.267+dy)*rise,icons=6,iconSize=44*stretch*rise,iconPercent=75},
         },
         ornament=r(510+dx,18+dy,750*stretch,268),
         trackingWell=r(576,-100,768,115),
@@ -463,47 +463,9 @@ end
 
 
 
-function SD:RefreshChatGroupLayout()
-
-    if not self.db or self.layoutName~=names.gulveig or not self.db.arrangeGroups or not self:IsOurLayoutActive() then return end
-
-    if self:IsBusy() or self.layoutWriteBusy then self.chatGroupDeferred=true return end
-
-    if self.chatGroupBusy then return end
-
-    self.chatGroupBusy=true
-
-    local ok,err=pcall(function()
-
-        local full=self:GetFullLayouts() if not full then return end
-
-        local layout=full.layouts[full.activeLayout]
-
-        local info=self.UnitLayoutHelpers.find(layout,Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party)
-
-        local before=SD.Copy(info)
-
-        self:ConfigureNativeParty(info)
-
-        if not SD.Equal(before,info) then self:SaveAndRefreshLayout(full,full.activeLayout) end
-
-        self:QueueRaidSplit()
-
-        self.chatGroupDeferred=nil
-
-    end)
-
-    self.chatGroupBusy=nil
-
-    if not ok then self:ReportError("Align groups above chat",err) end
-
-end
-
-
-
 function SD:QueueChatGroupLayout()
 
-    if not self.db or self.layoutName~=names.gulveig or self.layoutWriteBusy or self.chatGroupBusy or self.chatGroupQueued then return end
+    if not self.db or self.layoutName~=names.gulveig or self.layoutWriteBusy or self.chatGroupQueued then return end
 
     self.chatGroupQueued=true
 
@@ -511,7 +473,7 @@ function SD:QueueChatGroupLayout()
 
         SD.chatGroupQueued=nil
 
-        SD:RefreshChatGroupLayout()
+        SD:QueueRaidSplit()
 
     end)
 
@@ -543,5 +505,4 @@ end
 
 SD:On("PLAYER_LOGIN",function()SD:InstallChatGroupHooks()end)
 
-SD:On("PLAYER_REGEN_ENABLED",function()if SD.chatGroupDeferred then SD:QueueChatGroupLayout()end end)
 

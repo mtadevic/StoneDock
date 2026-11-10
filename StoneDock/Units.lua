@@ -275,19 +275,39 @@ function SD:ConfigureNativeParty(info,g)
 end
 
 local nativeGroupScales=setmetatable({}, {__mode="k"})
-local function seat(frame,pos,g)
+local function near(current, desired)
+    return (not issecretvalue or not issecretvalue(current))
+        and type(current)=="number" and math.abs(current-desired)<0.01
+end
+
+local function seatPoint(frame, relative, relativePoint, x, y)
+    local point, anchor, anchorPoint, oldX, oldY=frame:GetPoint()
+    if frame:GetNumPoints()==1 and point=="TOPLEFT" and anchor==relative
+        and anchorPoint==relativePoint and near(oldX,x) and near(oldY,y) then return end
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT",relative,relativePoint,x,y)
+end
+
+local function seat(frame,pos,g,keepNativeCells)
     if not frame then return end
+    if keepNativeCells then
+        -- Edit Mode already supplies the cell sizes and horizontal layout.
+        -- Follow chat without touching the native layout or resizing its children.
+        local factor=g.scale*UIParent:GetEffectiveScale()/frame:GetEffectiveScale()
+        seatPoint(frame,UIParent,"BOTTOMLEFT",pos.x*factor,pos.y*factor)
+        return
+    end
     if not nativeGroupScales[frame] then nativeGroupScales[frame]=frame:GetScale() end
     local parent=frame:GetParent() or UIParent
-    frame:SetScale(g.scale*UIParent:GetEffectiveScale()/parent:GetEffectiveScale())
-    frame:ClearAllPoints()
-    frame:SetPoint("TOPLEFT",UIParent,"BOTTOMLEFT",pos.x,pos.y)
-    frame:SetSize(5*pos.w+4*pos.gap,pos.h)
+    local scale=g.scale*UIParent:GetEffectiveScale()/parent:GetEffectiveScale()
+    if not near(frame:GetScale(),scale) then frame:SetScale(scale) end
+    seatPoint(frame,UIParent,"BOTTOMLEFT",pos.x,pos.y)
+    local width=5*pos.w+4*pos.gap
+    if not near(frame:GetWidth(),width) or not near(frame:GetHeight(),pos.h) then frame:SetSize(width,pos.h) end
     if frame.title then frame.title:SetAlpha(0) end
     for i,member in ipairs(frame.memberUnitFrames or {}) do
-        member:ClearAllPoints()
-        member:SetPoint("TOPLEFT",frame,"TOPLEFT",(i-1)*(pos.w+pos.gap),0)
-        member:SetSize(pos.w,pos.h)
+        seatPoint(member,frame,"TOPLEFT",(i-1)*(pos.w+pos.gap),0)
+        if not near(member:GetWidth(),pos.w) or not near(member:GetHeight(),pos.h) then member:SetSize(pos.w,pos.h) end
     end
 end
 
@@ -296,12 +316,15 @@ function SD:SplitNativeRaid()
     local active=self.db.enabled and self.db.arrangeGroups and self:IsOurLayoutActive()
     if self.editing or (EditModeManagerFrame and EditModeManagerFrame:IsShown()) then return end
     if not active then
-        for frame,scale in pairs(nativeGroupScales) do frame:SetScale(scale) end
+        for frame,scale in pairs(nativeGroupScales) do
+            if not near(frame:GetScale(),scale) then frame:SetScale(scale) end
+            nativeGroupScales[frame]=nil
+        end
         return
     end
     local g=self:GetGeometry()
     -- Party uses the same native cells in one evenly spaced five-wide row.
-    if CompactPartyFrame and CompactPartyFrame:IsShown() then seat(CompactPartyFrame,self:GetGroupRows(5)[1],g) end
+    if CompactPartyFrame and CompactPartyFrame:IsShown() then seat(CompactPartyFrame,self:GetGroupRows(5,g)[1],g,g.variant=="gulveig") end
     if not self.db.splitRaid then return end
     local container=CompactRaidFrameContainer
     if not container or not container.GetGroupMode or container:GetGroupMode()~="discrete" then return end
@@ -316,7 +339,7 @@ function SD:SplitNativeRaid()
 end
 
 function SD:QueueRaidSplit()
-    if self.raidSplitPending then return end
+    if self.raidSplitPending or InCombatLockdown() then return end
     self.raidSplitPending=true
     C_Timer.After(0,function()
         SD:Run("Split raid frames",function() SD:SplitNativeRaid() end)
