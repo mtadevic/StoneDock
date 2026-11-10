@@ -127,9 +127,16 @@ local auraRows={}
 local auraFilters={"HELPFUL","HARMFUL"}
 
 local function updateAuraRow(row)
+    local getAura=C_UnitAuras.GetAuraDataByIndex
+    local accessDenied=false
     for i,icon in ipairs(row.icons) do
-        local aura=C_UnitAuras.GetAuraDataByIndex(row.unit,1,auraFilters[i])
-        local texture=readable(aura) and aura and aura.icon
+        local texture
+        if not accessDenied then
+            -- The client can reject the query itself before returning aura data.
+            local ok,aura=pcall(getAura,row.unit,1,auraFilters[i])
+            accessDenied=not ok
+            if ok and readable(aura) and aura then texture=aura.icon end
+        end
         if readable(texture) and texture then
             icon:SetTexture(texture)
             icon:Show()
