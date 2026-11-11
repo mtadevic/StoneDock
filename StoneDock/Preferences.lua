@@ -18,8 +18,9 @@ local schemas = {
         section("Native layout management",{
             check("arrangeUnits","Arrange player, target and focus"),check("arrangeGroups","Arrange party and raid"),
             check("arrangeChat","Arrange chat"),check("arrangeUtility","Arrange bags, menu and tracking bars"),
-            check("tofuShowBagBar","Show native bag bar in Tofu Bar"),
-            check("useExtraBars","Enable the four dashboard action bars"),
+            check("gulveigShowBagBar","Show native bag bar"),
+            check("tofuShowBagBar","Show native bag bar"),
+            check("useExtraBars","Enable additional action bars"),
         }),
     }},
     bars = {title="Action bars & fading",description="Move the action banks together and choose their out-of-combat visibility.",sections={
@@ -306,8 +307,36 @@ function SD:BuildPreferencePage(key, definition)
     return page
 end
 
+local layoutForPreference = {
+    stoneTexture = "stone",
+    showLabels = "stone",
+    barSpread = "stone",
+    chatStyle = "gulveig",
+    gulveigShowBagBar = "gulveig",
+    tofuShowBagBar = "tofu",
+    tofuItemOffsetX = "tofu",
+    tofuItemOffsetY = "tofu",
+}
+
 function SD:PreferenceSchema(key)
-    if schemas[key] then return schemas[key] end
+    local schema = schemas[key]
+    if schema then
+        local activeLayout = self:GetLayoutVariant()
+        local sections = {}
+        for _, group in ipairs(schema.sections) do
+            local controls = {}
+            for _, field in ipairs(group.controls) do
+                local layout = layoutForPreference[field.key]
+                if not layout or layout == activeLayout then
+                    controls[#controls + 1] = field
+                end
+            end
+            if #controls > 0 then
+                sections[#sections + 1] = section(group.title, controls)
+            end
+        end
+        return {title=schema.title, description=schema.description, sections=sections}
+    end
     if key=="master" then
         local groups={}
         local definitions={}

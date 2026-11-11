@@ -10,6 +10,10 @@ end
 
 
 
+function SD:GetLayoutVariant()
+    return variant(self.layoutName)
+end
+
 function SD:InitializeLayoutVariant()
 
     local active=self:GetActiveLayout()
@@ -397,15 +401,16 @@ function SD:RefreshVariantControls()
     self.variantControlsBusy=true
 
     local active=self.db.enabled and not self.editing and self:IsOurLayoutActive()
-    local hideGulveig=active and self.layoutName==names.gulveig
-    local hideTofuBags=active and self.layoutName==names.tofu and not self.db.tofuShowBagBar
+    local gulveig=active and self.layoutName==names.gulveig
+    local hideBags=(gulveig and not self.db.gulveigShowBagBar)
+        or (active and self.layoutName==names.tofu and not self.db.tofuShowBagBar)
 
     self.variantHiddenControls=self.variantHiddenControls or {}
 
     self.variantControlHooks=self.variantControlHooks or {}
 
     for control,frame in pairs({menu=MicroMenuContainer or MicroMenu,bags=BagsBar}) do
-        local hide=hideGulveig or (control=="bags" and hideTofuBags)
+        local hide=(control=="menu" and gulveig) or (control=="bags" and hideBags)
 
         if not self.variantControlHooks[frame] and frame.HookScript then
 
