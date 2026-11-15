@@ -111,6 +111,7 @@ function SD:PrecisionAlign(bagsOnly)
         local nativeBars = { MainActionBar, MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft }
         local tofuTopY
         if g.variant=="tofu" then
+            self:FitTofuTopRow()
             local lower=MultiBarBottomLeft and MultiBarBottomLeft.actionButtons
             local upper=MainActionBar and MainActionBar.actionButtons
             if lower and upper and lower[1] and lower[6] then
@@ -130,12 +131,7 @@ function SD:PrecisionAlign(bagsOnly)
                     if bar.actionButtons[i] then table.insert(buttons, bar.actionButtons[i]) end
                 end
             elseif bar then table.insert(buttons, bar) end
-            -- FitTofuTopRow queues a fresh measurement after the native grid shrinks.
-            local waitingForTofuTopRow=g.variant=="tofu" and n==1 and bar
-                and bar.numButtonsShowable and bar.numButtonsShowable>5
-            if not waitingForTofuTopRow then
-                correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
-            end
+            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
         end
         -- Native auxiliary frames have invisible padding; align visible icons.
         for _,spec in ipairs({
@@ -147,6 +143,11 @@ function SD:PrecisionAlign(bagsOnly)
             local buttons={}
             if frame and frame.actionButtons then
                 for _,button in ipairs(frame.actionButtons) do buttons[#buttons+1]=button end
+            elseif frame and g.variant=="tofu" and spec[1]==11 and StanceButton1 then
+                for i=1,(NUM_STANCE_SLOTS or 10) do
+                    local button=_G["StanceButton"..i]
+                    if button then buttons[#buttons+1]=button end
+                end
             elseif frame then buttons[1]=frame end
             local _,_,w,h=union(buttons)
             if w then
@@ -157,6 +158,10 @@ function SD:PrecisionAlign(bagsOnly)
                 if g.auxTopInset then
                     local top=alignRight and g.auxRightTop or well.y+well.h-g.auxTopInset
                     bottom=top*g.scale-h
+                    if g.variant=="tofu" and spec[1]==11 then
+                        edge=(well.x+24)*g.scale
+                        bottom=(well.y+well.h/2)*g.scale-h/2
+                    end
                 end
                 local main=spec[5]
                 local _,_,mainWidth,mainHeight=union(main and (main.actionButtons or {main}) or {})

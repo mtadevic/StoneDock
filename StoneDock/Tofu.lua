@@ -1,4 +1,22 @@
 local _, SD = ...
+local surroundWidth, surroundHeight = 1782, 343
+local artScale = 1920/surroundWidth
+SD.tofuGeometryRevision = 14
+SD.tofuUnitAnchorRevision = 2
+
+function SD:PlaceTofuUnitAnchors(layout,g)
+    local H,E,U=self.UnitLayoutHelpers,Enum.EditModeSystem,Enum.EditModeUnitFrameSystemIndices
+    local function place(index,point,x,y)
+        H.anchor(H.find(layout,E.UnitFrame,index),point,"BOTTOMLEFT",x*g.scale,y*g.scale)
+    end
+    place(U.Player,"BOTTOMLEFT",g.player.x,g.player.y)
+    place(U.Target,"BOTTOMRIGHT",g.target.x,g.target.y)
+    place(U.Focus,"BOTTOMRIGHT",g.focus.x,g.focus.y)
+    if U.Pet then place(U.Pet,"BOTTOMRIGHT",g.pet.x,g.pet.y) end
+    if U.Boss then
+        H.anchor(H.find(layout,E.UnitFrame,U.Boss),"TOPRIGHT","TOPRIGHT",-260*g.scale,-316*g.density*g.scale)
+    end
+end
 
 function SD:GetTofuGeometry(width,height,rise)
     local scale=width/1920
@@ -7,72 +25,65 @@ function SD:GetTofuGeometry(width,height,rise)
     local dy=self.db.barOffsetY
     local zoom=self.db.barWidth/100
     local function box(x,y,w,h) return {x=x,y=y*rise,w=w,h=h*rise} end
+    local function artBox(x,y,w,h) return box(x*artScale,y*artScale,w*artScale,h*artScale) end
     local function bar(index,x,y,icons,rows,size)
-        return {index=index,x=x,y=(y+dy)*rise,icons=icons,rows=rows,iconSize=size*zoom*rise,iconPadding=4}
+        return {index=index,x=x*artScale+dx,y=(y*artScale+dy)*rise,
+            icons=icons,rows=rows,iconSize=size*artScale*zoom*rise,iconPadding=4}
     end
-    local physicalHeight
-    if GetPhysicalScreenSize then local _; _,physicalHeight=GetPhysicalScreenSize() end
-    local pixel=physicalHeight and screenHeight/physicalHeight or 1
-    local function snap(value) return math.floor(value/pixel+.5)*pixel end
-    local center=960+snap(dx)
-    local function pair(inner,w,y,h)
-        inner,w=snap(inner),snap(w)
-        return box(center-inner-w,y,w,h),box(center+inner,y,w,h)
-    end
-    local centerHalf=snap(130*zoom)
-    local meterBase=161
-    local leftBank,rightBank=pair(centerHalf,94*zoom,0,179+dy)
-    local meterInner=centerHalf+leftBank.w
-    local leftMeter,rightMeter=pair(meterInner,214,4,157)
-    local outerInner=meterInner+leftMeter.w
-    local left=box(0,0,center-outerInner,326)
-    local right=box(center+outerInner,0,1920-center-outerInner,326)
-    local leftMeterPlate,rightMeterPlate=pair(meterInner,214,0,meterBase)
-    local trayWidth=144
-    local leftTray,rightTray=pair(outerInner-trayWidth,trayWidth,meterBase,34)
-    local utilityIconSize=24*.85
+    local center=960+dx
+    local left,right=artBox(0,0,480,313),artBox(1302,0,480,313)
+    local leftMeter,rightMeter=artBox(488,7,182,141),artBox(1112,7,182,141)
+    local leftTray,rightTray=artBox(478,154,170,40),artBox(1134,154,170,40)
+    local utilityIconSize=24*.85*rise
     local utilityY=leftTray.y+(leftTray.h-utilityIconSize)/2
-    local centerPlate=box(center-centerHalf,0,2*centerHalf,186+dy)
     return {
-        variant="tofu",revision=7,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
+        variant="tofu",revision=self.tofuGeometryRevision,width=width,height=height,scale=scale,density=rise,screenHeight=screenHeight,
         left=left,right=right,base=box(0,0,1920,3),
         map={x=1627,y=screenHeight-310*rise,w=264,h=264*rise},
         leftWell=leftMeter,rightWell=rightMeter,meters={leftMeter,rightMeter},
-        silhouette={left,right,leftMeterPlate,rightMeterPlate,leftBank,rightBank,centerPlate,leftTray,rightTray},
-        buttonRecesses={leftTray,leftBank,centerPlate,rightBank,rightTray},
-        chat=box(28,30,left.w-42,270),menuDrawer=box(center-129,1,258,34),bagDrawer=box(1640,10,264,40),
-        itemWell={x=rightTray.x+5+self.db.tofuItemOffsetX,y=utilityY+self.db.tofuItemOffsetY*rise,
-            w=rightTray.w-10,h=utilityIconSize},
+        chat=box(28,30,left.w-42,270),menuDrawer=artBox(801,3,180,40),bagDrawer=box(1640,10,264,40),
+        itemWell={x=rightTray.x+22+self.db.tofuItemOffsetX,y=utilityY+self.db.tofuItemOffsetY*rise,
+            w=rightTray.w-44,h=utilityIconSize},
         utilityY=utilityY,utilityIconSize=utilityIconSize,
         trackingWell=box(423,0,1074,25),
         auxLeft=leftTray,auxRight=rightTray,auxTopInset=(leftTray.h-utilityIconSize)/2,
         auxRightTop=rightTray.y+rightTray.h+26*rise,
-        cast={x=center-960,y=centerPlate.h+16*rise},
-        player={x=center-308,y=(235+dy)*rise},target={x=center+308,y=(235+dy)*rise},
-        party={x=620,y=395*rise},raid={x=620,y=466*rise},
+        cast={x=center-960,y=(199+dy)*rise},
+        player={x=602,y=298*rise},target={x=1316,y=298*rise},
+        focus={x=1410,y=383*rise},pet={x=778,y=258*rise},
+        party={x=24,y=428*rise},raid={x=24,y=428*rise},
         bars={
-            bar(1,center,158,5,1,44),
-            bar(2,center,86,10,2,44),
-            bar(3,leftBank.x+leftBank.w/2,91,8,4,38),
-            bar(4,rightBank.x+rightBank.w/2,91,8,4,38),
+            bar(1,891,154,5,1,39),
+            bar(2,891,87,10,2,39),
+            bar(3,723,92,8,4,27),
+            bar(4,1059,92,8,4,27),
         },
     }
 end
 
 function SD:GetTofuGroupRows(groups,g)
     local gap=4
-    local width=(676*self.db.groupRowWidth/100-4*gap)/5
+    local width=(474*self.db.groupRowWidth/100-4*gap)/5
     local height=self.db.groupHeight
     local result={}
     for i=1,groups do
-        result[i]={x=960-(5*width+4*gap)/2+self.db.groupOffsetX,
-            y=g.party.y+self.db.groupOffsetY+(groups-i)*(height+gap),
+        result[i]={x=g.party.x+self.db.groupOffsetX,
+            y=g.party.y+self.db.groupOffsetY+(i-1)*(height+gap),
             w=width,h=height,gap=gap,side="left"}
     end
     return result
 end
 
-function SD:FinishTofuLayout(layout,g,dashboardOnly)
+function SD:PlaceTofuRaidAnchor(layout,g)
+    if not self.db.arrangeGroups then return end
+    local H=self.UnitLayoutHelpers
+    local raid=H.find(layout,Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Raid)
+    local row=self:GetTofuGroupRows(1,g)[1]
+    H.anchor(raid,"TOPLEFT","BOTTOMLEFT",row.x*g.scale,row.y*g.scale)
+end
+
+function SD:FinishTofuLayout(layout,g,dashboardOnly,upgradeUnits)
+    self:PlaceTofuRaidAnchor(layout,g)
     local H,E=self.UnitLayoutHelpers,Enum.EditModeSystem
     local s=g.scale
     local function anchor(system,index,point,relative,x,y)
@@ -85,20 +96,21 @@ function SD:FinishTofuLayout(layout,g,dashboardOnly)
         anchor(E.StatusTrackingBar,1,"TOP","TOP",0,-12*g.density)
         anchor(E.StatusTrackingBar,2,"TOP","TOP",0,-28*g.density)
         local stance=H.find(layout,E.ActionBar,11)
-        local nativeSize=ActionButton1 and ActionButton1:GetWidth() or 45
-        H.setting(stance,Enum.EditModeActionBarSetting.IconSize,100*g.utilityIconSize*s/nativeSize)
-        anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",g.auxLeft.x+12,g.auxLeft.y+g.auxLeft.h-g.auxTopInset)
+        H.setting(stance,Enum.EditModeActionBarSetting.IconSize,100*g.utilityIconSize*s/30)
+        anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",g.auxLeft.x+24,g.auxLeft.y+g.auxLeft.h-g.auxTopInset)
         for index=12,13 do
             anchor(E.ActionBar,index,"TOPRIGHT","BOTTOMLEFT",g.auxRight.x+g.auxRight.w-12,g.auxRightTop)
         end
         if not dashboardOnly then anchor(E.ObjectiveTracker,nil,"TOPRIGHT","TOPRIGHT",-16,-362*g.density) end
     end
-    if not dashboardOnly and self.db.arrangeUnits then
+    if (not dashboardOnly or upgradeUnits) and self.db.arrangeUnits then
         local U,S=Enum.EditModeUnitFrameSystemIndices,Enum.EditModeUnitFrameSetting
-        for _,index in ipairs({U.Player,U.Target,U.Focus,U.Pet}) do
-            H.setting(H.find(layout,E.UnitFrame,index),S.FrameSize,72*s)
+        if not dashboardOnly then
+            for _,index in ipairs({U.Player,U.Target,U.Focus,U.Pet}) do
+                H.setting(H.find(layout,E.UnitFrame,index),S.FrameSize,72*s)
+            end
         end
-        anchor(E.UnitFrame,U.Pet,"BOTTOMRIGHT","BOTTOMLEFT",g.player.x-8,g.player.y)
+        self:PlaceTofuUnitAnchors(layout,g)
     end
     local cast=H.find(layout,E.CastBar)
     anchor(E.CastBar,nil,"BOTTOM","BOTTOM",g.cast.x,g.cast.y)
@@ -147,175 +159,6 @@ local function plate(parent,cornerSize)
 end
 
 local media="Interface\\AddOns\\StoneDock\\Media\\"
-local radius=12
-local seam=63.5/64
-
--- Each column covers a disjoint slice of the silhouette. Draw trim only on
--- the outer contour, so touching trays and banks never draw competing corners.
-local function contourColumns(rects)
-    local edges, columns={},{}
-    for _,r in ipairs(rects) do
-        edges[#edges+1]=r.x
-        edges[#edges+1]=r.x+r.w
-    end
-    table.sort(edges)
-    for i=1,#edges-1 do
-        local x,right=edges[i],edges[i+1]
-        if right>x then
-            local height=0
-            local mid=(x+right)/2
-            for _,r in ipairs(rects) do
-                if mid>=r.x and mid<r.x+r.w then height=math.max(height,r.y+r.h) end
-            end
-            local last=columns[#columns]
-            if last and last.h==height then last.right=right
-            else columns[#columns+1]={x=x,right=right,h=height} end
-        end
-    end
-    return columns
-end
-
-local function drawTofuContour(art,g)
-    local fills, trims, corners=0,0,0
-    local function place(region,x,y,w,h)
-        region:ClearAllPoints()
-        region:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",x,y)
-        region:SetSize(w,h)
-        region:Show()
-    end
-    local function fill(x,y,w,h,corner)
-        if w<=0 or h<=0 then return end
-        local region
-        if corner then region=corner.fill
-        else
-            fills=fills+1
-            region=art.surface[fills]
-        end
-        if not region then
-            region=art:CreateTexture(nil,"BACKGROUND")
-            region:SetTexture(media.."WeatheredStone.tga","REPEAT","REPEAT")
-            region:SetVertexColor(.25,.26,.29,1)
-            if corner then
-                corner.fill=region
-                corner.mask=art:CreateMaskTexture(nil,"BACKGROUND")
-                corner.mask:SetTexture(media.."TofuCorner.tga","CLAMPTOBLACKADDITIVE","CLAMPTOBLACKADDITIVE")
-                region:AddMaskTexture(corner.mask)
-            else art.surface[fills]=region end
-        end
-        place(region,x,y,w,h)
-        region:SetTexCoord(x/512,(x+w)/512,-(y+h)/512,-y/512)
-    end
-    local function trim(x,y,w,h,u1,u2,v1,v2)
-        if w<=0 or h<=0 then return end
-        trims=trims+1
-        local region=art.trim[trims]
-        if not region then
-            region=art:CreateTexture(nil,"ARTWORK")
-            region:SetTexture(media.."TofuTrim.tga")
-            art.trim[trims]=region
-        end
-        place(region,x,y,w,h)
-        region:SetTexCoord(u1,u2,v1,v2)
-    end
-    local function corner(x,y,flipX,flipY)
-        corners=corners+1
-        local piece=art.corners[corners] or {}
-        art.corners[corners]=piece
-        local u1,u2=flipX and 1 or 0,flipX and 0 or 1
-        local v1,v2=flipY and 1 or 0,flipY and 0 or 1
-        fill(x,y,radius,radius,piece)
-        place(piece.mask,x,y,radius,radius)
-        piece.mask:SetTexCoord(u1,u2,v1,v2)
-        trim(x,y,radius,radius,u1,u2,v1,v2)
-    end
-
-    local columns=contourColumns(g.silhouette)
-    for i,c in ipairs(columns) do
-        local before=columns[i-1] and columns[i-1].h or 0
-        local after=columns[i+1] and columns[i+1].h or 0
-        local leftInset=c.h>before and radius or 0
-        local rightInset=c.h>after and radius or 0
-        local floor=(i==1 or i==#columns) and radius or 0
-        local width=c.right-c.x
-        fill(c.x,floor,width,c.h-radius-floor)
-        fill(c.x+leftInset,c.h-radius,width-leftInset-rightInset,radius)
-        trim(c.x+leftInset,c.h-radius,width-leftInset-rightInset,radius,seam,seam,0,1)
-        if leftInset>0 then
-            corner(c.x,c.h-radius,false,false)
-            local y=math.max(before,floor)
-            trim(c.x,y,radius,c.h-radius-y,0,1,seam,seam)
-        end
-        if rightInset>0 then
-            corner(c.right-radius,c.h-radius,true,false)
-            local y=math.max(after,floor)
-            trim(c.right-radius,y,radius,c.h-radius-y,1,0,seam,seam)
-        end
-        if floor>0 then
-            local left=i==1
-            fill(c.x+(left and radius or 0),0,width-radius,radius)
-            corner(left and c.x or c.right-radius,0,not left,true)
-        end
-    end
-    trim(radius,0,1920-2*radius,radius,seam,seam,1,0)
-    for i=fills+1,#art.surface do art.surface[i]:Hide() end
-    for i=trims+1,#art.trim do art.trim[i]:Hide() end
-    for i=corners+1,#art.corners do art.corners[i].fill:Hide() art.corners[i].mask:Hide() end
-end
-
-local function drawTofuDetail(art,g)
-    local count=0
-    local function detail(layer,texture,x,y,w,h,vertical,alpha)
-        count=count+1
-        local region=art.detail[count]
-        if not region then
-            region=art:CreateTexture(nil,"ARTWORK",nil,layer)
-            art.detail[count]=region
-        end
-        region:SetTexture(media..texture)
-        region:SetAlpha(alpha)
-        region:ClearAllPoints()
-        region:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT",x,y)
-        region:SetSize(w,h)
-        region:Show()
-        if vertical then region:SetTexCoord(1,0,0,0,1,1,0,1)
-        else region:SetTexCoord(0,1,0,1) end
-    end
-
-    -- Inset only the button areas. Keep the shared stone visible through the
-    -- shaded recess and leave the silhouette and its rounded tips intact.
-    for _,r in ipairs(g.buttonRecesses) do
-        detail(-2,"TofuRecess.tga",r.x+6,r.y+5,r.w-12,r.h-10,false,.74)
-    end
-    local function upright(x,h)
-        detail(0,"TofuSilverRail.tga",x-2,5,4,h-10,true,1)
-    end
-    local function ledge(tray)
-        detail(0,"TofuSilverRail.tga",tray.x+2,tray.y-2,tray.w-4,4,false,1)
-    end
-    local columns=contourColumns(g.silhouette)
-    for i,column in ipairs(columns) do
-        local before=columns[i-1]
-        local after=columns[i+1]
-        local left=column.x+((not before or column.h>before.h) and radius or 0)
-        local right=column.right-((not after or column.h>after.h) and radius or 0)
-        if right>left then
-            detail(0,"TofuSilverRail.tga",left,column.h-4,right-left,4,false,1)
-        end
-    end
-    -- A single shared divider at each join gives both panels the same edge.
-    upright(g.left.w,g.auxLeft.y+g.auxLeft.h)
-    upright(g.right.x,g.auxRight.y+g.auxRight.h)
-    for _,well in ipairs(g.meters) do
-        upright(well==g.leftWell and well.x+well.w or well.x,well.y+well.h)
-    end
-    local leftBank,centerPlate,rightBank=unpack(g.buttonRecesses,2,4)
-    upright(centerPlate.x,leftBank.h)
-    upright(rightBank.x,rightBank.h)
-    ledge(g.auxLeft)
-    ledge(g.auxRight)
-    for i=count+1,#art.detail do art.detail[i]:Hide() end
-end
-
 function SD:RefreshTofuArt(g)
     self:FitTofuTopRow()
     local show=g.variant=="tofu" and self.db.enabled and (self:IsOurLayoutActive() or self.db.showGuides or self.editing)
@@ -326,7 +169,11 @@ function SD:RefreshTofuArt(g)
         art:SetFrameLevel(0)
         art:EnableMouse(false)
         art:SetFrameStrata("BACKGROUND")
-        art.surface,art.trim,art.corners,art.detail={},{},{},{}
+        local surround=art:CreateTexture(nil,"BACKGROUND")
+        surround:SetPoint("BOTTOMLEFT",art,"BOTTOMLEFT")
+        surround:SetTexture(media.."TofuSurround.tga")
+        surround:SetTexCoord(0,surroundWidth*2/4096,0,surroundHeight*2/1024)
+        art.surround=surround
         self.tofuArt=art
     end
     local art=self.tofuArt
@@ -335,18 +182,14 @@ function SD:RefreshTofuArt(g)
     art:SetScale(g.scale)
     art:SetSize(1920,g.screenHeight)
     art:SetAlpha(self.db.opacity*(self.currentUIAlpha or 1))
-    local key=table.concat({g.density,self.db.barWidth,self.db.barOffsetX,self.db.barOffsetY,g.width,g.height},"/")
-    if art.geometryKey~=key then
-        drawTofuContour(art,g)
-        drawTofuDetail(art,g)
-        art.geometryKey=key
-    end
+    art.surround:SetSize(1920,surroundHeight*artScale*g.density)
+
 end
 
 local unitPlates=setmetatable({}, {__mode="k"})
 function SD:RefreshTofuUnitArt(active,barRegion,rect)
     local show=active and self.layoutName=="Tofu Bar" and self.db.stoneUnits
-    for _,frame in pairs({FocusFrame,PetFrame,PlayerCastingBarFrame,CastingBarFrame,
+    for _,frame in pairs({PlayerCastingBarFrame,CastingBarFrame,
         PetCastingBarFrame,TargetFrame and (TargetFrame.spellbar or TargetFrame.CastBar),
         FocusFrame and (FocusFrame.spellbar or FocusFrame.CastBar)}) do
         local trim=unitPlates[frame]
@@ -429,13 +272,16 @@ function SD:FitTofuTopRow()
     bar:UpdateShownButtons()
     bar:MarkGridLayoutDirty()
     if bar.UpdateGridLayout then bar:UpdateGridLayout() end
-    self:SchedulePrecisionAlignment(false)
+    -- Edit Mode can restore the native minimum on every layout save.
+    -- Fitting the row must not schedule another save.
 end
 
 SD:On("PLAYER_LOGIN",function()
     if hooksecurefunc and MainActionBar and MainActionBar.UpdateSystemSettingNumIcons then
         hooksecurefunc(MainActionBar,"UpdateSystemSettingNumIcons",function()
-            if SD.layoutName=="Tofu Bar" then queueTopRow() end
+            if SD.layoutName=="Tofu Bar" and (MainActionBar.numButtonsShowable or 0)>5 then
+                queueTopRow()
+            end
         end)
     end
 end)

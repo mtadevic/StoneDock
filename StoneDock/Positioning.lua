@@ -13,7 +13,9 @@ function SD:ConfigurePetLayout(layout)
     if not info then return end
     info.anchorInfo={point="BOTTOMRIGHT",relativeTo="PlayerFrame",relativePoint="BOTTOMLEFT",offsetX=self.db.petOffsetX*self:GetGeometry().scale,offsetY=self.db.petOffsetY*self:GetGeometry().scale}
     if self.layoutName=="Tofu Bar" then
-        info.anchorInfo.offsetX=info.anchorInfo.offsetX-8*self:GetGeometry().scale
+        local g=self:GetGeometry()
+        info.anchorInfo.offsetX=(g.pet.x-g.player.x+self.db.petOffsetX-self.defaults.petOffsetX)*g.scale
+        info.anchorInfo.offsetY=(g.pet.y-g.player.y+self.db.petOffsetY-self.defaults.petOffsetY)*g.scale
     elseif self.layoutName=="Gulveig Bar" then
         info.anchorInfo.point="TOPLEFT"
         info.anchorInfo.offsetX=(24+self.db.petOffsetX)*self:GetGeometry().scale

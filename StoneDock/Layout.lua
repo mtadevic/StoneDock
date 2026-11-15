@@ -149,11 +149,11 @@ function SD:UpgradeDefaultUnitAnchors(systems, g)
 end
 
 local function geometryStamp(g)
-    return {width=g.width, height=g.height, scale=g.scale, density=g.density, revision=g.revision, trackingAtWells=true}
+    return {width=g.width, height=g.height, scale=g.scale, density=g.density, revision=g.revision, variant=g.variant, trackingAtWells=true}
 end
 
 local function sameGeometry(a, b)
-    return a and a.width == b.width and a.height == b.height and a.density == b.density and (a.revision or 0)==(b.revision or 0)
+    return a and a.variant == b.variant and a.width == b.width and a.height == b.height and a.density == b.density and (a.revision or 0)==(b.revision or 0)
 end
 
 function SD:NeedsGeometryAlignment()
@@ -363,7 +363,10 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     if self.ConfigureNativeParty then
         self:ConfigureNativeParty(findSystem(layout,E.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party),g)
     end
-    if g.variant=="tofu" then self:FinishTofuLayout(layout,g,dashboardOnly) end
+    if g.variant=="tofu" then
+        local upgradeUnits=self.db.tofuUnitAnchorsUpdated~=self.tofuUnitAnchorRevision
+        self:FinishTofuLayout(layout,g,dashboardOnly,upgradeUnits)
+    end
     if g.variant=="gulveig" then self:FinishGulveigLayout(layout,g,base.layoutName~=self.layoutName) end
     return layout
 end
@@ -400,6 +403,7 @@ function SD:AlignLayout(previousGeometry)
             local ok = self:Run("Align dashboard", function() self:SaveAndRefreshLayout(full, index) end)
             if ok then
                 self.db.nativeGeometry = geometryStamp(g)
+                if g.variant=="tofu" and self.db.arrangeUnits then self.db.tofuUnitAnchorsUpdated=self.tofuUnitAnchorRevision end
                 self:RefreshPanels()
                 self:SchedulePrecisionAlignment()
                 SD.Print("Dashboard aligned. Your unit-frame and chat adjustments were preserved.")

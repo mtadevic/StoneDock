@@ -48,6 +48,9 @@ function SD:CaptureProfile()
     for _,info in ipairs(layout and layout.systems or {})do if profileSystem(info)then native[#native+1]=SD.Copy(info) end end
     local store,key=self:GetVariantProfileStore()
     if not SD.Equal(store[key],native)then store[key]=native end
+    if key=="tofu" and self.db.arrangeUnits and not self:NeedsGeometryAlignment() then
+        self.profile.tofuUnitAnchorRevision=self.tofuUnitAnchorRevision
+    end
 end
 function SD:ApplyProfileNative()
     if not self.profile then return true end
@@ -55,9 +58,19 @@ function SD:ApplyProfileNative()
     local native=store[key]
     if not native or not self:IsOurLayoutActive() then self.profileNeedsRestore=nil return true end
     self:UpgradeDefaultUnitAnchors(native)
+    local migrateTofu=key=="tofu" and self.db.arrangeUnits
+        and self.profile.tofuUnitAnchorRevision~=self.tofuUnitAnchorRevision
+    if migrateTofu then
+        native=SD.Copy(native)
+        self:PlaceTofuUnitAnchors({systems=native},self:GetGeometry())
+    end
     if self.db.arrangeGroups then
+        if key=="tofu" and not migrateTofu then native=SD.Copy(native) end
         local info=self.UnitLayoutHelpers.find({systems=native},Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party)
         self:ConfigureNativeParty(info)
+        if key=="tofu" then
+            self:PlaceTofuRaidAnchor({systems=native},self:GetGeometry())
+        end
     end
     local full=self:GetFullLayouts() if not full then return false end
     local layout=full.layouts[full.activeLayout]
@@ -70,11 +83,19 @@ function SD:ApplyProfileNative()
             end
         end
     end
-    if not changed then self.profileNeedsRestore=nil return true end
-    self.profileSwitching=true
-    local ok=self:Run("Apply character profile",function() self:SaveAndRefreshLayout(full,full.activeLayout) end)
-    self.profileSwitching=nil
-    if ok then self.profileNeedsRestore=nil end
+    local ok=true
+    if changed then
+        self.profileSwitching=true
+        ok=self:Run("Apply character profile",function() self:SaveAndRefreshLayout(full,full.activeLayout) end)
+        self.profileSwitching=nil
+    end
+    if ok then
+        self.profileNeedsRestore=nil
+        if migrateTofu then
+            store[key]=native
+            self.profile.tofuUnitAnchorRevision=self.tofuUnitAnchorRevision
+        end
+    end
     return ok
 end
 function SD:SwitchProfile()
