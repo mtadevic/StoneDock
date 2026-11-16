@@ -1,7 +1,7 @@
 local _, SD = ...
 SD.itemCategories={
-    {key="bandage",label="Bandage",short="Bnd"},{key="heal",label="Healing potion",short="Heal"},
-    {key="resource",label="Resource potion",short="Res"},{key="bufffood",label="Buff food for current spec",short="Meal"},
+    {key="bandage",label="Bandage",short="Bnd"},{key="heal",label="Healing potion / Healthstone",short="Heal"},
+    {key="resource",label="Resource potion / Mana gem",short="Res"},{key="bufffood",label="Buff food for current spec",short="Meal"},
     {key="buffpotion",label="Buff potion",short="Pot"},{key="alternate",label="Flask / elixir / scroll",short="Buff"},
     {key="food",label="Health food",short="Food"},{key="drink",label="Mana drink",short="Drink"},
     {key="utility",label="Utility consumable",short="Util"},
@@ -12,6 +12,7 @@ local function number(value) return tonumber(((value or ""):gsub("[, ]",""))) or
 local function amount(text,word,maximum)
     local best = 0
     text = text:gsub("–", "-"):gsub("—", "-"):gsub(" to ", "-")
+    text = text:gsub("%% of your maximum ", "%% "):gsub("%% of your ", "%% ")
     for low, high, percent in text:gmatch("([%d,.]+)%s*%-%s*([%d,.]+)(%%?)%s+"..word.."%f[%A]") do
         local value = (number(low) + number(high)) / 2
         if percent == "%" then value = value * (maximum or 0) / 100 end
@@ -32,6 +33,19 @@ local bandageHealing = {
     [8544]=800,[8545]=1104,[14529]=1360,[14530]=2000,
 }
 
+-- Classic ranks and improved-talent variants, independent of tooltip locale.
+local healthstones = {
+    [5512]=true,[19004]=true,[19005]=true,[5511]=true,[19006]=true,[19007]=true,
+    [5509]=true,[19008]=true,[19009]=true,[5510]=true,[19010]=true,[19011]=true,
+    [9421]=true,[19012]=true,[19013]=true,
+}
+local manaGems = {[5514]=true,[5513]=true,[8007]=true,[8008]=true}
+
+local function recoveryFamily(id,name)
+    if healthstones[id] or name:find("healthstone",1,true) then return "heal" end
+    if manaGems[id] then return "resource" end
+end
+
 local function numeric(value)
     if safe(value) and type(value) == "number" then return value end
 end
@@ -43,7 +57,7 @@ local function has(text,words)
     for _,word in ipairs(words) do if text:find(word,1,true) then return true end end
     return false
 end
-local recoveryWords={"restore","recover","replenish","regain","heals","healing you for"}
+local recoveryWords={"restore","recover","replenish","regain","heals","healing you for","generates"}
 local statWords={"strength","agility","intellect","stamina","spirit","armor","haste","critical strike","crit rating","versatility","mastery","attack power","spell power","spell damage","defense","resistance","primary stat","highest stat"}
 local utilityWords={"invisibility","invisible","movement speed","swim speed","water breathing","water walking","slow fall","free action","removes all","bloodlust","heroism","sharpen","weightstone","weapon oil","apply to a weapon"}
 local function isWeaponStone(name)
@@ -179,6 +193,12 @@ function SD:ClassifyConsumable(item,stat,resource,context)
     local primary=t:find(stat,1,true) or t:find("primary stat",1,true) or t:find("highest stat",1,true)
     local otherPrimary=t:find("strength",1,true) or t:find("agility",1,true) or t:find("intellect",1,true)
     local base=(item.level or 0)*100+(item.quality or 0)
+    local family=recoveryFamily(item.id,name)
+    if family then
+        if family=="heal" then categories.heal=recoveryScore(heal,base)
+        elseif resource=="mana" then categories.resource=recoveryScore(mana,base) end
+        return categories
+    end
     if item.subclass==7 or name:find("bandage",1,true) then
         if heal==0 then
             heal=number(t:match("heals? .-for ([%d,.]+)") or t:match("([%d,.]+) damage over"))
@@ -196,11 +216,12 @@ function SD:ClassifyConsumable(item,stat,resource,context)
         end
     end
     local buffScore = recoveryScore(potency, base)
-    if potion then
+    if potion or (item.hasUse and (item.subclass==0 or item.subclass==8)) then
         if heal>0 or name:find("healing potion",1,true) then categories.heal=recoveryScore(heal,base) end
-        local restored=recovery and amount(t,resource,context.power) or 0
+        local restored=resource=="mana" and mana or 0
+        if resource~="mana" and recovery then restored=amount(t,resource,context.power) end
         if restored>0 or name:find(resource.." potion",1,true) then categories.resource=recoveryScore(restored,base) end
-        if not categories.heal and not categories.resource and eligible and statBuff then
+        if potion and not categories.heal and not categories.resource and eligible and statBuff then
             categories.buffpotion=buffScore
         end
     end
@@ -222,6 +243,10 @@ function SD:ClassifyConsumable(item,stat,resource,context)
     if not next(categories) and (has(t,utilityWords) or has(name,utilityWords)
         or name:find("drums of ",1,true)) then
         categories.utility=base
+    end
+    -- Unrecognized on-use consumables remain available in the utility flyout.
+    if not next(categories) and item.hasUse and (eligible or not statBuff) then
+        categories.utility=base-1000000
     end
     return categories,not not (categories.bufffood and not eligible)
 end
@@ -276,7 +301,8 @@ function SD:ScanConsumables()
                 seen[id]=true
                 local name,link,quality,level,minLevel,_,_,_,_,icon,_,class,subclass=C_Item.GetItemInfo(id)
                 local weaponStone=name and class~=9 and isWeaponStone(name)
-                if name and (class==0 or weaponStone) and (minLevel or 0)<=playerLevel then
+                local family=name and recoveryFamily(id,plain(name))
+                if name and (class==0 or weaponStone or family) and (minLevel or 0)<=playerLevel then
                     local description={}
                     if C_TooltipInfo and C_TooltipInfo.GetBagItem then
                         local tip=C_TooltipInfo.GetBagItem(bag,slot)
@@ -293,6 +319,8 @@ function SD:ScanConsumables()
                     if not inPvp and (desc:find("only usable in battlegrounds",1,true) or desc:find("only be used in battlegrounds",1,true)
                         or desc:find("only usable in rated",1,true)) then usable=false end
                     if usable then
+                        local useSpell=class==0 and C_Item.GetItemSpell and C_Item.GetItemSpell(id)
+                        item.hasUse=class==0 and ((safe(useSpell) and not not useSpell) or desc:find("use:",1,true)~=nil)
                         item.categories,item.offSpecFood=self:ClassifyConsumable(item,stat,resource,context)
                         all[#all+1]=item
                         for key,score in pairs(item.categories) do
