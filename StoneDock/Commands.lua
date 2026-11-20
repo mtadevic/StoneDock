@@ -1,4 +1,4 @@
-local _, SD = ...
+local _, SD = ...function SD:LayoutBackdrop(mode)    if not self.layoutBackdrop then        local f=CreateFrame("Frame","StoneDockLayoutBackdrop",WorldFrame or UIParent)        self.layoutBackdrop=f        f:SetFrameStrata("BACKGROUND")        f:SetFrameLevel(0)        f:SetAllPoints(UIParent)        f:EnableMouse(false)        f.fill=f:CreateTexture(nil,"BACKGROUND")        f.fill:SetAllPoints()        f.fill:SetColorTexture(.115,.135,.16,1)        f.lines={}        f:Hide()    end    local f=self.layoutBackdrop    if mode=="off" then f:Hide() return end    if mode=="grid" then f.grid=not (f:IsShown() and f.grid)    elseif mode~="on" then        if f:IsShown() then f:Hide() return end        f.grid=false    end    local width,height=UIParent:GetWidth(),UIParent:GetHeight()    local used=0    local function line(x,y,w,h,center)        used=used+1        local t=f.lines[used]        if not t then t=f:CreateTexture(nil,"ARTWORK") f.lines[used]=t end        t:ClearAllPoints()        t:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",x,y)        t:SetSize(w,h)        t:SetColorTexture(center and .85 or .75,center and .72 or .82,center and .45 or .9,center and .38 or .07)        t:SetShown(f.grid)    end    for x=64,width-1,64 do line(x,0,1,height,false) end    for y=64,height-1,64 do line(0,y,width,1,false) end    line(width/2,0,1,height,true)    line(0,height/2,width,1,true)    for i=used+1,#f.lines do f.lines[i]:Hide() end    f:Show()endSD:On("DISPLAY_SIZE_CHANGED",function()    if SD.layoutBackdrop and SD.layoutBackdrop:IsShown() then SD:LayoutBackdrop("on") endend)
 
 function SD:BuildReport()
     local version, build, _, interface = GetBuildInfo()
@@ -84,6 +84,7 @@ function SD:Command(message)
     elseif command=="modules"then self:OpenSettingsTab("master")
     elseif command=="session"or command=="readiness"or command=="waypoints"or command=="quests"then self:OpenSettingsTab(command)
     elseif command=="notes"then self:OpenSettingsTab("notesCustomize")
+    elseif command == "backdrop" then self:LayoutBackdrop(arg)
     elseif command == "profiles" or command=="backups" then self:ShowProfiles()
     elseif command == "move" then self:ShowPositioning()
     elseif command == "snapshot" then self:SaveSnapshot(arg)
@@ -148,7 +149,7 @@ function SD:Command(message)
         self.db.density = SD.Clamp(tonumber(arg), 0.8, 1.2) self:RefreshPanels()
         SD.Print("Panel height changed. Use /stonedock rebuild to match native frame placement.")
     else
-        SD.Print("/stonedock opens settings. Commands: install, restore, rebuild, edit, preview, show, hide, report, export.")
+        SD.Print("/stonedock opens settings. Commands: install, restore, rebuild, edit, preview, show, hide, report, export, backdrop [grid|on|off].")
         SD.Print("Appearance: accent silver|violet|green|bronze; opacity 0.4-1; height 0.8-1.2; hud; hudscale 0.6-1.4.")
     end
 end

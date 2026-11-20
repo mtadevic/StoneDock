@@ -78,6 +78,8 @@ function SD:RefreshFading(immediate)
     local hovered = active and self.db.fadeUI and not combat and self.db.revealOnHover and self:IsDashboardHovered()
     local ui = active and not combat and not hovered and self.db.fadeUI and self.db.uiRestAlpha or 1
     local hud = active and not combat and self.db.fadeHUD and self.db.hudRestAlpha or 1
+
+    if active and self.layoutName=="Adept" then hud=combat and 1 or .12 end
     if self.settingsWindow and self.settingsWindow:IsShown() then ui,hud=1,1 end
     if self.options and self.options:IsShown() then ui, hud = 1, 1 end
     if self.advanced and self.advanced:IsShown() then ui, hud = 1, 1 end

@@ -8,7 +8,7 @@ local function section(title, controls) return {title=title,controls=controls} e
 local schemas = {
     appearance = {title="Theme & layout", description="Choose the look and spacing of your dashboard.", sections={
         section("Appearance",{
-            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"}}),
+            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"},{"adept","Adept"}}),
             selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"},{"kintsugi","Onyx Kintsugi"}}),
             selectOption("accent","Accent color",{{"silver","Silver"},{"violet","Violet"},{"green","Moss"},{"bronze","Bronze"}}),
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),
@@ -20,6 +20,7 @@ local schemas = {
             check("arrangeChat","Arrange chat"),check("arrangeUtility","Arrange bags, menu and tracking bars"),
             check("gulveigShowBagBar","Show native bag bar"),
             check("tofuShowBagBar","Show native bag bar"),
+            check("adeptShowBagBar","Show native bag bar"),
             check("useExtraBars","Enable additional action bars"),
         }),
     }},
@@ -146,6 +147,7 @@ function SD:ApplyPreferences(key)
         end
         if key=="gathering" then
             if changed.gatheringKey then self:StopGathering() end
+            if changed.fishingAudioBoost then self:RefreshExpeditionPause() end
             if not self.db.gatheringEnabled then self:StopGathering() else self:UpdatePoleFishing() end
         end
         if key=="items" then
@@ -314,6 +316,7 @@ local layoutForPreference = {
     chatStyle = "gulveig",
     gulveigShowBagBar = "gulveig",
     tofuShowBagBar = "tofu",
+    adeptShowBagBar = "adept",
     tofuItemOffsetX = "tofu",
     tofuItemOffsetY = "tofu",
 }

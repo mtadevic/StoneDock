@@ -30,7 +30,8 @@ function SD:CreateFieldNotes()
     add("profile","Character profile",function()SD:ShowProfiles()end)
 end
 function SD:UpdateInfo()
-    if not self.info or not self.db then return end
+    if not self.info or not self.db then return end
+    if self.UpdateAdeptConsole then self:UpdateAdeptConsole() end
     self:CreateFieldNotes()
     for _,label in pairs(self.info)do label:Hide()end
     for _,button in pairs(self.noteButtons) do button:EnableMouse(not self.editing) end

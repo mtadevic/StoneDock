@@ -56,7 +56,8 @@ function SD:RefreshHUD()
         local _,class=UnitClass("player")local color=RAID_CLASS_COLORS[class]
         if color then f.health:SetStatusBarColor(color.r,color.g,color.b,.92)end
     else f.health:SetStatusBarColor(.78,.15,.19,.92)end
-    local shown=self.db.showHUD and self.db.enabled and not self.editing and(self:IsOurLayoutActive()or self.db.showGuides)
+    local adept=self.layoutName=="Adept"
+    local shown=(self.db.showHUD or adept) and self.db.enabled and not self.editing and(self:IsOurLayoutActive()or self.db.showGuides)
     f:SetShown(shown)
     if shown~=f.listening then
         f.events:UnregisterAllEvents()

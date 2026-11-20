@@ -1,12 +1,14 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.18"
+SD.name, SD.version = addonName, "0.13.19"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
     density = 1,
     opacity = 1,
     accent = "silver",
-    gatheringEnabled = false,
+    gatheringEnabled = false,
+
+    fishingAudioBoost = true,
     stoneTexture = "weathered",
     moduleFlags = {},
     noteRows = {},
@@ -27,7 +29,8 @@ SD.defaults = {
     hudPowerColor = true,
     hudHealthColor = "red",
     gulveigShowBagBar = false,
-    tofuShowBagBar = false,
+    tofuShowBagBar = false,
+    adeptShowBagBar = false,
     tofuItemOffsetX = 0,
     tofuItemOffsetY = 0,
     barOffsetX = 0,

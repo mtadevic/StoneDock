@@ -69,7 +69,10 @@ function SD:RefreshUnitTrim()
     local active=self.db.enabled and self:IsOurLayoutActive()
     self:RefreshGroupClassColors(active)
     self:RefreshGroupIndicators(active)
+    local adept=active and self.layoutName=="Adept"
+    if not adept then self:RefreshAdeptUnitFrames(false) end
     self:RefreshOrnamentalFrames(active)
+    if adept then self:RefreshAdeptUnitFrames(true) end
     local show=self.db.stoneUnits and active
     local function apply(frame) trim(frame,show) end
     -- Portrait frames have large invisible bounds; edging those bounds made an
@@ -229,6 +232,7 @@ function SD:GetGroupRows(count,geometry)
     -- Leave room for the native tracking frame's gold trim and the compact
     -- unit frames' bottom aura/power strip, not just their nominal rectangles.
     local bottom=math.max(g.leftWell.y+g.leftWell.h,g.rightWell.y+g.rightWell.h)+math.max(22, 20/g.scale)+self.db.groupOffsetY
+    if g.variant=="adept" then return self:GetAdeptGroupRows(groups,g) end
     if g.variant=="tofu" then
         return self:GetTofuGroupRows(groups,g)
     end

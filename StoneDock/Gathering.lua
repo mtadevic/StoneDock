@@ -55,6 +55,34 @@ local function setFishingReach(enabled)
     end
 end
 
+-- Persist the snapshot so a reload or interrupted session can restore audio.
+function SD:SetFishingAudio(enabled)
+    local c = C_CVar
+    if not c or not c.GetCVar or not c.SetCVar or not StoneDockCharDB then return end
+    local saved = StoneDockCharDB.fishingAudio
+    if enabled then
+        if saved then return end
+        saved = {}
+        local settings = {
+            Sound_EnableAllSound=1, Sound_EnableSFX=1,
+            Sound_MasterVolume=1, Sound_SFXVolume=1,
+            Sound_MusicVolume=0, Sound_AmbienceVolume=0, Sound_DialogVolume=0,
+            Sound_EnablePetSounds=0, Sound_EnableEmoteSounds=0, Sound_EnableErrorSpeech=0,
+        }
+        StoneDockCharDB.fishingAudio = saved
+        for key, value in pairs(settings) do
+            local current = c.GetCVar(key)
+            if current ~= nil then
+                saved[key] = current
+                c.SetCVar(key, tostring(value))
+            end
+        end
+    elseif saved then
+        for key, value in pairs(saved) do c.SetCVar(key, value) end
+        StoneDockCharDB.fishingAudio = nil
+    end
+end
+
 local function bobber(guid)
     return readable(guid) and type(guid) == "string"
         and guid:match("^GameObject%-%d+%-%d+%-%d+%-%d+%-35591%-") ~= nil
@@ -613,7 +641,8 @@ function SD:BuildGatheringPanel()
     local definition={title="Gathering & expeditions",description="Set up an expedition below. Apply your changes before starting.",top=-285,sections={
         {title="Expedition setup",controls=setup},
         {title="Fishing controls",controls={{key="gatheringKey",label="Additional fishing key",kind="select",choices=keys,
-            read=function() return SD.db.gatheringKey or "" end}}},
+            read=function() return SD.db.gatheringKey or "" end},
+            {key="fishingAudioBoost",label="Boost fishing effects and mute other audio",kind="check"}}},
     }}
     local page=self:BuildPreferencePage("gathering",definition)
     self.gatheringPanel=page
@@ -673,7 +702,7 @@ end)
 SD:On("PLAYER_EQUIPMENT_CHANGED", function(slot)
     if slot == 16 then SD:UpdatePoleFishing() end
 end)
-SD:On("PLAYER_LOGOUT", function() setFishingReach(false) end)
+SD:On("PLAYER_LOGOUT", function() SD:SetFishingAudio(false) setFishingReach(false) end)
 
 -- Binding changes rebuild only our temporary overrides, outside protected states.
 local function refreshFishingKeys()

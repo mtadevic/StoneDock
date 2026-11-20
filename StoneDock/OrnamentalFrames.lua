@@ -291,6 +291,8 @@ function SD:UpdateMapCaption()
 end
 
 function SD:RefreshMapTheme()
+    self:RefreshAdeptMinimap()
+    if self.adeptMapActive then return end
     local active=self.db.enabled and self.layoutName~="Tofu Bar" and self:IsOurLayoutActive()
     if not Minimap then return end
     local mapWidth,mapHeight=Minimap:GetWidth(),Minimap:GetHeight()

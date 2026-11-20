@@ -175,7 +175,7 @@ function SD:PrecisionAlign(bagsOnly)
         end
         if g.variant~="gulveig" then
             correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
-                (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + (g.variant=="tofu" and 0 or 24)*g.density) * g.scale)
+                (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + ((g.variant=="tofu" or g.variant=="adept") and 0 or 24)*g.density) * g.scale)
         end
         if self.db.arrangeUtility and g.variant~="gulveig" then
             correct(Enum.EditModeSystem.MicroMenu, nil, { MicroMenu },

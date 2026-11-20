@@ -363,6 +363,8 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     if self.ConfigureNativeParty then
         self:ConfigureNativeParty(findSystem(layout,E.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party),g)
     end
+    if g.variant=="adept" then self:FinishAdeptLayout(layout,g,dashboardOnly,previousGeometry) end
+
     if g.variant=="tofu" then
         local upgradeUnits=self.db.tofuUnitAnchorsUpdated~=self.tofuUnitAnchorRevision
         self:FinishTofuLayout(layout,g,dashboardOnly,upgradeUnits)

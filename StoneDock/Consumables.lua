@@ -444,6 +444,7 @@ function SD:RefreshUtilityButtons(scan)
     end
     -- Secure controls only change visibility and position outside combat.
     -- Keep both ends fixed to the bag drawer regardless of available categories.
+    self.utilityRoot:SetScale(g.variant=="adept" and g.scale or 1)
     local size,spacing=g.utilityIconSize or 24*.85,g.utilityIconSize and 2 or 4
     local width=g.itemWell and g.itemWell.w or g.bagDrawer.w-12
     local trinkets,items={},{}

@@ -1,6 +1,6 @@
 local _, SD = ...
 
-local names={stone="StoneDock - Dark Stone",gulveig="Gulveig Bar",tofu="Tofu Bar"}
+local names={stone="StoneDock - Dark Stone",gulveig="Gulveig Bar",tofu="Tofu Bar",adept="Adept"}
 
 local function variant(name)
 
@@ -294,6 +294,8 @@ function SD:RefreshVariantArt(g)
     else chat.fill:SetAllPoints(chat) chat.shadow:Show() end
 
     self:RefreshTofuArt(g)
+
+    self:RefreshAdeptArt(g)
     self:RefreshGulveigTrackingArt(gulveig and self.db.enabled and self:IsOurLayoutActive())
     if not gulveig and not self.gulveigBacking then return end
     if not self.gulveigBacking then
@@ -366,7 +368,7 @@ function SD:PromptForLayout()
 
         f.selection=self.db.layoutVariant or "stone"
 
-        f.choice=self:SettingsDropdown(f,"Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"}},
+        f.choice=self:SettingsDropdown(f,"Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"},{"adept","Adept"}},
 
             function()return f.selection end,function(key)f.selection=key end,create)
 
@@ -404,13 +406,15 @@ function SD:RefreshVariantControls()
     local gulveig=active and self.layoutName==names.gulveig
     local hideBags=(gulveig and not self.db.gulveigShowBagBar)
         or (active and self.layoutName==names.tofu and not self.db.tofuShowBagBar)
+        or (active and self.layoutName==names.adept and not self.db.adeptShowBagBar)
 
     self.variantHiddenControls=self.variantHiddenControls or {}
 
     self.variantControlHooks=self.variantControlHooks or {}
 
-    for control,frame in pairs({menu=MicroMenuContainer or MicroMenu,bags=BagsBar}) do
+    for control,frame in pairs({menu=MicroMenuContainer or MicroMenu,bags=BagsBar,xp=MainStatusTrackingBarContainer}) do
         local hide=(control=="menu" and gulveig) or (control=="bags" and hideBags)
+            or (control=="xp" and active and self.layoutName==names.adept)
 
         if not self.variantControlHooks[frame] and frame.HookScript then
 
