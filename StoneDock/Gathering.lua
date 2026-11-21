@@ -589,6 +589,7 @@ function SD:GetExpeditionDetails()
 end
 
 function SD:RefreshExpeditionStatus()
+    if self.RefreshAdeptJourney then self:RefreshAdeptJourney() end
     local view = self.gatheringStatusCard
     if not view then return end
     local info = self:GetExpeditionDetails()
@@ -608,6 +609,23 @@ function SD:RefreshExpeditionStatus()
         local mode = current and self:PreferenceValue("gathering",current) or self.db.gatheringMode or "materials"
         view.start:SetText(info.active and "Start a new expedition" or (mode=="fishing" and "Start fishing" or "Start expedition"))
     end
+end
+
+function SD:StartConfiguredExpedition()
+    if self:HasPreferenceChanges("gathering") then
+        SD.Print("Apply your expedition setup first.")
+        self:OpenSettingsTab("gathering")
+        return
+    end
+    local activity=self.db.gatheringMode or "materials"
+    if activity=="fishing" or activity=="materials" then return self:StartGathering(activity) end
+    local choices=options[activity]
+    if not choices or not choices[1] then self:OpenSettingsTab("gathering") return end
+    local resource=self.db.gatheringResource
+    for _,item in ipairs(choices) do
+        if item[1]==resource then return self:StartOreRoute(resource) end
+    end
+    return self:StartOreRoute(choices[1][1])
 end
 
 function SD:BuildGatheringPanel()
@@ -662,16 +680,7 @@ function SD:BuildGatheringPanel()
     card.progress:SetPoint("TOPLEFT",18,-133)card.progress:SetHeight(4)card.progress:SetColorTexture(.35,.78,.57,1)
     local y=-page:GetHeight()
     card.start=H.button(page,"Start expedition",22,y,300,function()
-        if SD:HasPreferenceChanges("gathering") then SD.Print("Apply your expedition setup first.") return end
-        local activity=SD.db.gatheringMode or "materials"
-        if activity=="fishing" or activity=="materials" then SD:StartGathering(activity)
-        else
-            local choices=options[activity]
-            local resource=SD.db.gatheringResource
-            local valid
-            for _, item in ipairs(choices or {}) do if item[1]==resource then valid=true break end end
-            SD:StartOreRoute(valid and resource or choices[1][1])
-        end
+        SD:StartConfiguredExpedition()
         SD:RefreshExpeditionStatus()
     end)
     card.stop=H.button(page,"End expedition",338,y,300,function()

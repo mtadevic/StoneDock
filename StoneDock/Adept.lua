@@ -199,6 +199,91 @@ local function label(parent, text, x, y, size, heading)
     return f
 end
 
+function SD:CreateAdeptJourneyTabs(f)
+    f.journeyTab="journey"
+    f.journeyTabs={}
+    for i,spec in ipairs({{"journey","JOURNEY",72},{"expedition","EXPEDITION",88}}) do
+        local button=CreateFrame("Button",nil,f.details)
+        button:SetSize(spec[3],22)
+        button.caption=button:CreateFontString(nil,"OVERLAY")
+        button.caption:SetAllPoints()
+        button.caption:SetFont("Fonts\\ARIALN.TTF",10,"")
+        button.caption:SetJustifyH("LEFT")
+        button.caption:SetText(spec[2])
+        button.line=button:CreateTexture(nil,"OVERLAY")
+        button.line:SetColorTexture(.83,.73,.49,1)
+        button.line:SetPoint("BOTTOMLEFT")
+        button.line:SetPoint("BOTTOMRIGHT")
+        button.line:SetHeight(2)
+        local key=spec[1]
+        button:SetScript("OnClick",function()
+            f.journeyTab=key
+            SD:RefreshAdeptJourney()
+        end)
+        f.journeyTabs[i]=button
+    end
+    local view=CreateFrame("Frame",nil,f.details)
+    f.expeditionView=view
+    view:SetAllPoints()
+    view:EnableMouse(false)
+    f.expeditionTitle=label(view,"",1522,-37,11)
+    f.expeditionDetail=label(view,"",1522,-54,10)
+    f.expeditionCount=label(view,"",1522,-69,10)
+    for _,text in ipairs({f.expeditionTitle,f.expeditionDetail,f.expeditionCount}) do text:SetWidth(164) end
+    local function control(caption,action)
+        local button=CreateFrame("Button",nil,view)
+        button.label=button:CreateFontString(nil,"OVERLAY")
+        button.label:SetAllPoints()
+        button.label:SetFont("Fonts\\ARIALN.TTF",10,"")
+        button.label:SetTextColor(.88,.8,.61)
+        button.label:SetText(caption)
+        button:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")
+        button:GetHighlightTexture():SetVertexColor(.8,.7,.45,.08)
+        button:SetScript("OnClick",function()
+            if SD:IsBusy() then SD.Print("Use expedition controls outside combat and Edit Mode.") return end
+            action()
+            SD:RefreshExpeditionStatus()
+        end)
+        return button
+    end
+    f.expeditionConfigure=control("Setup",function() SD:OpenSettingsTab("gathering") end)
+    f.expeditionStartStop=control("Start",function()
+        if SD.gathering and SD.gathering.active then
+            SD.fishingAutoPaused=true
+            SD:StopGathering()
+        else SD:StartConfiguredExpedition() end
+    end)
+    f.expeditionNext=control("Next stop",function()
+        if SD.oreRoute then SD:AdvanceOreRoute()
+        elseif SD.gathering and SD.gathering.targetID then SD:StartOreRoute(SD.gathering.targetID) end
+    end)
+end
+
+function SD:RefreshAdeptJourney()
+    local f=self.adeptConsole
+    if not f or not f.journeyTabs then return end
+    local journey=f.journeyTab~="expedition"
+    for i,button in ipairs(f.journeyTabs) do
+        local selected=(i==1)==journey
+        button.line:SetShown(selected)
+        button.caption:SetTextColor(selected and .9 or .57,selected and .83 or .57,selected and .65 or .54)
+    end
+    for _,widget in ipairs({f.journey,f.progress,f.caption,f.journeyAction}) do widget:SetShown(journey) end
+    f.expeditionView:SetShown(not journey)
+    if journey then return end
+    local info=self:GetExpeditionDetails()
+    f.expeditionTitle:SetText(info.active and info.title or "No expedition")
+    f.expeditionDetail:SetText(info.active and info.detail or "Choose an activity in Setup")
+    f.expeditionCount:SetText(info.active and info.count or "")
+    f.expeditionStartStop.label:SetText(info.active and "End" or "Start")
+    local enabled=not self:IsBusy()
+    for _,button in ipairs({f.expeditionConfigure,f.expeditionStartStop,f.expeditionNext}) do
+        button:SetEnabled(enabled)
+        button:SetAlpha(enabled and 1 or .45)
+    end
+    f.expeditionNext:SetShown(not not (info.active and (self.oreRoute or self.gathering.targetID)))
+end
+
 function SD:RefreshAdeptArt(g)
     self:RefreshAdeptChat(g)
     local show = g.variant=="adept" and self.db.enabled
@@ -214,9 +299,9 @@ function SD:RefreshAdeptArt(g)
         f.fill:SetColorTexture(.0925,.0945,.096,1)
         f.grain = f:CreateTexture(nil,"BACKGROUND",nil,1)
         f.grain:SetAllPoints()
-        f.grain:SetTexture("Interface\\DialogFrame\\UI-DialogBox-Background","REPEAT","REPEAT")
-        f.grain:SetTexCoord(0,12,0,1)
-        f.grain:SetVertexColor(.8,.82,.84,.26)
+        f.grain:SetTexture("Interface\\AddOns\\StoneDock\\Media\\AdeptSurface","REPEAT","REPEAT")
+        f.grain:SetTexCoord(0,8,0,1)
+        f.grain:SetVertexColor(.32,.33,.34,.32)
         f.top = rule(f,0,131,1920,1,.8)
         rule(f,0,0,1920,1,.5)
         rule(f,0,0,1,132,.45)
@@ -228,7 +313,6 @@ function SD:RefreshAdeptArt(g)
         for _, x in ipairs({350,630,1295,1500,1710}) do rule(d,x,36,1,80,.16) end
         label(d,"AT A GLANCE",374,-14,10)
         label(d,"READY",1320,-14,10)
-        label(d,"JOURNEY",1522,-14,10)
         label(d,"COMPANY",1732,-14,10)
         f.status = label(d,"Gold\nFramerate\nLatency",374,-37,11)
         f.statusValues = label(d,"",478,-37,11)
@@ -298,8 +382,9 @@ function SD:RefreshAdeptArt(g)
                 SD:RefreshVariantControls()
             elseif ToggleAllBags then ToggleAllBags() end
         end)
-        action(1522,170,"Journey","Open session progress.",function() SD:OpenSettingsTab("session") end)
+        f.journeyAction=action(1522,170,"Journey","Open session progress.",function() SD:OpenSettingsTab("session") end)
         action(1732,164,"Company","Open friends and social tools.",function() if ToggleFriendsFrame then ToggleFriendsFrame() end end)
+        self:CreateAdeptJourneyTabs(f)
     end
     local f = self.adeptConsole
     f:SetShown(show)
@@ -313,6 +398,19 @@ function SD:RefreshAdeptArt(g)
     f.bagsButton:ClearAllPoints()
     f.bagsButton:SetPoint("TOPLEFT",f.details,"TOPLEFT",1320,-53*g.density)
     f.bagsButton:SetHeight(24*g.density)
+    for i,button in ipairs(f.journeyTabs) do
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522+(i-1)*78,-9*g.density)
+        button:SetHeight(22*g.density)
+    end
+    f.journeyAction:ClearAllPoints()
+    f.journeyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522,-34*g.density)
+    f.journeyAction:SetHeight(64*g.density)
+    for i,button in ipairs({f.expeditionConfigure,f.expeditionStartStop,f.expeditionNext}) do
+        button:ClearAllPoints()
+        button:SetPoint("TOPLEFT",f.expeditionView,"TOPLEFT",1522+(i==2 and 84 or 0),-(i==3 and 111 or 88)*g.density)
+        button:SetSize(i==3 and 164 or 80,18*g.density)
+    end
     for _,spec in ipairs(self.adeptRuleLines or {}) do
         spec.texture:ClearAllPoints()
         spec.texture:SetPoint("BOTTOMLEFT",spec.parent,"BOTTOMLEFT",spec.x,spec.y*g.density)
@@ -375,6 +473,7 @@ function SD:UpdateAdeptConsole()
     local friends = C_FriendList and value(C_FriendList.GetNumOnlineFriends) or 0
     f.company:SetText((members>0 and (members.." in group") or "Traveling alone").."\n"..friends.." friends online")
     f.details:SetShown(self.db.showInfo)
+    self:RefreshAdeptJourney()
 end
 
 function SD:RefreshAdeptCombat()
