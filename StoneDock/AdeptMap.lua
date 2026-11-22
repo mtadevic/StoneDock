@@ -1,5 +1,17 @@
 local _, SD = ...
 
+-- A launcher's replacement SetPoint/SetParent methods may call themselves when
+-- another addon takes ownership. Use clean widget methods for drawer placement.
+local prototype=CreateFrame("Button")
+prototype:Hide()
+local nativeButtonMethods={}
+for _,method in ipairs({"SetParent","SetScale","SetFrameStrata","SetFrameLevel","SetSize","ClearAllPoints","SetPoint","SetScript"}) do
+    nativeButtonMethods[method]=prototype[method]
+end
+local function nativeSet(button,method,...)
+    return nativeButtonMethods[method](button,...)
+end
+
 local function snapshot(button)
     local saved={parent=button:GetParent(),scale=button:GetScale(),
         w=button:GetWidth(),h=button:GetHeight(),points={},
@@ -39,6 +51,7 @@ local function collectButtons(self)
         seen[button]=true
         buttons[#buttons+1]=button
     end
+    self.adeptMapCollectStage="Read registered addon launchers"
     local lib=LibStub and LibStub("LibDBIcon-1.0",true)
     if lib and lib.GetButtonList and lib.GetMinimapButton then
         for _,name in ipairs(lib:GetButtonList()) do add(lib:GetMinimapButton(name),true) end
@@ -53,22 +66,23 @@ local function collectButtons(self)
     local columns=math.min(6,math.max(1,#buttons))
     self.adeptMapDrawer:SetSize(columns*36+16,math.max(1,math.ceil(#buttons/columns))*36+16)
     for i,button in ipairs(buttons) do
+        self.adeptMapCollectStage="Place "..button:GetName()
         if not self.adeptMapButtons[button] then
             self.adeptMapButtons[button]=snapshot(button)
-            button:SetScript("OnDragStart",nil)
-            button:SetScript("OnDragStop",nil)
+            nativeSet(button,"SetScript","OnDragStart",nil)
+            nativeSet(button,"SetScript","OnDragStop",nil)
         end
         local x,y=10+((i-1)%columns)*36,-10-math.floor((i-1)/columns)*36
         local point,relative,_,oldX,oldY=button:GetPoint(1)
         if button:GetParent()~=self.adeptMapDrawer or point~="TOPLEFT"
             or relative~=self.adeptMapDrawer or oldX~=x or oldY~=y or button:GetWidth()~=30 then
-            button:SetParent(self.adeptMapDrawer)
-            button:SetScale(1)
-            button:SetFrameStrata("DIALOG")
-            button:SetFrameLevel(self.adeptMapDrawer:GetFrameLevel()+2)
-            button:SetSize(30,30)
-            button:ClearAllPoints()
-            button:SetPoint("TOPLEFT",self.adeptMapDrawer,"TOPLEFT",x,y)
+            nativeSet(button,"SetParent",self.adeptMapDrawer)
+            nativeSet(button,"SetScale",1)
+            nativeSet(button,"SetFrameStrata","DIALOG")
+            nativeSet(button,"SetFrameLevel",self.adeptMapDrawer:GetFrameLevel()+2)
+            nativeSet(button,"SetSize",30,30)
+            nativeSet(button,"ClearAllPoints")
+            nativeSet(button,"SetPoint","TOPLEFT",self.adeptMapDrawer,"TOPLEFT",x,y)
         end
     end
     self.adeptMapToggle.label:SetText("ADDONS  "..#buttons)
@@ -77,8 +91,12 @@ end
 function SD:CollectAdeptMapButtons()
     if self.adeptMapCollecting then return end
     self.adeptMapCollecting=true
-    local ok,err=pcall(collectButtons,self)
+    local ok,err=xpcall(function() collectButtons(self) end,function(message)
+        local stack=debugstack and debugstack(2,12,0) or (debug and debug.traceback and debug.traceback() or "")
+        return tostring(self.adeptMapCollectStage or "Collect launchers")..": "..tostring(message).."\n"..stack
+    end)
     self.adeptMapCollecting=nil
+    self.adeptMapCollectStage=nil
     if not ok then self:ReportError("Addon icon drawer",err) end
 end
 
@@ -92,15 +110,15 @@ local function refreshMinimap(self)
             if GetMinimapShape==self.adeptSquareShape then GetMinimapShape=self.adeptMapSaved.shape end
             for region,alpha in pairs(self.adeptMapSaved.alphas) do region:SetAlpha(alpha) end
             for button,saved in pairs(self.adeptMapButtons or {}) do
-                button:SetParent(saved.parent)
-                button:SetScale(saved.scale)
-                button:SetSize(saved.w,saved.h)
-                button:SetFrameStrata(saved.strata)
-                button:SetFrameLevel(saved.level)
-                button:ClearAllPoints()
-                for _,point in ipairs(saved.points) do button:SetPoint(unpack(point)) end
-                button:SetScript("OnDragStart",saved.dragStart)
-                button:SetScript("OnDragStop",saved.dragStop)
+                nativeSet(button,"SetParent",saved.parent)
+                nativeSet(button,"SetScale",saved.scale)
+                nativeSet(button,"SetSize",saved.w,saved.h)
+                nativeSet(button,"SetFrameStrata",saved.strata)
+                nativeSet(button,"SetFrameLevel",saved.level)
+                nativeSet(button,"ClearAllPoints")
+                for _,point in ipairs(saved.points) do nativeSet(button,"SetPoint",unpack(point)) end
+                nativeSet(button,"SetScript","OnDragStart",saved.dragStart)
+                nativeSet(button,"SetScript","OnDragStop",saved.dragStop)
             end
             for button,saved in pairs(self.adeptMapNativeControls or {}) do
                 button:SetScale(saved.scale)
@@ -187,18 +205,34 @@ local function refreshMinimap(self)
     local g=self:GetGeometry()
     self.adeptMapDrawer:SetScale(g.scale*g.density)
     -- Move Tracking as a unit: its Background belongs to the container, not Button.
-    local controls={(MinimapCluster and MinimapCluster.Tracking) or MiniMapTracking,
-        GameTimeFrame,TimeManagerClockButton,MiniMapWorldMapButton}
+    local controls={
+        {frame=(MinimapCluster and MinimapCluster.Tracking) or MiniMapTracking},
+        {frame=GameTimeFrame},{frame=TimeManagerClockButton},{frame=MiniMapWorldMapButton},
+    }
     local offset=6
-    for _,button in pairs(controls) do
+    for _,entry in ipairs(controls) do
+        local button=entry.frame
         if button then
             if not self.adeptMapNativeControls[button] then self.adeptMapNativeControls[button]=snapshot(button) end
+            local saved=self.adeptMapNativeControls[button]
             local parent=button:GetParent() or UIParent
-            button:SetScale(.8*g.scale*g.density*UIParent:GetEffectiveScale()/parent:GetEffectiveScale())
             local width=button==TimeManagerClockButton and 52 or 18
-            button:SetSize(width,18)
+            local artW,artH=saved.w,saved.h
+            if button.GetRegions then
+                for _,region in ipairs({button:GetRegions()}) do
+                    if region.GetWidth and region.GetHeight then
+                        artW=math.max(artW,region:GetWidth())
+                        artH=math.max(artH,region:GetHeight())
+                    end
+                end
+            end
+            local fit=math.min(width/math.max(1,artW),18/math.max(1,artH))
+            -- Native day/night textures have fixed dimensions: scale the complete
+            -- control instead of shrinking its hit rectangle underneath the art.
+            button:SetSize(saved.w,saved.h)
+            button:SetScale(.8*g.scale*g.density*fit*UIParent:GetEffectiveScale()/parent:GetEffectiveScale())
             button:ClearAllPoints()
-            button:SetPoint("TOPLEFT",self.adeptMapBorder.header,"TOPLEFT",offset,-21)
+            button:SetPoint("TOPLEFT",self.adeptMapBorder.header,"TOPLEFT",offset/fit,-21/fit)
             offset=offset+width+6
         end
     end

@@ -23,6 +23,57 @@ local function circle(parent,size,r,g,b,layer)
     return t
 end
 
+local castSeats={}
+local function savePoints(frame)
+    local points={}
+    for i=1,frame:GetNumPoints() do points[i]={frame:GetPoint(i)} end
+    return points
+end
+local function restorePoints(frame,points)
+    frame:ClearAllPoints()
+    for _,point in ipairs(points) do frame:SetPoint(unpack(point)) end
+end
+local function seatCast(cast,card)
+    if not active or not card or cast.stoneDockSeating then return end
+    if InCombatLockdown() and cast.IsProtected and cast:IsProtected() then SD.adeptUnitRefreshAfterCombat=true return end
+    cast.stoneDockSeating=true
+    local parent=cast:GetParent() or UIParent
+    cast:SetScale(card:GetEffectiveScale()/parent:GetEffectiveScale())
+    cast:SetSize(card:GetWidth()-56,10)
+    cast:ClearAllPoints()
+    cast:SetPoint("BOTTOMLEFT",card,"BOTTOMLEFT",8,1)
+    local icon=cast.Icon or cast.icon
+    if icon then
+        icon:SetSize(10,10)
+        icon:ClearAllPoints()
+        icon:SetPoint("LEFT",cast,"RIGHT",3,0)
+    end
+    cast.stoneDockSeating=nil
+end
+
+function SD:SeatAdeptCastBar(cast,card)
+    if not cast then return end
+    local saved=castSeats[cast]
+    if not saved then
+        saved={points={},w=cast:GetWidth(),h=cast:GetHeight(),scale=cast:GetScale()}
+        for i=1,cast:GetNumPoints() do saved.points[i]={cast:GetPoint(i)} end
+        castSeats[cast]=saved
+        cast:HookScript("OnShow",function() seatCast(cast,saved.card) end)
+        if hooksecurefunc then
+            hooksecurefunc(cast,"SetPoint",function() seatCast(cast,saved.card) end)
+        end
+    end
+    if not saved.card then
+        saved.points={}
+        for i=1,cast:GetNumPoints() do saved.points[i]={cast:GetPoint(i)} end
+        saved.w,saved.h,saved.scale=cast:GetWidth(),cast:GetHeight(),cast:GetScale()
+    end
+    local icon=cast.Icon or cast.icon
+    if icon and not saved.icon then saved.icon={frame=icon,w=icon:GetWidth(),h=icon:GetHeight(),points=savePoints(icon)} end
+    saved.card=card
+    seatCast(cast,card)
+end
+
 local function create(frame,unit,compact)
     local card=CreateFrame("Frame",nil,frame,"BackdropTemplate")
     card.stoneDockAdeptCard=true
@@ -109,6 +160,21 @@ function SD:RefreshAdeptUnitFrames(enabled)
     if not active then
         for region,alpha in pairs(originalAlpha) do region:SetAlpha(alpha) end
         originalAlpha={}
+        for cast,saved in pairs(castSeats) do
+            if saved.card then
+                cast:SetScale(saved.scale)
+                cast:SetSize(saved.w,saved.h)
+                cast:ClearAllPoints()
+                for _,point in ipairs(saved.points) do cast:SetPoint(unpack(point)) end
+                if saved.icon then
+                    local icon=saved.icon
+                    icon.frame:SetSize(icon.w,icon.h)
+                    restorePoints(icon.frame,icon.points)
+                    saved.icon=nil
+                end
+                saved.card=nil
+            end
+        end
         for button,points in pairs(auraPoints) do
             button:ClearAllPoints()
             for _,point in ipairs(points) do button:SetPoint(unpack(point)) end
@@ -172,15 +238,21 @@ function SD:RefreshAdeptUnitFrames(enabled)
             local nativeScale=frame:GetEffectiveScale()/UIParent:GetEffectiveScale()
             -- Native Edit Mode size sliders clamp; keep our art fitted even at that limit.
             cards[frame]:SetScale(.8*g.scale*g.density/nativeScale)
-            if unit=="targettarget" and TargetFrame and not cards[frame].originalPoints then
-                cards[frame].originalPoints={}
-                for i=1,frame:GetNumPoints() do cards[frame].originalPoints[i]={frame:GetPoint(i)} end
+            if unit=="targettarget" and TargetFrame then
+                if not cards[frame].originalPoints then cards[frame].originalPoints=savePoints(frame) end
                 frame:ClearAllPoints()
-                frame:SetPoint("CENTER",TargetFrame,"CENTER",250,0)
+                local factor=frame:GetEffectiveScale()/UIParent:GetEffectiveScale()
+                local half=cards[frame]:GetWidth()*cards[frame]:GetEffectiveScale()/UIParent:GetEffectiveScale()/2
+                frame:SetPoint("CENTER",cards[TargetFrame] or TargetFrame,"RIGHT",(half+12*g.scale*g.density)/factor,0)
             end
             if unit=="targettarget" and not cards[frame].showHooked then
                 frame:HookScript("OnShow",function() SD:QueueAdeptUnitFrameRefresh() end)
                 cards[frame].showHooked=true
+            end
+            if unit=="player" and not self.db.attachPlayerAuras then
+                for _,aura in pairs({BuffFrame,DebuffFrame}) do
+                    if aura and auraPoints[aura] then restorePoints(aura,auraPoints[aura]) auraPoints[aura]=nil end
+                end
             end
             if unit=="player" and self.db.attachPlayerAuras then
                 for i,aura in pairs({BuffFrame,DebuffFrame}) do
@@ -196,6 +268,11 @@ function SD:RefreshAdeptUnitFrames(enabled)
             end
             if unit=="target" or unit=="focus" then
                 local prefix=frame:GetName()
+                local buffRows=0
+                for i=1,32 do
+                    local button=prefix and _G[prefix.."Buff"..i]
+                    if button and button:IsShown() then buffRows=math.max(buffRows,math.ceil(i/10)) end
+                end
                 for _,kind in ipairs({"Buff","Debuff"}) do
                     for i=1,32 do
                         local button=prefix and _G[prefix..kind..i]
@@ -205,10 +282,15 @@ function SD:RefreshAdeptUnitFrames(enabled)
                                 for j=1,button:GetNumPoints() do auraPoints[button][j]={button:GetPoint(j)} end
                             end
                             button:ClearAllPoints()
-                            button:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",((i-1)%10)*21,3+math.floor((i-1)/10)*23+(kind=="Debuff" and 23 or 0))
+                            button:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",((i-1)%10)*21,3+math.floor((i-1)/10)*23+(kind=="Debuff" and buffRows*23 or 0))
                         end
                     end
                 end
+            end
+            if unit=="target" or unit=="focus" then
+                local name=frame:GetName()
+                local cast=frame.spellbar or frame.SpellBar or frame.CastBar or (name and _G[name.."SpellBar"])
+                self:SeatAdeptCastBar(cast,cards[frame])
             end
             suppress(frame,frame,0)
             cards[frame]:Show()

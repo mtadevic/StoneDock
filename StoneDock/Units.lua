@@ -279,6 +279,31 @@ function SD:ConfigureNativeParty(info,g)
 end
 
 local nativeGroupScales=setmetatable({}, {__mode="k"})
+local nativeGroupLayouts=setmetatable({}, {__mode="k"})
+local function rememberGroup(frame)
+    if nativeGroupLayouts[frame] then return end
+    local function snapshot(f)
+        local saved={w=f:GetWidth(),h=f:GetHeight(),points={}}
+        for i=1,f:GetNumPoints() do saved.points[i]={f:GetPoint(i)} end
+        return saved
+    end
+    local saved=snapshot(frame)
+    saved.members={}
+    saved.titleAlpha=frame.title and frame.title:GetAlpha()
+    for _,member in ipairs(frame.memberUnitFrames or {}) do saved.members[member]=snapshot(member) end
+    nativeGroupLayouts[frame]=saved
+end
+local function restoreGroup(frame,saved)
+    local function restore(f,state)
+        f:ClearAllPoints()
+        for _,point in ipairs(state.points) do f:SetPoint(unpack(point)) end
+        f:SetSize(state.w,state.h)
+    end
+    restore(frame,saved)
+    for member,state in pairs(saved.members) do restore(member,state) end
+    if frame.title and saved.titleAlpha~=nil then frame.title:SetAlpha(saved.titleAlpha) end
+end
+
 local function near(current, desired)
     return (not issecretvalue or not issecretvalue(current))
         and type(current)=="number" and math.abs(current-desired)<0.01
@@ -301,6 +326,7 @@ local function seat(frame,pos,g,keepNativeCells)
         seatPoint(frame,UIParent,"BOTTOMLEFT",pos.x*factor,pos.y*factor)
         return
     end
+    rememberGroup(frame)
     if not nativeGroupScales[frame] then nativeGroupScales[frame]=frame:GetScale() end
     local parent=frame:GetParent() or UIParent
     local scale=g.scale*UIParent:GetEffectiveScale()/parent:GetEffectiveScale()
@@ -323,6 +349,7 @@ function SD:SplitNativeRaid()
         for frame,scale in pairs(nativeGroupScales) do
             if not near(frame:GetScale(),scale) then frame:SetScale(scale) end
             nativeGroupScales[frame]=nil
+            if nativeGroupLayouts[frame] then restoreGroup(frame,nativeGroupLayouts[frame]) nativeGroupLayouts[frame]=nil end
         end
         return
     end
