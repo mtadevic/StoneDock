@@ -102,6 +102,13 @@ local function refreshMinimap(self)
                 button:SetScript("OnDragStart",saved.dragStart)
                 button:SetScript("OnDragStop",saved.dragStop)
             end
+            for button,saved in pairs(self.adeptMapNativeControls or {}) do
+                button:SetScale(saved.scale)
+                button:SetSize(saved.w,saved.h)
+                button:ClearAllPoints()
+                for _,point in ipairs(saved.points) do button:SetPoint(unpack(point)) end
+            end
+            self.adeptMapNativeControls=nil
             self.adeptMapSaved=nil
             self.adeptMapButtons={}
         end
@@ -121,18 +128,19 @@ local function refreshMinimap(self)
         local header=CreateFrame("Frame",nil,border,"BackdropTemplate")
         header:SetPoint("BOTTOMLEFT",border,"TOPLEFT",0,0)
         header:SetPoint("BOTTOMRIGHT",border,"TOPRIGHT",0,0)
-        header:SetHeight(24)
+        header:SetHeight(40)
+        border.header=header
         header:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8"})
         header:SetBackdropColor(.13,.135,.14,1)
         border.zone=header:CreateFontString(nil,"OVERLAY")
         border.zone:SetFont("Fonts\\FRIZQT__.TTF",11,"")
-        border.zone:SetPoint("LEFT",8,0)
+        border.zone:SetPoint("TOPLEFT",8,-4)
         border.zone:SetWidth(120)
         border.zone:SetWordWrap(false)
         border.zone:SetJustifyH("LEFT")
         local toggle=CreateFrame("Button",nil,header)
         self.adeptMapToggle=toggle
-        toggle:SetPoint("RIGHT",-4,0)
+        toggle:SetPoint("TOPRIGHT",-4,0)
         toggle:SetSize(72,22)
         toggle.label=toggle:CreateFontString(nil,"OVERLAY")
         toggle.label:SetAllPoints()
@@ -174,6 +182,26 @@ local function refreshMinimap(self)
     if self.mapCaption then self.mapCaption:Hide() end
     if self.mapRim then self.mapRim:Hide() end
     if self.gulveigZonePlate then self.gulveigZonePlate:Hide() end
+    -- Keep native map tools in a single header row, with their original anchors restored on exit.
+    self.adeptMapNativeControls=self.adeptMapNativeControls or {}
+    local g=self:GetGeometry()
+    self.adeptMapDrawer:SetScale(g.scale*g.density)
+    -- Move Tracking as a unit: its Background belongs to the container, not Button.
+    local controls={(MinimapCluster and MinimapCluster.Tracking) or MiniMapTracking,
+        GameTimeFrame,TimeManagerClockButton,MiniMapWorldMapButton}
+    local offset=6
+    for _,button in pairs(controls) do
+        if button then
+            if not self.adeptMapNativeControls[button] then self.adeptMapNativeControls[button]=snapshot(button) end
+            local parent=button:GetParent() or UIParent
+            button:SetScale(.8*g.scale*g.density*UIParent:GetEffectiveScale()/parent:GetEffectiveScale())
+            local width=button==TimeManagerClockButton and 52 or 18
+            button:SetSize(width,18)
+            button:ClearAllPoints()
+            button:SetPoint("TOPLEFT",self.adeptMapBorder.header,"TOPLEFT",offset,-21)
+            offset=offset+width+6
+        end
+    end
     self.adeptMapBorder:Show()
     self.adeptMapBorder.zone:SetWidth(math.max(40,Minimap:GetWidth()-88))
     self.adeptMapBorder.zone:SetText((GetMinimapZoneText and GetMinimapZoneText()) or GetZoneText())

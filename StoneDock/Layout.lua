@@ -148,12 +148,18 @@ function SD:UpgradeDefaultUnitAnchors(systems, g)
     return changed
 end
 
-local function geometryStamp(g)
+function SD:GeometryStamp(g)
     return {width=g.width, height=g.height, scale=g.scale, density=g.density, revision=g.revision, variant=g.variant, trackingAtWells=true}
 end
 
 local function sameGeometry(a, b)
     return a and a.variant == b.variant and a.width == b.width and a.height == b.height and a.density == b.density and (a.revision or 0)==(b.revision or 0)
+end
+
+function SD:RememberGeometry(g)
+    self.db.nativeGeometry=self:GeometryStamp(g)
+    self.db.variantGeometries=self.db.variantGeometries or {}
+    self.db.variantGeometries[self.layoutName]=SD.Copy(self.db.nativeGeometry)
 end
 
 function SD:NeedsGeometryAlignment()
@@ -162,8 +168,9 @@ function SD:NeedsGeometryAlignment()
         or (self.db.arrangeUtility and saved and not saved.trackingAtWells)
 end
 
-local function rebaseAnchor(a, old, new)
-    if not a or a.relativeTo ~= "UIParent" or not a.relativePoint then return end
+function SD:RebaseLayoutAnchor(a, old, new)
+    if not a or not old or not new or not old.width or old.width<=0 or not old.scale or old.scale<=0
+        or not old.density or old.density<=0 or a.relativeTo ~= "UIParent" or not a.relativePoint then return end
     local vertical = a.relativePoint:find("TOP") and 1
         or (a.relativePoint:find("BOTTOM") and 0 or 0.5)
     if type(a.offsetX) == "number" then a.offsetX = a.offsetX * new.width / old.width end
@@ -171,6 +178,35 @@ local function rebaseAnchor(a, old, new)
         local heightFromBottom = a.offsetY + old.height * vertical
         a.offsetY = heightFromBottom * (new.scale * new.density) / (old.scale * old.density)
             - new.height * vertical
+    end
+end
+
+function SD:RebaseNativeSize(info,old,new)
+    if not info or not old or not old.scale or old.scale<=0 or old.scale==new.scale then return end
+    local E=Enum.EditModeSystem
+    local setting=info.system==E.UnitFrame and Enum.EditModeUnitFrameSetting.FrameSize
+        or (info.system==E.AuraFrame and Enum.EditModeAuraFrameSetting.IconSize)
+    if not setting then return end
+    local manager=EditModeSettingDisplayInfoManager
+    local map=manager and manager:GetSystemSettingDisplayInfoMap(info.system)
+    local definition=map and map[setting]
+    if not definition then return end
+    for _,entry in ipairs(info.settings or {}) do
+        if entry.setting==setting then
+            local value=definition.ConvertValue and definition:ConvertValue(entry.value,true) or entry.value
+            -- Retain the authored size across slider clamps and rounding on repeated resizes.
+            local owner=self.profile or self.db
+            owner.nativeSizeBases=owner.nativeSizeBases or {}
+            local key=self.layoutName..":"..info.system..":"..tostring(info.systemIndex)..":"..setting
+            local baseline=owner.nativeSizeBases[key]
+            if not baseline or baseline.last~=entry.value then
+                baseline={value=value,scale=old.scale}
+                owner.nativeSizeBases[key]=baseline
+            end
+            displaySetting(info,setting,baseline.value*new.scale/baseline.scale)
+            baseline.last=entry.value
+            return
+        end
     end
 end
 
@@ -235,7 +271,7 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
     -- The cluster is a ResizeLayoutFrame: its width already reflects the current
     -- child scale. Measure the unscaled container so rebuilding is idempotent.
     local mapWidth = (mapContainer and mapContainer:GetWidth()) or 215
-    local mapPercent = (g.map.w - 10) * s / mapWidth * 100
+    local mapPercent = (math.min(g.map.w,g.map.h) - 10) * s / mapWidth * 100
     displaySetting(minimap, Enum.EditModeMinimapSetting.Size, mapPercent)
     displaySetting(minimap, Enum.EditModeMinimapSetting.HeaderUnderneath, 1)
     anchor(minimap, "CENTER", "BOTTOM", (g.map.x+g.map.w/2-960)*s-10, (g.map.y + g.map.h / 2 + 24*g.density) * s + 15)
@@ -351,8 +387,9 @@ function SD:BuildLayout(base, geometry, dashboardOnly, previousGeometry)
                     local kept = SD.Copy(original)
                     if previousGeometry and not sameGeometry(previousGeometry, g)
                         and info.system == E.UnitFrame and self.db.arrangeUnits then
-                        rebaseAnchor(kept.anchorInfo, previousGeometry, g)
-                        rebaseAnchor(kept.anchorInfo2, previousGeometry, g)
+                        self:RebaseLayoutAnchor(kept.anchorInfo, previousGeometry, g)
+                        self:RebaseLayoutAnchor(kept.anchorInfo2, previousGeometry, g)
+                        self:RebaseNativeSize(kept,previousGeometry,g)
                     end
                     layout.systems[i] = kept
                 end
@@ -404,7 +441,7 @@ function SD:AlignLayout(previousGeometry)
             full.layouts[index] = self:BuildLayout(layout, g, true, previous)
             local ok = self:Run("Align dashboard", function() self:SaveAndRefreshLayout(full, index) end)
             if ok then
-                self.db.nativeGeometry = geometryStamp(g)
+                self:RememberGeometry(g)
                 if g.variant=="tofu" and self.db.arrangeUnits then self.db.tofuUnitAnchorsUpdated=self.tofuUnitAnchorRevision end
                 self:RefreshPanels()
                 self:SchedulePrecisionAlignment()
@@ -494,7 +531,7 @@ function SD:InstallLayout()
         return false
     end
     self.db.enabled = true
-    self.db.nativeGeometry = geometryStamp(self:GetGeometry())
+    self:RememberGeometry(self:GetGeometry())
     self:ApplyBarVisibility()
     self:RefreshPanels()
     self:SchedulePrecisionAlignment()
@@ -515,7 +552,7 @@ function SD:RebuildLayout()
                 self:SaveAndRefreshLayout(full, index)
             end)
             if ok then
-                self.db.nativeGeometry = geometryStamp(g)
+                self:RememberGeometry(g)
                 if self:IsOurLayoutActive() then self:ApplyBarVisibility() end
                 self:RefreshPanels()
                 self:SchedulePrecisionAlignment()

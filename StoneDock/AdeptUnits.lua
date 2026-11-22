@@ -1,6 +1,8 @@
 local _, SD = ...
 local cards = {}
 local originalAlpha = {}
+local auraPoints = {}
+local alphaHooks = setmetatable({}, {__mode="k"})
 local active
 local maskPath = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 
@@ -26,15 +28,15 @@ local function create(frame,unit,compact)
     card.stoneDockAdeptCard=true
     card:EnableMouse(false)
     card:SetFrameLevel(frame:GetFrameLevel()+6)
-    card:SetSize(compact and 172 or 252,compact and 56 or 78)
+    card:SetSize(compact and 156 or 220,60)
     card:SetPoint("CENTER",frame,"CENTER")
     card:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
     card:SetBackdropColor(.08,.082,.085,.98)
     card:SetBackdropBorderColor(.69,.6,.4,.9)
     card.unit=unit
-    local diameter=compact and 42 or 60
+    local diameter=40
     local rim=circle(card,diameter,.75,.65,.43,1)
-    rim:SetPoint("CENTER",card,"RIGHT",-10,0)
+    rim:SetPoint("CENTER",card,"RIGHT",-25,0)
     local inset=circle(card,diameter-4,.035,.037,.04,2)
     inset:SetPoint("CENTER",rim,"CENTER")
     card.portrait=card:CreateTexture(nil,"ARTWORK",nil,3)
@@ -47,15 +49,15 @@ local function create(frame,unit,compact)
     card.level=text(card,compact and 9 or 10)
     card.level:SetPoint("TOP",rim,"BOTTOM",0,4)
     local heading=text(card,compact and 8 or 9)
-    heading:SetPoint("TOPLEFT",10,-7)
+    heading:SetPoint("TOPLEFT",8,-5)
     heading:SetText(unit=="targettarget" and "TARGET OF TARGET" or unit:upper())
     heading:SetTextColor(.67,.66,.61)
     card.name=text(card,compact and 11 or 13)
-    card.name:SetPoint("TOPLEFT",10,compact and -18 or -22)
-    card.name:SetWidth(compact and 118 or 188)
+    card.name:SetPoint("TOPLEFT",8,-17)
+    card.name:SetWidth(compact and 100 or 164)
     card.health=CreateFrame("StatusBar",nil,card)
-    card.health:SetPoint("TOPLEFT",10,compact and -34 or -44)
-    card.health:SetSize(compact and 118 or 194,compact and 7 or 10)
+    card.health:SetPoint("TOPLEFT",8,-35)
+    card.health:SetSize(compact and 100 or 164,8)
     card.health:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     card.health:SetStatusBarColor(.86,.82,.7,1)
     local track=card.health:CreateTexture(nil,"BACKGROUND")
@@ -65,8 +67,8 @@ local function create(frame,unit,compact)
     card.number:SetPoint("LEFT",4,0)
     card.number:SetTextColor(.06,.065,.07)
     card.power=CreateFrame("StatusBar",nil,card)
-    card.power:SetPoint("TOPLEFT",card.health,"BOTTOMLEFT",0,-5)
-    card.power:SetSize(compact and 118 or 194,2)
+    card.power:SetPoint("TOPLEFT",card.health,"BOTTOMLEFT",0,-3)
+    card.power:SetSize(compact and 100 or 164,2)
     card.power:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     card.power:SetStatusBarColor(.43,.58,.77,1)
     return card
@@ -107,6 +109,11 @@ function SD:RefreshAdeptUnitFrames(enabled)
     if not active then
         for region,alpha in pairs(originalAlpha) do region:SetAlpha(alpha) end
         originalAlpha={}
+        for button,points in pairs(auraPoints) do
+            button:ClearAllPoints()
+            for _,point in ipairs(points) do button:SetPoint(unpack(point)) end
+        end
+        auraPoints={}
         for frame,card in pairs(cards) do
             card:Hide()
             if card.originalPoints then
@@ -138,13 +145,22 @@ function SD:RefreshAdeptUnitFrames(enabled)
         if root.GetRegions then
             for _,region in ipairs({root:GetRegions()}) do
                 if originalAlpha[region]==nil then originalAlpha[region]=region:GetAlpha() end
+                if hooksecurefunc and not alphaHooks[region] and region.SetAlpha then
+                    alphaHooks[region]=true
+                    hooksecurefunc(region,"SetAlpha",function(texture,alpha)
+                        -- Native rest/combat animations can restore alpha after a refresh.
+                        if active and originalAlpha[texture]~=nil and alpha~=0 then texture:SetAlpha(0) end
+                    end)
+                end
                 region:SetAlpha(0)
             end
         end
         if root.GetChildren then
             for _,child in ipairs({root:GetChildren()}) do
-                -- Aura buttons retain their native icons and interaction.
-                if not child.IsObjectType or not child:IsObjectType("Button") then suppress(child,owner,depth+1) end
+                -- Preserve actual aura buttons, rather than every native button.
+                local name=child.GetName and child:GetName()
+                local aura=name and (name:match("Buff%d+$") or name:match("Debuff%d+$"))
+                if not aura then suppress(child,owner,depth+1) end
             end
         end
     end
@@ -152,15 +168,47 @@ function SD:RefreshAdeptUnitFrames(enabled)
         local frame,unit,compact=entry[1],entry[2],entry[3]
         if frame then
             if not cards[frame] then cards[frame]=create(frame,unit,compact) end
+            local g=self:GetGeometry()
+            local nativeScale=frame:GetEffectiveScale()/UIParent:GetEffectiveScale()
+            -- Native Edit Mode size sliders clamp; keep our art fitted even at that limit.
+            cards[frame]:SetScale(.8*g.scale*g.density/nativeScale)
             if unit=="targettarget" and TargetFrame and not cards[frame].originalPoints then
                 cards[frame].originalPoints={}
                 for i=1,frame:GetNumPoints() do cards[frame].originalPoints[i]={frame:GetPoint(i)} end
                 frame:ClearAllPoints()
-                frame:SetPoint("TOPLEFT",TargetFrame,"TOPRIGHT",48,-15)
+                frame:SetPoint("CENTER",TargetFrame,"CENTER",250,0)
             end
             if unit=="targettarget" and not cards[frame].showHooked then
                 frame:HookScript("OnShow",function() SD:QueueAdeptUnitFrameRefresh() end)
                 cards[frame].showHooked=true
+            end
+            if unit=="player" and self.db.attachPlayerAuras then
+                for i,aura in pairs({BuffFrame,DebuffFrame}) do
+                    if aura then
+                        if not auraPoints[aura] then
+                            auraPoints[aura]={}
+                            for j=1,aura:GetNumPoints() do auraPoints[aura][j]={aura:GetPoint(j)} end
+                        end
+                        aura:ClearAllPoints()
+                        aura:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",0,i==1 and 3 or 25)
+                    end
+                end
+            end
+            if unit=="target" or unit=="focus" then
+                local prefix=frame:GetName()
+                for _,kind in ipairs({"Buff","Debuff"}) do
+                    for i=1,32 do
+                        local button=prefix and _G[prefix..kind..i]
+                        if button then
+                            if not auraPoints[button] then
+                                auraPoints[button]={}
+                                for j=1,button:GetNumPoints() do auraPoints[button][j]={button:GetPoint(j)} end
+                            end
+                            button:ClearAllPoints()
+                            button:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",((i-1)%10)*21,3+math.floor((i-1)/10)*23+(kind=="Debuff" and 23 or 0))
+                        end
+                    end
+                end
             end
             suppress(frame,frame,0)
             cards[frame]:Show()
@@ -204,4 +252,10 @@ SD:On("PLAYER_REGEN_ENABLED",function()
         SD.adeptUnitRefreshAfterCombat=nil
         SD:QueueAdeptUnitFrameRefresh()
     end
+end)
+
+SD:On("PLAYER_UPDATE_RESTING",function() SD:QueueAdeptUnitFrameRefresh() end)
+
+SD:On("UNIT_AURA",function(unit)
+    if (not issecretvalue or not issecretvalue(unit)) and (unit=="target" or unit=="focus") then SD:QueueAdeptUnitFrameRefresh() end
 end)

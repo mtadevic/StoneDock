@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.20"
+SD.name, SD.version = addonName, "0.13.21"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -220,7 +220,9 @@ local function scheduleRefresh()
     if refreshPending or not SD.db then return end
     refreshPending = true
     C_Timer.After(0.3, function()
-        SD:Run("Refresh dashboard",function() SD:RefreshPanels() end)
+        SD:Run("Refresh dashboard",function()
+            if UIParent:GetWidth()>0 and UIParent:GetHeight()>0 then SD:RefreshPanels() end
+        end)
         refreshPending = nil
     end)
 end

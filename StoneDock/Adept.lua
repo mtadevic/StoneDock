@@ -14,20 +14,20 @@ function SD:GetAdeptGeometry(width, height, rise)
             icons=12, rows=2, iconSize=size, iconPadding=2}
     end
     return {
-        variant="adept", revision=8, width=width, height=height, scale=scale,
+        variant="adept", revision=12, width=width, height=height, scale=scale,
         density=rise, screenHeight=screenHeight,
         base=box(0,0,1920,132), left=box(0,0,350,132), right=box(1300,0,620,132),
         leftWell=box(640,12,310,72), rightWell=box(970,12,310,72),
         chat=box(24,24,302,78),
         map={x=960-82*rise,y=8*rise,w=164*rise,h=164*rise},
         menuDrawer=box(374,6,244,28), bagDrawer=box(1320,6,180,22),
-        itemWell=box(1040,146,240,22), utilityIconSize=20*rise, utilityY=146*rise,
-        auxLeft=box(628,144,220,24), auxRight=box(1072,144,208,24),
-        auxTopInset=2*rise, auxRightTop=204*rise,
+        itemWell=box(1040,128,240,20), utilityIconSize=18*rise, utilityY=128*rise,
+        auxLeft=box(628,128,220,20), auxRight=box(1072,128,208,20),
+        auxTopInset=2*rise, auxRightTop=148*rise,
         trackingWell=box(650,122,620,10),
-        cast={x=0,y=198*rise}, player={x=650,y=218*rise},
-        target={x=1270,y=218*rise}, party={x=24,y=248*rise},
-        raid={x=24,y=248*rise},
+        cast={x=0,y=218*rise}, player={x=760,y=180*rise},
+        target={x=1160,y=180*rise}, party={x=680,y=274*rise+(self.db.groupHeight or 36)},
+        raid={x=680,y=274*rise+(self.db.groupHeight or 36)},
         bars={bar(1,760,31),bar(2,760,94),bar(3,1160,31),bar(4,1160,94)},
     }
 end
@@ -65,8 +65,11 @@ function SD:FinishAdeptLayout(layout, g, dashboardOnly, previousGeometry)
             if values[setting.setting]~=nil then setting.value=values[setting.setting] end
         end
     end
-    if (not dashboardOnly or compactUpgrade) and self.db.arrangeUnits then
+    -- Geometry upgrades must reseat unit cards even during dashboard-only alignment.
+    local lowerUnits = previousGeometry and (previousGeometry.revision or 0)<11
+    if (not dashboardOnly or compactUpgrade or lowerUnits) and self.db.arrangeUnits then
         self:PlaceAdeptUnitAnchors(layout,g)
+        if self.db.attachPlayerAuras then self:ConfigurePlayerAuras(layout,g) end
     end
     if not dashboardOnly or compactUpgrade then
         anchor(E.CastBar,nil,"BOTTOM","BOTTOM",g.cast.x,g.cast.y)
@@ -74,16 +77,16 @@ function SD:FinishAdeptLayout(layout, g, dashboardOnly, previousGeometry)
 end
 
 -- Migrate the saved native profile as well as the account layout.
-SD.adeptUnitAnchorRevision = 5
+SD.adeptUnitAnchorRevision = 8
 function SD:PlaceAdeptUnitAnchors(layout,g)
     local H, E, U = self.UnitLayoutHelpers, Enum.EditModeSystem, Enum.EditModeUnitFrameSystemIndices
     local function place(index,point,x,y)
         H.anchor(H.find(layout,E.UnitFrame,index),point,"BOTTOMLEFT",x*g.scale,y*g.scale)
         H.setting(H.find(layout,E.UnitFrame,index),Enum.EditModeUnitFrameSetting.FrameSize,80*g.scale)
     end
-    place(U.Player,"BOTTOMLEFT",g.player.x,g.player.y)
-    place(U.Target,"BOTTOMRIGHT",g.target.x,g.target.y)
-    place(U.Focus,"BOTTOMRIGHT",g.target.x,g.target.y+108*g.density)
+    place(U.Player,"CENTER",g.player.x,g.player.y)
+    place(U.Target,"CENTER",g.target.x,g.target.y)
+    place(U.Focus,"CENTER",550,g.player.y)
 end
 
 -- Native chat has a 120-unit height minimum. Fit that surface into the dock.
@@ -284,6 +287,69 @@ function SD:RefreshAdeptJourney()
     f.expeditionNext:SetShown(not not (info.active and (self.oreRoute or self.gathering.targetID)))
 end
 
+function SD:CreateAdeptCompanyTabs(f)
+    f.companyTab="company"
+    f.companyTabs={}
+    for i,spec in ipairs({{"company","COMPANY"},{"settings","SETTINGS"}}) do
+        local b=CreateFrame("Button",nil,f.details)
+        b:SetSize(78,22)
+        b.caption=b:CreateFontString(nil,"OVERLAY")
+        b.caption:SetAllPoints()
+        b.caption:SetFont("Fonts\\ARIALN.TTF",10,"")
+        b.caption:SetJustifyH("LEFT")
+        b.caption:SetText(spec[2])
+        b.line=b:CreateTexture(nil,"OVERLAY")
+        b.line:SetColorTexture(.83,.73,.49,1)
+        b.line:SetPoint("BOTTOMLEFT") b.line:SetPoint("BOTTOMRIGHT") b.line:SetHeight(2)
+        local key=spec[1]
+        b:SetScript("OnClick",function() f.companyTab=key SD:RefreshAdeptCompany() end)
+        f.companyTabs[i]=b
+    end
+    f.companySettings=CreateFrame("Frame",nil,f.details)
+    f.companySettings:SetAllPoints()
+    f.companySettings:EnableMouse(false)
+    f.companyControls={}
+    for i,caption in ipairs({"","Open StoneDock config"}) do
+        local b=CreateFrame("Button",nil,f.companySettings)
+        b:SetSize(164,24)
+        b.caption=b:CreateFontString(nil,"OVERLAY")
+        b.caption:SetAllPoints() b.caption:SetFont("Fonts\\ARIALN.TTF",11,"")
+        b.caption:SetJustifyH("LEFT") b.caption:SetTextColor(.88,.8,.61)
+        b.caption:SetText(caption)
+        b:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")
+        b:GetHighlightTexture():SetVertexColor(.8,.7,.45,.08)
+        local toggle=i==1
+        b:SetScript("OnClick",function()
+            if SD:IsBusy() then SD.Print("Use layout settings outside combat and Edit Mode.") return end
+            if toggle then
+                SD.db.adeptShowBagBar=not SD.db.adeptShowBagBar
+                SD:RefreshVariantControls()
+            else SD:OpenSettingsTab(SD.settingsTab or "master") end
+            SD:RefreshAdeptCompany()
+        end)
+        f.companyControls[i]=b
+    end
+end
+
+function SD:RefreshAdeptCompany()
+    local f=self.adeptConsole
+    if not f or not f.companyTabs then return end
+    local company=f.companyTab~="settings"
+    for i,b in ipairs(f.companyTabs) do
+        local selected=(i==1)==company
+        b.line:SetShown(selected)
+        b.caption:SetTextColor(selected and .9 or .57,selected and .83 or .57,selected and .65 or .54)
+    end
+    f.company:SetShown(company)
+    f.companyAction:SetShown(company)
+    f.companySettings:SetShown(not company)
+    f.companyControls[1].caption:SetText("Bag bar: "..(self.db.adeptShowBagBar and "Shown" or "Hidden"))
+    for _,b in ipairs(f.companyControls) do
+        b:SetEnabled(not self:IsBusy())
+        b:SetAlpha(self:IsBusy() and .45 or 1)
+    end
+end
+
 function SD:RefreshAdeptArt(g)
     self:RefreshAdeptChat(g)
     local show = g.variant=="adept" and self.db.enabled
@@ -313,7 +379,6 @@ function SD:RefreshAdeptArt(g)
         for _, x in ipairs({350,630,1295,1500,1710}) do rule(d,x,36,1,80,.16) end
         label(d,"AT A GLANCE",374,-14,10)
         label(d,"READY",1320,-14,10)
-        label(d,"COMPANY",1732,-14,10)
         f.status = label(d,"Gold\nFramerate\nLatency",374,-37,11)
         f.statusValues = label(d,"",478,-37,11)
         f.statusValues:SetWidth(136)
@@ -383,8 +448,9 @@ function SD:RefreshAdeptArt(g)
             elseif ToggleAllBags then ToggleAllBags() end
         end)
         f.journeyAction=action(1522,170,"Journey","Open session progress.",function() SD:OpenSettingsTab("session") end)
-        action(1732,164,"Company","Open friends and social tools.",function() if ToggleFriendsFrame then ToggleFriendsFrame() end end)
+        f.companyAction=action(1732,164,"Company","Open friends and social tools.",function() if ToggleFriendsFrame then ToggleFriendsFrame() end end)
         self:CreateAdeptJourneyTabs(f)
+        self:CreateAdeptCompanyTabs(f)
     end
     local f = self.adeptConsole
     f:SetShown(show)
@@ -402,6 +468,19 @@ function SD:RefreshAdeptArt(g)
         button:ClearAllPoints()
         button:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522+(i-1)*78,-9*g.density)
         button:SetHeight(22*g.density)
+    end
+    for i,b in ipairs(f.companyTabs) do
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT",f.details,"TOPLEFT",1732+(i-1)*84,-9*g.density)
+        b:SetHeight(22*g.density)
+    end
+    f.companyAction:ClearAllPoints()
+    f.companyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1732,-34*g.density)
+    f.companyAction:SetHeight(64*g.density)
+    for i,b in ipairs(f.companyControls) do
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",1732,-(34+(i-1)*27)*g.density)
+        b:SetHeight(24*g.density)
     end
     f.journeyAction:ClearAllPoints()
     f.journeyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522,-34*g.density)
@@ -474,6 +553,7 @@ function SD:UpdateAdeptConsole()
     f.company:SetText((members>0 and (members.." in group") or "Traveling alone").."\n"..friends.." friends online")
     f.details:SetShown(self.db.showInfo)
     self:RefreshAdeptJourney()
+    self:RefreshAdeptCompany()
 end
 
 function SD:RefreshAdeptCombat()
@@ -481,6 +561,7 @@ function SD:RefreshAdeptCombat()
         local combat = InCombatLockdown() and not self.editing
         self.adeptConsole.details:SetAlpha(combat and .15 or 1)
         self.adeptConsole.details:EnableMouse(false)
+        self:RefreshAdeptCompany()
     end
     if self.layoutName=="Adept" and self.RefreshHUD then self:RefreshHUD() end
 end

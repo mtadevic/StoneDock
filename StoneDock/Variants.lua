@@ -77,7 +77,7 @@ function SD:ActivateLayoutVariant(key)
 
     -- other design's character profile or geometry over them when switching.
 
-    self.db.nativeGeometry=nil
+    self.db.nativeGeometry=SD.Copy(self.db.variantGeometries and self.db.variantGeometries[self.layoutName])
 
     self.profileNeedsRestore=nil
 

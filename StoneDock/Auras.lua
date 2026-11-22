@@ -1,10 +1,10 @@
 local _, SD = ...
 
-function SD:ConfigurePlayerAuras(layout)
+function SD:ConfigurePlayerAuras(layout, geometry)
     local E,A,I=Enum.EditModeSystem,Enum.EditModeAuraFrameSetting,Enum.EditModeAuraFrameSystemIndices
     if not A or not I then return false end
     local H=self.UnitLayoutHelpers
-    local g=self:GetGeometry()
+    local g=geometry or self:GetGeometry()
     local changed=false
     for _,spec in ipairs({{I.BuffFrame,"BOTTOMLEFT","TOPLEFT",10,A.IconLimitBuffFrame,Enum.AuraFrameIconDirection.Up},
         {I.DebuffFrame,"TOPLEFT","BOTTOMLEFT",-10,A.IconLimitDebuffFrame,Enum.AuraFrameIconDirection.Down}}) do
@@ -18,6 +18,12 @@ function SD:ConfigurePlayerAuras(layout)
             H.setting(info,A.IconSize,60*g.scale)
             H.setting(info,A.IconPadding,5)
             H.setting(info,spec[5],6)
+            if g.variant=="adept" then
+                local y=spec[1]==I.BuffFrame and 212 or 234
+                info.anchorInfo={point="BOTTOMLEFT",relativeTo="UIParent",relativePoint="BOTTOMLEFT",offsetX=650*g.scale,offsetY=y*g.density*g.scale}
+                H.setting(info,A.IconSize,40*g.scale)
+                H.setting(info,A.IconPadding,2)
+            end
             changed=true
         end
     end
@@ -26,7 +32,8 @@ end
 
 function SD:ApplySessionLayout(force)
     if self.layoutWriteBusy or self.featureBusy or not self.db or not self.db.enabled or self:IsBusy() or not self:IsOurLayoutActive() then return false end
-    if not force and StoneDockCharDB.featureLayout=="rows-auras-1" then return true end
+    local stamp=self.layoutName=="Adept" and "adept-compact-11" or "rows-auras-1"
+    if not force and StoneDockCharDB.featureLayout==stamp then return true end
     local full=self:GetFullLayouts()
     if not full then return false end
     local layout=full.layouts[full.activeLayout]
@@ -44,7 +51,7 @@ function SD:ApplySessionLayout(force)
     self.featureBusy=true
     local ok=self:Run("Apply group rows and player auras",function() self:SaveAndRefreshLayout(full,full.activeLayout) end)
     if ok then
-        StoneDockCharDB.featureLayout="rows-auras-1"
+        StoneDockCharDB.featureLayout=stamp
         self:InstallRaidSplitHook() self:QueueRaidSplit()
     end
     self.featureBusy=nil

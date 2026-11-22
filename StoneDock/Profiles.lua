@@ -48,6 +48,8 @@ function SD:CaptureProfile()
     for _,info in ipairs(layout and layout.systems or {})do if profileSystem(info)then native[#native+1]=SD.Copy(info) end end
     local store,key=self:GetVariantProfileStore()
     if not SD.Equal(store[key],native)then store[key]=native end
+    self.profile.nativeGeometries=self.profile.nativeGeometries or {}
+    self.profile.nativeGeometries[key]=SD.Copy(self.db.nativeGeometry or self:GeometryStamp(self:GetGeometry()))
     if key=="adept" and self.db.arrangeUnits and not self:NeedsGeometryAlignment() then
         self.profile.adeptUnitAnchorRevision=self.adeptUnitAnchorRevision
     end
@@ -60,6 +62,16 @@ function SD:ApplyProfileNative()
     local store,key=self:GetVariantProfileStore()
     local native=store[key]
     if not native or not self:IsOurLayoutActive() then self.profileNeedsRestore=nil return true end
+    local previous=self.profile.nativeGeometries and self.profile.nativeGeometries[key]
+    local destination=self.db.nativeGeometry or self:GeometryStamp(self:GetGeometry())
+    if previous and not SD.Equal(previous,destination) then
+        native=SD.Copy(native)
+        for _,info in ipairs(native) do
+            self:RebaseLayoutAnchor(info.anchorInfo,previous,destination)
+            self:RebaseLayoutAnchor(info.anchorInfo2,previous,destination)
+            self:RebaseNativeSize(info,previous,destination)
+        end
+    end
     self:UpgradeDefaultUnitAnchors(native)
     local migrateTofu=key=="tofu" and self.db.arrangeUnits
         and self.profile.tofuUnitAnchorRevision~=self.tofuUnitAnchorRevision
@@ -100,6 +112,9 @@ function SD:ApplyProfileNative()
     end
     if ok then
         self.profileNeedsRestore=nil
+        store[key]=native
+        self.profile.nativeGeometries=self.profile.nativeGeometries or {}
+        self.profile.nativeGeometries[key]=SD.Copy(destination)
         if migrateAdept then
             store[key]=native
             self.profile.adeptUnitAnchorRevision=self.adeptUnitAnchorRevision

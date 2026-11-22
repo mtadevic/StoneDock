@@ -308,6 +308,7 @@ end)
 function SD:CheckLoginAlignment()
     if self.layoutWriteBusy or self.loginAlignmentBusy or not self.loginAlignmentPending or not self.db then return false end
     if InCombatLockdown() or self.editing then return false end
+    if UIParent:GetWidth()<=0 or UIParent:GetHeight()<=0 then return false end
     if EditModeManagerFrame and EditModeManagerFrame:IsShown() then return false end
     if not self.db.enabled or not self:IsOurLayoutActive() then return false end
     -- Claim this pass before SaveLayouts dispatches layout-update callbacks.
