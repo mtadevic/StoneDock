@@ -1,5 +1,6 @@
 local _, SD = ...
 local cards = {}
+function SD:GetAdeptUnitCards() return cards end
 local originalAlpha = {}
 local auraPoints = {}
 local alphaHooks = setmetatable({}, {__mode="k"})
@@ -72,6 +73,40 @@ function SD:SeatAdeptCastBar(cast,card)
     if icon and not saved.icon then saved.icon={frame=icon,w=icon:GetWidth(),h=icon:GetHeight(),points=savePoints(icon)} end
     saved.card=card
     seatCast(cast,card)
+end
+
+function SD:FitAdeptPlayerAuraLane(aura,card,debuff)
+    local bounds=self:GetVisibleArtworkBounds(aura)
+    if not bounds or not card.GetRect then return end
+    local x,y,w,h=card:GetRect()
+    local scale=card:GetEffectiveScale()/UIParent:GetEffectiveScale()
+    if not x or not y or not w or not h then return end
+    x,y,w,h=x*scale,y*scale,w*scale,h*scale
+    local gap=4*self:GetGeometry().scale
+    local desiredX=debuff and (x-gap-bounds.w) or x
+    local desiredY=y+h+gap
+    local dx,dy=desiredX-bounds.x,desiredY-bounds.y
+    if math.abs(dx)<.25 and math.abs(dy)<.25 then return end
+    local point,parent,relative,oldX,oldY=aura:GetPoint(1)
+    if not point then return end
+    local factor=aura:GetEffectiveScale()/UIParent:GetEffectiveScale()
+    aura:ClearAllPoints()
+    aura:SetPoint(point,parent,relative,(oldX or 0)+dx/factor,(oldY or 0)+dy/factor)
+end
+
+function SD:RefreshAdeptAuraClearance()
+    local g=self:GetGeometry()
+    local top=0
+    local left=(g.party.x+(self.db.groupOffsetX or 0))*g.scale
+    local right=left+560*(self.db.groupRowWidth or 100)/100*g.scale
+    for _,aura in pairs({BuffFrame,DebuffFrame}) do
+        local bounds=self:GetVisibleArtworkBounds(aura)
+        if bounds and bounds.x<right and bounds.right>left then top=math.max(top,bounds.top/g.scale+8) end
+    end
+    if math.abs((self.adeptAuraClearance or 0)-top)>.25 then
+        self.adeptAuraClearance=top
+        self:QueueRaidSplit()
+    end
 end
 
 local function create(frame,unit,compact)
@@ -158,6 +193,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
     if InCombatLockdown() then return end
     active=enabled and not self.editing
     if not active then
+        self.adeptAuraClearance=nil
         for region,alpha in pairs(originalAlpha) do region:SetAlpha(alpha) end
         originalAlpha={}
         for cast,saved in pairs(castSeats) do
@@ -262,7 +298,8 @@ function SD:RefreshAdeptUnitFrames(enabled)
                             for j=1,aura:GetNumPoints() do auraPoints[aura][j]={aura:GetPoint(j)} end
                         end
                         aura:ClearAllPoints()
-                        aura:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",0,i==1 and 3 or 25)
+                        aura:SetPoint(i==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",cards[frame],"TOPLEFT",i==1 and 0 or -8,3)
+                        self:FitAdeptPlayerAuraLane(aura,cards[frame],i==2)
                     end
                 end
             end
@@ -306,6 +343,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
         self.adeptUnitEvents:RegisterEvent(event)
     end
     self:UpdateAdeptUnitCards()
+    self:RefreshAdeptAuraClearance()
 end
 
 function SD:QueueAdeptUnitFrameRefresh()
@@ -339,5 +377,5 @@ end)
 SD:On("PLAYER_UPDATE_RESTING",function() SD:QueueAdeptUnitFrameRefresh() end)
 
 SD:On("UNIT_AURA",function(unit)
-    if (not issecretvalue or not issecretvalue(unit)) and (unit=="target" or unit=="focus") then SD:QueueAdeptUnitFrameRefresh() end
+    if (not issecretvalue or not issecretvalue(unit)) and (unit=="player" or unit=="target" or unit=="focus") then SD:QueueAdeptUnitFrameRefresh() end
 end)

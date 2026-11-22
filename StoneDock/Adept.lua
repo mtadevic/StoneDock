@@ -169,7 +169,7 @@ function SD:GetAdeptGroupRows(groups, g)
     local width = (560*self.db.groupRowWidth/100-4*gap)/5
     for i=1,groups do
         result[i]={x=g.party.x+self.db.groupOffsetX,
-            y=g.party.y+self.db.groupOffsetY+(i-1)*(height+gap),
+            y=math.max(g.party.y+self.db.groupOffsetY,(self.adeptAuraClearance or 0)+height)+(i-1)*(height+gap),
             w=width,h=height,gap=gap,side="left"}
     end
     return result

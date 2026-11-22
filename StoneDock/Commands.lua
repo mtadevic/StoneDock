@@ -68,13 +68,30 @@ function SD:BuildReport()
             table.insert(lines, string.format("Layout %d: %s; type=%s; systems=%d", index, tostring(layout.layoutName), tostring(layout.layoutType), #(layout.systems or {})))
         end
     else table.insert(lines, "Edit Mode unavailable: " .. tostring(err)) end
+    local overlapLines={}
+    local overlapOK,overlapError=pcall(self.AppendFrameOverlapReport,self,overlapLines)
+    if overlapOK then
+        for _,line in ipairs(overlapLines) do lines[#lines+1]=line end
+    else
+        lines[#lines+1]="Frame overlap inspection failed: "..tostring(overlapError)
+    end
     return table.concat(lines, "\n")
 end
 
 function SD:ShowReport()
-    local report = self:BuildReport()
-    StoneDockCharDB.lastReport = report
-    self:ShowCopyDialog("StoneDock diagnostics", report)
+    local ok,report=pcall(self.BuildReport,self)
+    if not ok then
+        report="StoneDock "..tostring(self.version).." diagnostic fallback\n"
+            .."Report generation failed: "..tostring(report).."\n"
+            .."Current-session error: "..tostring(self.lastError or "none").."\n"
+            .."Previous recorded error: "..tostring(StoneDockCharDB.lastError or "none")
+    end
+    StoneDockCharDB.lastReport=report
+    local shown,err=pcall(self.ShowCopyDialog,self,"StoneDock diagnostics",report)
+    if not shown then
+        SD.Print("Diagnostic window failed: "..tostring(err))
+        SD.Print(report)
+    end
 end
 
 function SD:Command(message)
