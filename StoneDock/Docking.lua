@@ -83,9 +83,58 @@ function SD:FitTrackingBars()
     if not ok then self:ReportError("Fit tracking bars",err) end
 end
 
+-- Fit the rendered native controls after Blizzard applies its clamped sliders.
+function SD:FitNativeControlSizes()
+    if InCombatLockdown() then self.nativeFitAfterCombat=true return end
+    local enabled=self.db and self.db.enabled and not self.editing
+        and not (EditModeManagerFrame and EditModeManagerFrame:IsShown()) and self:IsOurLayoutActive()
+    self.nativeControlScales=self.nativeControlScales or {}
+    local wanted={}
+    local g=enabled and self:GetGeometry()
+    local function fit(frame,frames,width,height)
+        if not frame then return end
+        wanted[frame]=true
+        local _,_,w,h=union(frames)
+        if not w or w<=0 or h<=0 then return end
+        local ratio=math.min(width/w,height/h)
+        local scale=frame:GetScale()*ratio
+        if math.abs(ratio-1)<.002 then return end
+        local saved=self.nativeControlScales[frame]
+        if not saved then saved={original=frame:GetScale()} self.nativeControlScales[frame]=saved end
+        frame:SetScale(scale)
+        saved.fitted=scale
+    end
+    if enabled then
+        local bars={MainActionBar,MultiBarBottomLeft,MultiBarBottomRight,MultiBarRight,MultiBarLeft}
+        for i,spec in ipairs(g.bars) do
+            local bar=bars[spec.index or i]
+            local count,rows=spec.icons or 12,spec.rows or 1
+            local columns=math.ceil(count/rows)
+            local size=spec.iconSize or (spec.iconPercent and 45*spec.iconPercent/100*g.density)
+            local padding=spec.iconPadding or 2
+            local well=i<=2 and g.leftWell or g.rightWell
+            local width=size and (columns*size+(columns-1)*padding) or (well.w-22)
+            local height=size and (rows*size+(rows-1)*padding) or (well.h/2-4)
+            if bar then fit(bar,bar.actionButtons or {bar},width*g.scale,height*g.scale) end
+        end
+        if self.db.arrangeUtility then
+            fit(MicroMenu,{MicroMenu},(g.menuDrawer.w-16)*g.scale,(g.menuDrawer.h-4)*g.scale)
+            fit(BagsBar,bagButtons(),(g.bagDrawer.w-16)*g.scale,(g.bagDrawer.h-4)*g.scale)
+        end
+    end
+    for frame,saved in pairs(self.nativeControlScales) do
+        if not wanted[frame] then
+            if not saved.fitted or math.abs(frame:GetScale()-saved.fitted)<.001 then frame:SetScale(saved.original) end
+            self.nativeControlScales[frame]=nil
+        end
+    end
+    self.nativeFitAfterCombat=nil
+end
+
 function SD:PrecisionAlign(bagsOnly)
     if InCombatLockdown() or self.editing or not self:IsOurLayoutActive() then return end
     if EditModeManagerFrame and EditModeManagerFrame:IsShown() then return end
+    self:FitNativeControlSizes()
     local full = self:GetFullLayouts()
     if not full then return end
     local index = full.activeLayout
@@ -253,6 +302,7 @@ end
 function SD:RefreshDocking()
     if InCombatLockdown() then return end
     self:RefreshVariantControls()
+    self:FitNativeControlSizes()
     self:FitTrackingBars()
     local active = self.db.enabled and self.db.arrangeUtility and self:IsOurLayoutActive() and not self.editing
     if active then self:DockBags()
@@ -355,3 +405,7 @@ local function queueResizeAlignment()
 end
 SD:On("DISPLAY_SIZE_CHANGED",queueResizeAlignment)
 SD:On("UI_SCALE_CHANGED",queueResizeAlignment)
+
+SD:On("PLAYER_REGEN_ENABLED",function()
+    if SD.nativeFitAfterCombat then SD:FitNativeControlSizes() SD:SchedulePrecisionAlignment() end
+end)
