@@ -26,8 +26,11 @@ end
 
 local castSeats={}
 local function savePoints(frame)
+    local count=frame.GetNumPoints and frame:GetNumPoints()
+    if type(count)~="number" or (issecretvalue and issecretvalue(count)) then return end
+    if count<0 or count>32 or count~=math.floor(count) then return end
     local points={}
-    for i=1,frame:GetNumPoints() do points[i]={frame:GetPoint(i)} end
+    for i=1,count do points[i]={frame:GetPoint(i)} end
     return points
 end
 local function restorePoints(frame,points)
@@ -44,7 +47,7 @@ local function seatCast(cast,card)
     cast:ClearAllPoints()
     cast:SetPoint("BOTTOMLEFT",card,"BOTTOMLEFT",8,1)
     local icon=cast.Icon or cast.icon
-    if icon then
+    if icon and castSeats[cast] and castSeats[cast].icon then
         icon:SetSize(10,10)
         icon:ClearAllPoints()
         icon:SetPoint("LEFT",cast,"RIGHT",3,0)
@@ -55,22 +58,30 @@ end
 function SD:SeatAdeptCastBar(cast,card)
     if not cast then return end
     local saved=castSeats[cast]
-    if not saved then
-        saved={points={},w=cast:GetWidth(),h=cast:GetHeight(),scale=cast:GetScale()}
-        for i=1,cast:GetNumPoints() do saved.points[i]={cast:GetPoint(i)} end
+    if not saved or not saved.card then
+        -- During native frame reconstruction GetNumPoints may not yet return
+        -- a readable count. Do not move a bar whose original state cannot be saved.
+        local points=savePoints(cast)
+        if not points then return end
+        local w,h,scale=cast:GetWidth(),cast:GetHeight(),cast:GetScale()
+        for _,value in ipairs({w,h,scale}) do
+            if type(value)~="number" or (issecretvalue and issecretvalue(value)) then return end
+        end
+        if not w or not h or not scale or w<=0 or h<=0 or scale<=0 then return end
+        local fresh=not saved
+        saved=saved or {}
+        saved.points,saved.w,saved.h,saved.scale=points,w,h,scale
         castSeats[cast]=saved
-        cast:HookScript("OnShow",function() seatCast(cast,saved.card) end)
-        if hooksecurefunc then
-            hooksecurefunc(cast,"SetPoint",function() seatCast(cast,saved.card) end)
+        if fresh then
+            cast:HookScript("OnShow",function() seatCast(cast,saved.card) end)
+            if hooksecurefunc then hooksecurefunc(cast,"SetPoint",function() seatCast(cast,saved.card) end) end
         end
     end
-    if not saved.card then
-        saved.points={}
-        for i=1,cast:GetNumPoints() do saved.points[i]={cast:GetPoint(i)} end
-        saved.w,saved.h,saved.scale=cast:GetWidth(),cast:GetHeight(),cast:GetScale()
-    end
     local icon=cast.Icon or cast.icon
-    if icon and not saved.icon then saved.icon={frame=icon,w=icon:GetWidth(),h=icon:GetHeight(),points=savePoints(icon)} end
+    if icon and not saved.icon then
+        local points=savePoints(icon)
+        if points then saved.icon={frame=icon,w=icon:GetWidth(),h=icon:GetHeight(),points=points} end
+    end
     saved.card=card
     seatCast(cast,card)
 end
