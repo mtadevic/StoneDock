@@ -59,12 +59,12 @@ function SD:WatchUsageWindows(initial)
         end
     end
 end
-function SD:RegisterUsageButton(button,label)
+function SD:RegisterUsageButton(button,label,recorderControl)
     if not button or button.stoneDockUsageHook then return end
     button.stoneDockUsageHook=true
     label=clean(label,100)
     button:HookScript("OnClick",function(_,mouse,down)
-        if not down then SD:RecordUsage("action",label..(mouse=="RightButton" and " [right-click]" or "")) end
+        if not down then SD:RecordUsage(recorderControl and "recorder_control" or "action",label..(mouse=="RightButton" and " [right-click]" or "")) end
     end)
 end
 function SD:StartUsageRecording()

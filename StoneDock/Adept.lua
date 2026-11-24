@@ -337,7 +337,7 @@ function SD:CreateAdeptCompanyTabs(f)
             else SD:UsageCommand("export") end
             SD:RefreshAdeptCompany()
         end)
-        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage start","Usage stop","Usage note","Usage export"})[i])
+        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage start","Usage stop","Usage note","Usage export"})[i],i>=3)
         f.companyControls[i]=b
     end
 end
