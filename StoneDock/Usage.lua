@@ -2,8 +2,11 @@ local _, SD = ...
 local LIMIT=1000
 local hooks=setmetatable({}, {__mode="k"})
 local eventFrame
+local toggleHooks={}
+local menuHooks=setmetatable({}, {__mode="k"})
 local windows={
     {"CharacterFrame","Character"},{"SpellBookFrame","Spellbook"},{"PlayerTalentFrame","Talents"},
+    {"PlayerSpellsFrame","Spellbook / talents"},
     {"SkillFrame","Skills"},{"FriendsFrame","Social"},{"PVEFrame","Group finder"},
     {"LFGListFrame","Group finder list"},{"QuestLogFrame","Quest log"},{"WorldMapFrame","World map"},
     {"MerchantFrame","Merchant"},{"GossipFrame","NPC dialogue"},{"BankFrame","Bank"},
@@ -39,8 +42,29 @@ function SD:RecordUsage(kind,detail)
     s.total=s.total+1 s.elapsed=event.t
     s.counts[kind]=(s.counts[kind] or 0)+1
 end
-function SD:WatchUsageWindows(initial)
+function SD:WatchUsageWindows(initial,opened)
     if not self:IsUsageRecording() or InCombatLockdown() then return end
+    -- Late-loaded native windows can be created after ADDON_LOADED has fired.
+    -- Observe known toggle entry points and menu buttons without replacing handlers.
+    for _,name in ipairs({"ToggleSpellBook","ToggleSpellBookFrame","TogglePlayerSpellsFrame","ToggleFriendsFrame","ToggleSocialsFrame"}) do
+        if not toggleHooks[name] and hooksecurefunc and type(_G[name])=="function" then
+            toggleHooks[name]=true
+            hooksecurefunc(name,function() SD:WatchUsageWindows(false,true) end)
+        end
+    end
+    for _,spec in ipairs({{"SpellbookMicroButton","Spellbook menu"},{"SocialsMicroButton","Social menu"}}) do
+        local button=_G[spec[1]]
+        if button and not menuHooks[button] and button.HookScript then
+            local label=spec[2]
+            button:HookScript("OnClick",function(_,_,down)
+                if not down and SD:IsUsageRecording() then
+                    SD:RecordUsage("action",label)
+                    SD:WatchUsageWindows(false,true)
+                end
+            end)
+            menuHooks[button]=true
+        end
+    end
     for _,spec in ipairs(windows) do
         local frame=_G[spec[1]]
         if frame and not hooks[frame] then
@@ -51,7 +75,7 @@ function SD:WatchUsageWindows(initial)
                 frame:HookScript("OnShow",function() SD:RecordUsage("window_open",label) end)
                 frame:HookScript("OnHide",function() SD:RecordUsage("window_close",label) end)
                 hooks[frame]=true
-                if frame:IsShown() then SD:RecordUsage(initial and "window_initial" or "window_available",label) end
+                if frame:IsShown() then SD:RecordUsage(initial and "window_initial" or (opened and "window_open" or "window_available"),label) end
             end)
             if not ok then self:RecordUsage("window_unavailable",spec[2]) end
         elseif frame and initial and frame.IsShown and frame:IsShown() then
@@ -96,6 +120,7 @@ function SD:StopUsageRecording(quiet)
     if not s or not s.active then if not quiet then SD.Print("Usage recording is stopped.") end return end
     self:RecordUsage("record_stop","Session ended")
     s.active=false
+    if self.usageNoteDialog then self.usageNoteDialog:Hide() end
     if eventFrame then eventFrame:UnregisterAllEvents() end
     if self.RefreshAdeptCompany then self:RefreshAdeptCompany() end
     if not quiet then SD.Print("Usage recording stopped. /stonedock record export opens the report.") end
@@ -144,12 +169,17 @@ function SD:ShowUsageNote()
         edit:SetMaxLetters(140) edit:SetAutoFocus(false)
         local function save()
             local note=clean(edit:GetText(),140)
-            if note:find("%S") and SD:IsUsageRecording() then SD:UsageCommand("mark "..note) end
-            f:Hide()
+            if not SD:IsUsageRecording() then f:Hide() return end
+            if not note:find("%S") then SD.Print("Enter a note before saving, or choose Cancel.") edit:SetFocus() return end
+            SD:UsageCommand("mark "..note)
+            f.saved=true f:Hide()
         end
         edit:SetScript("OnEnterPressed",save)
         edit:SetScript("OnEscapePressed",function()f:Hide()end)
-        f:SetScript("OnHide",function()edit:ClearFocus()end)
+        f:SetScript("OnHide",function()
+            edit:ClearFocus() f.opened=false
+            if not f.saved then SD:RecordUsage("recorder_control","Note dismissed without saving") end
+        end)
         for i,caption in ipairs({"Save note","Cancel"}) do
             local b=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
             b:SetSize(100,24) b:SetPoint("BOTTOMRIGHT",-(16+(2-i)*108),12) b:SetText(caption)
@@ -157,7 +187,10 @@ function SD:ShowUsageNote()
         end
         f.edit=edit self.usageNoteDialog=f
     end
+    if self.usageNoteDialog:IsShown() and self.usageNoteDialog.opened then self.usageNoteDialog.edit:SetFocus() return end
+    self.usageNoteDialog.saved=false self.usageNoteDialog.opened=true
     self.usageNoteDialog:Show() self.usageNoteDialog.edit:SetText("") self.usageNoteDialog.edit:SetFocus()
+    self:RecordUsage("recorder_control","Note editor opened")
 end
 function SD:UsageCommand(argument)
     local command,rest=(argument or ""):match("^%s*(%S*)%s*(.-)%s*$")
@@ -166,6 +199,7 @@ function SD:UsageCommand(argument)
     elseif command=="stop" then self:StopUsageRecording()
     elseif command=="mark" then
         if not self:IsUsageRecording() then SD.Print("Start a usage recording before adding a marker.") return end
+        if not rest:find("%S") then SD.Print("Enter a note after record mark.") return end
         self:RecordUsage("marker",rest) SD.Print("Usage marker added.")
     elseif command=="export" then
         if self:IsBusy() then SD.Print("Export usage outside combat and Edit Mode.") return end

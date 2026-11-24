@@ -56,7 +56,6 @@ end
 
 -- The flyout only uses items. It never changes inclusion, exclusions or defaults.
 function SD:ShowUtilityFlyout(owner,key)
-    self:RecordUsage("flyout",tostring(key))
     if InCombatLockdown() then SD.Print('Open item choices after combat.') return end
     if self.itemFlyout then
         local same=self.itemFlyout:IsShown() and self.itemFlyout.owner==owner
@@ -74,6 +73,14 @@ function SD:ShowUtilityFlyout(owner,key)
         RegisterStateDriver(f,'stonedockcombat','[combat] combat; idle')
         f.combatDriverRegistered=true
     end
+    f.usageCategory=key
+    if not f.usageVisibilityHooked then
+        f:HookScript('OnHide',function(frame)
+            if frame.usageVisible then SD:RecordUsage('flyout_close',tostring(frame.usageCategory)) end
+            frame.usageVisible=false
+        end)
+        f.usageVisibilityHooked=true
+    end
     f.owner=owner
     f:SetFrameStrata('DIALOG') f:SetClampedToScreen(true)
     f:SetPoint('BOTTOMLEFT',owner,'TOPLEFT',0,8)
@@ -114,7 +121,7 @@ function SD:ShowUtilityFlyout(owner,key)
         b.flyout=f
         if not b.flyoutClickInstalled then
             b.flyoutClickInstalled=true
-            b:HookScript('OnClick',function(self,button,down) if button=='LeftButton' and not down and not InCombatLockdown() then self.flyout:Hide() end end)
+            b:HookScript('OnClick',function(self,button,down) if button=='LeftButton' and not down and not InCombatLockdown() then SD:RecordUsage('flyout_select',tostring(self.flyout.usageCategory)) self.flyout:Hide() end end)
         end
         f.buttons[i]=b
     end
@@ -122,7 +129,9 @@ function SD:ShowUtilityFlyout(owner,key)
         f:SetWidth(180)
         H.text(child,'No available items.',12,8,-10,164)
     end
-    f:Show()
+    f:Show()
+    f.usageVisible=true
+    self:RecordUsage('flyout_open',tostring(key))
 end
 function SD:ShowHearthMenu()
     self:CreateUtilityButtons()

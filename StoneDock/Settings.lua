@@ -123,7 +123,7 @@ function SD:BuildRivetSettings(key,anchor)
     return self.rivetSettingsPage
 end
 function SD:OpenSettingsTab(key,arg,label)
-    self:RecordUsage("action","Settings page: "..tostring(key))
+    self:RecordUsage("navigation","Settings page: "..tostring(key))
 
     if self.settingsBuilding then return end
     key=key or self.settingsTab or "master"
