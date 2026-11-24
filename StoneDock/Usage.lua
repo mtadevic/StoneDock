@@ -130,6 +130,35 @@ function SD:BuildUsageExport(previous)
     for i=1,math.min(10,#actions) do lines[#lines+1]=actions[i].label..": "..actions[i].count end
     return table.concat(lines,"\n")
 end
+function SD:ShowUsageNote()
+    if self:IsBusy() or not self:IsUsageRecording() then return end
+    if not self.usageNoteDialog then
+        local f=CreateFrame("Frame","StoneDockUsageNote",UIParent,"BackdropTemplate")
+        f:SetSize(360,120) f:SetPoint("CENTER") f:SetFrameStrata("DIALOG")
+        f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+        f:SetBackdropColor(.09,.09,.09,1) f:SetBackdropBorderColor(.83,.73,.49,1)
+        local title=f:CreateFontString(nil,"OVERLAY","GameFontNormal")
+        title:SetPoint("TOPLEFT",16,-12) title:SetText("Usage recording: add a note")
+        local edit=CreateFrame("EditBox",nil,f,"InputBoxTemplate")
+        edit:SetSize(324,24) edit:SetPoint("TOPLEFT",18,-36)
+        edit:SetMaxLetters(140) edit:SetAutoFocus(false)
+        local function save()
+            local note=clean(edit:GetText(),140)
+            if note:find("%S") and SD:IsUsageRecording() then SD:UsageCommand("mark "..note) end
+            f:Hide()
+        end
+        edit:SetScript("OnEnterPressed",save)
+        edit:SetScript("OnEscapePressed",function()f:Hide()end)
+        f:SetScript("OnHide",function()edit:ClearFocus()end)
+        for i,caption in ipairs({"Save note","Cancel"}) do
+            local b=CreateFrame("Button",nil,f,"UIPanelButtonTemplate")
+            b:SetSize(100,24) b:SetPoint("BOTTOMRIGHT",-(16+(2-i)*108),12) b:SetText(caption)
+            b:SetScript("OnClick",i==1 and save or function()f:Hide()end)
+        end
+        f.edit=edit self.usageNoteDialog=f
+    end
+    self.usageNoteDialog:Show() self.usageNoteDialog.edit:SetText("") self.usageNoteDialog.edit:SetFocus()
+end
 function SD:UsageCommand(argument)
     local command,rest=(argument or ""):match("^%s*(%S*)%s*(.-)%s*$")
     command=(command or ""):lower()

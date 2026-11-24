@@ -310,8 +310,12 @@ function SD:CreateAdeptCompanyTabs(f)
     f.companySettings=CreateFrame("Frame",nil,f.details)
     f.companySettings:SetAllPoints()
     f.companySettings:EnableMouse(false)
+    f.usageHeader=f.companySettings:CreateFontString(nil,"OVERLAY")
+    f.usageHeader:SetFont("Fonts\\ARIALN.TTF",10,"")
+    f.usageHeader:SetJustifyH("LEFT")
+    f.usageHeader:SetTextColor(.88,.8,.61)
     f.companyControls={}
-    for i,caption in ipairs({"","Open StoneDock config","Record usage","Export usage"}) do
+    for i,caption in ipairs({"","Open StoneDock config","Start","Stop","Add Note","Export"}) do
         local b=CreateFrame("Button",nil,f.companySettings)
         b:SetSize(164,24)
         b.caption=b:CreateFontString(nil,"OVERLAY")
@@ -327,11 +331,13 @@ function SD:CreateAdeptCompanyTabs(f)
                 SD.db.adeptShowBagBar=not SD.db.adeptShowBagBar
                 SD:RefreshVariantControls()
             elseif action==2 then SD:OpenSettingsTab(SD.settingsTab or "master")
-            elseif action==3 then SD:UsageCommand(SD:IsUsageRecording() and "stop" or "start")
+            elseif action==3 then SD:UsageCommand("start")
+            elseif action==4 then SD:UsageCommand("stop")
+            elseif action==5 then SD:ShowUsageNote()
             else SD:UsageCommand("export") end
             SD:RefreshAdeptCompany()
         end)
-        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage recording","Usage export"})[i])
+        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage start","Usage stop","Usage note","Usage export"})[i])
         f.companyControls[i]=b
     end
 end
@@ -349,10 +355,15 @@ function SD:RefreshAdeptCompany()
     f.companyAction:SetShown(company)
     f.companySettings:SetShown(not company)
     f.companyControls[1].caption:SetText("Bag bar: "..(self.db.adeptShowBagBar and "Shown" or "Hidden"))
-    f.companyControls[3].caption:SetText(self:IsUsageRecording() and "Stop recording" or "Record usage")
-    for _,b in ipairs(f.companyControls) do
-        b:SetEnabled(not self:IsBusy())
-        b:SetAlpha(self:IsBusy() and .45 or 1)
+    local recording=self:IsUsageRecording()
+    f.usageHeader:SetText("USAGE RECORDING  ·  "..(recording and "ON" or "OFF"))
+    for i,b in ipairs(f.companyControls) do
+        local enabled=not self:IsBusy()
+        if i==3 then enabled=enabled and not recording
+        elseif i==4 or i==5 then enabled=enabled and recording
+        elseif i==6 then enabled=enabled and StoneDockCharDB.usageRecorder~=nil end
+        b:SetEnabled(enabled)
+        b:SetAlpha(enabled and 1 or .45)
     end
 end
 
@@ -484,10 +495,15 @@ function SD:RefreshAdeptArt(g)
     f.companyAction:ClearAllPoints()
     f.companyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1732,-34*g.density)
     f.companyAction:SetHeight(64*g.density)
+    f.usageHeader:ClearAllPoints()
+    f.usageHeader:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",1732,-77*g.density)
+    f.usageHeader:SetSize(164,12*g.density)
     for i,b in ipairs(f.companyControls) do
         b:ClearAllPoints()
-        b:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",1732,-(34+(i-1)*22)*g.density)
-        b:SetHeight(20*g.density)
+        local x,y,width=1732,34+(i-1)*20,164
+        if i>=3 then x=1732+((i-3)%2)*84 y=91+math.floor((i-3)/2)*19 width=80 end
+        b:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",x,-y*g.density)
+        b:SetSize(width,18*g.density)
     end
     f.journeyAction:ClearAllPoints()
     f.journeyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522,-34*g.density)

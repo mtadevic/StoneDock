@@ -231,7 +231,7 @@ Choose **Tofu Bar** in **Theme & layout**. The dark metal surround holds the cen
 
 Use `/stonedock record start` before a run and `/stonedock record stop` afterwards.
 `/stonedock record mark looking for bandages` adds your own context. Export with
-`/stonedock record export`, or use the Record usage / Export usage controls in
+`/stonedock record export`, or use the Usage Recording widget (Start, Stop, Add Note, Export) in
 Adept's Company > Settings tab. `/stonedock record export previous` retrieves the
 previous session; starting another recording retains only one previous session.
 `/stonedock record clear` clears both stopped recordings.
