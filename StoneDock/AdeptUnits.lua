@@ -143,6 +143,10 @@ local function create(frame,unit,compact)
     mask:SetTexture(maskPath,"CLAMPTOBLACKADDITIVE","CLAMPTOBLACKADDITIVE")
     mask:SetAllPoints(card.portrait)
     card.portrait:AddMaskTexture(mask)
+    card.pvp=card:CreateTexture(nil,"OVERLAY",nil,4)
+    card.pvp:SetSize(20,20)
+    card.pvp:SetPoint("BOTTOMRIGHT",card,"BOTTOMRIGHT",-2,4)
+    card.pvp:Hide()
     card.level=text(card,compact and 9 or 10)
     card.level:SetPoint("TOP",rim,"BOTTOM",0,4)
     local heading=text(card,compact and 8 or 9)
@@ -180,7 +184,19 @@ function SD:UpdateAdeptUnitCards(event,changed)
     if issecretvalue and issecretvalue(changed) then return end
     for _,card in pairs(cards) do
         local unit=card.unit
-        if not changed or changed==unit or event=="UNIT_TARGET" then
+        if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" then
+            -- These badges are artwork only; native unit-frame clicks stay intact.
+            local flagged=UnitIsPVP and UnitIsPVP(unit)
+            local ffa=UnitIsPVPFreeForAll and UnitIsPVPFreeForAll(unit)
+            local faction=UnitFactionGroup and UnitFactionGroup(unit)
+            local readable=not issecretvalue or not (issecretvalue(flagged) or issecretvalue(ffa) or issecretvalue(faction))
+            local icon
+            if readable then
+                if ffa then icon="FFA"
+                elseif flagged and (faction=="Alliance" or faction=="Horde") then icon=faction end
+            end
+            card.pvp:SetShown(icon~=nil)
+            card.pvp:SetTexture(icon and ("Interface\\TargetingFrame\\UI-PVP-"..icon) or nil)
             if card.happiness then
                 local happiness=GetPetHappiness and GetPetHappiness()
                 local readable=type(happiness)=="number" and (not issecretvalue or not issecretvalue(happiness))
@@ -360,7 +376,8 @@ function SD:RefreshAdeptUnitFrames(enabled)
     end
     self.adeptUnitEvents:UnregisterAllEvents()
     for _,event in ipairs({"UNIT_HEALTH","UNIT_MAXHEALTH","UNIT_POWER_UPDATE","UNIT_MAXPOWER",
-        "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED"}) do
+        "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED",
+        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
     if GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
