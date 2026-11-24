@@ -7,7 +7,7 @@ local menuHooks=setmetatable({}, {__mode="k"})
 local windows={
     {"CharacterFrame","Character"},{"SpellBookFrame","Spellbook"},{"PlayerTalentFrame","Talents"},
     {"PlayerSpellsFrame","Spellbook / talents"},
-    {"SkillFrame","Skills"},{"FriendsFrame","Social"},{"PVEFrame","Group finder"},
+    {"CommunitiesFrame","Guild & Communities"},{"SkillFrame","Skills"},{"FriendsFrame","Social"},{"PVEFrame","Group finder"},
     {"LFGListFrame","Group finder list"},{"QuestLogFrame","Quest log"},{"WorldMapFrame","World map"},
     {"MerchantFrame","Merchant"},{"GossipFrame","NPC dialogue"},{"BankFrame","Bank"},
     {"AuctionHouseFrame","Auction house"},{"ContainerFrameCombinedBags","Combined bags"},
@@ -46,13 +46,13 @@ function SD:WatchUsageWindows(initial,opened)
     if not self:IsUsageRecording() or InCombatLockdown() then return end
     -- Late-loaded native windows can be created after ADDON_LOADED has fired.
     -- Observe known toggle entry points and menu buttons without replacing handlers.
-    for _,name in ipairs({"ToggleSpellBook","ToggleSpellBookFrame","TogglePlayerSpellsFrame","ToggleFriendsFrame","ToggleSocialsFrame"}) do
+    for _,name in ipairs({"ToggleSpellBook","ToggleSpellBookFrame","TogglePlayerSpellsFrame","ToggleFriendsFrame","ToggleSocialsFrame","ToggleGuildFrame","ToggleCommunitiesFrame"}) do
         if not toggleHooks[name] and hooksecurefunc and type(_G[name])=="function" then
             toggleHooks[name]=true
             hooksecurefunc(name,function() SD:WatchUsageWindows(false,true) end)
         end
     end
-    for _,spec in ipairs({{"SpellbookMicroButton","Spellbook menu"},{"SocialsMicroButton","Social menu"}}) do
+    for _,spec in ipairs({{"SpellbookMicroButton","Spellbook menu"},{"SocialsMicroButton","Social menu"},{"GuildMicroButton","Guild & Communities menu"}}) do
         local button=_G[spec[1]]
         if button and not menuHooks[button] and button.HookScript then
             local label=spec[2]
