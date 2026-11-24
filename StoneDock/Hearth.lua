@@ -61,8 +61,9 @@ function SD:CreateHearthButton()
     local b=CreateFrame("Button","StoneDockHearth",self.utilityRoot,"SecureActionButtonTemplate") self.hearthButton=b
     b.hearth=true b.label="Hearthstones" b:SetSize(24,24) b:RegisterForClicks("AnyUp","AnyDown")
     b.icon=b:CreateTexture(nil,"ARTWORK") b.icon:SetAllPoints() b.icon:SetTexture(134414)
-    b.border=b:CreateTexture(nil,"BACKGROUND") b.border:SetPoint("TOPLEFT",-1,1) b.border:SetPoint("BOTTOMRIGHT",1,-1) b.border:SetColorTexture(.4,.45,.5,1)
+    b.border=b:CreateTexture(nil,"BACKGROUND") b.border:SetPoint("TOPLEFT",-1,1) b.border:SetPoint("BOTTOMRIGHT",1,-1) b.border:SetColorTexture(0,0,0,0)
     b.count=b:CreateFontString(nil,"OVERLAY","GameFontNormalSmall") b.count:SetPoint("BOTTOMRIGHT")
+    b.empty=b:CreateFontString(nil,"OVERLAY","GameFontNormalSmall") b.empty:SetPoint("CENTER")
     b.cooldown=CreateFrame("Cooldown",nil,b,"CooldownFrameTemplate") b.cooldown:SetAllPoints()
     b:SetScript("OnEnter",function()
         GameTooltip:SetOwner(b,"ANCHOR_TOP")
@@ -72,6 +73,7 @@ function SD:CreateHearthButton()
     end)
     b:SetScript("OnLeave",function() GameTooltip:Hide() end)
     b:HookScript("OnClick",function(_,button,down) if button=="RightButton" and not down then SD:Run("Hearthstone menu",function() SD:ShowUtilityFlyout(b,"hearth") end) end end)
+    self:RegisterUsageButton(b,"Hearthstones")
     self.utilityButtons[#self.utilityButtons+1]=b
 end
 function SD:RefreshHearthButton(scan)
@@ -93,6 +95,7 @@ function SD:RefreshHearthButton(scan)
     b:SetAttribute("toy1",chosen and chosen.id or nil)
     b.icon:SetTexture(chosen and chosen.icon or 134414)
     b.icon:SetDesaturated(not chosen or not chosen.usable)
+    if b.empty then b.empty:SetText(chosen and "" or "Home") end
 end
 SD:On("ZONE_CHANGED_NEW_AREA",function() if SD.db then SD:QueueConsumables() end end)
 SD:On("NEW_TOY_ADDED",function() if SD.db then SD:QueueConsumables() end end)

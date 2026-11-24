@@ -21,7 +21,9 @@ end
 function SD:GetUtilityChoices(key)
     local result,seen={},{}
     local function add(item)
-        if item and not seen[item.id] and self:GetItemRule(key,item.id)~=false then
+        local rule=item and self:GetItemRule(key,item.id)
+        local inherited=item and key=='weapon' and rule==nil and self:GetItemRule('utility',item.id)==false
+        if item and not seen[item.id] and rule~=false and not inherited then
             result[#result+1]=item seen[item.id]=true
         end
     end
@@ -36,7 +38,17 @@ function SD:GetUtilityChoices(key)
             end
         end
     else
+        if key=='food' then
+            for _,entry in ipairs(self.consumableLists and self.consumableLists.bufffood or {}) do
+                if self:GetItemRule('bufffood',entry.item.id)~=false then add(entry.item) end
+            end
+        end
         for _,entry in ipairs(self.consumableLists and self.consumableLists[key] or {}) do add(entry.item) end
+        if key=='alternate' then
+            for _,entry in ipairs(self.consumableLists and self.consumableLists.buffpotion or {}) do
+                if self:GetItemRule('buffpotion',entry.item.id)~=false then add(entry.item) end
+            end
+        end
         for _,item in ipairs(self.allConsumables or {}) do if self:GetItemRule(key,item.id)==true then add(item) end end
     end
     return result
@@ -44,6 +56,7 @@ end
 
 -- The flyout only uses items. It never changes inclusion, exclusions or defaults.
 function SD:ShowUtilityFlyout(owner,key)
+    self:RecordUsage("flyout",tostring(key))
     if InCombatLockdown() then SD.Print('Open item choices after combat.') return end
     if self.itemFlyout then
         local same=self.itemFlyout:IsShown() and self.itemFlyout.owner==owner
@@ -94,8 +107,8 @@ function SD:ShowUtilityFlyout(owner,key)
         b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
         if C_Item and C_Item.GetItemCooldown then local start,duration=C_Item.GetItemCooldown(item.id) if start and duration then b.cooldown:SetCooldown(start,duration) end end
         b:RegisterForClicks('AnyUp','AnyDown')
-        self:BindUtilityItem(b,item)
-        b:SetAttribute('toy1',item.id)
+        self:BindUtilityItem(b,item)
+        b:SetAttribute('toy1',item.id)
         b:SetScript('OnEnter',function() GameTooltip:SetOwner(b,'ANCHOR_RIGHT') GameTooltip:SetItemByID(item.id) GameTooltip:Show() end)
         b:SetScript('OnLeave',function() GameTooltip:Hide() end)
         b.flyout=f

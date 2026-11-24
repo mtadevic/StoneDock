@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.26"
+SD.name, SD.version = addonName, "0.13.27"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -103,6 +103,7 @@ end
 
 function SD:ReportError(context, err)
     local detail = tostring(err)
+    if self.RecordUsage then pcall(self.RecordUsage,self,"error",context) end
     self.lastError = context .. ": " .. detail
     StoneDockCharDB.lastError = self.lastError
     SD.Print(context .. " could not finish. Use /stonedock report to copy the details.")

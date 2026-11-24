@@ -14,14 +14,14 @@ function SD:GetAdeptGeometry(width, height, rise)
             icons=12, rows=2, iconSize=size, iconPadding=2}
     end
     return {
-        variant="adept", revision=12, width=width, height=height, scale=scale,
+        variant="adept", revision=14, width=width, height=height, scale=scale,
         density=rise, screenHeight=screenHeight,
         base=box(0,0,1920,132), left=box(0,0,350,132), right=box(1300,0,620,132),
         leftWell=box(640,12,310,72), rightWell=box(970,12,310,72),
         chat=box(24,24,302,78),
         map={x=960-82*rise,y=8*rise,w=164*rise,h=164*rise},
-        menuDrawer=box(374,6,244,28), bagDrawer=box(1320,6,180,22),
-        itemWell=box(1040,128,240,20), utilityIconSize=18*rise, utilityY=128*rise,
+        menuDrawer=box(374,0,244,28), bagDrawer=box(1320,0,180,22),
+        itemWell=box(1320,32,164,20), utilityIconSize=18*rise, utilityY=32*rise,
         auxLeft=box(628,128,220,20), auxRight=box(1072,128,208,20),
         auxTopInset=2*rise, auxRightTop=148*rise,
         trackingWell=box(650,122,620,10),
@@ -45,7 +45,7 @@ function SD:FinishAdeptLayout(layout, g, dashboardOnly, previousGeometry)
         anchor(E.StatusTrackingBar,2,"TOP","TOP",0,-26*g.density)
         anchor(E.ActionBar,11,"TOPLEFT","BOTTOMLEFT",640,168*g.density)
         for index=12,13 do
-            anchor(E.ActionBar,index,"TOPRIGHT","BOTTOMLEFT",1280,204*g.density)
+            anchor(E.ActionBar,index,"TOPRIGHT","BOTTOMLEFT",1280,148*g.density)
         end
         if not dashboardOnly then
             anchor(E.ObjectiveTracker,nil,"TOPRIGHT","TOPRIGHT",-24,-290*g.density)
@@ -223,6 +223,7 @@ function SD:CreateAdeptJourneyTabs(f)
             f.journeyTab=key
             SD:RefreshAdeptJourney()
         end)
+        SD:RegisterUsageButton(button,"Journey tab: "..spec[2])
         f.journeyTabs[i]=button
     end
     local view=CreateFrame("Frame",nil,f.details)
@@ -303,13 +304,14 @@ function SD:CreateAdeptCompanyTabs(f)
         b.line:SetPoint("BOTTOMLEFT") b.line:SetPoint("BOTTOMRIGHT") b.line:SetHeight(2)
         local key=spec[1]
         b:SetScript("OnClick",function() f.companyTab=key SD:RefreshAdeptCompany() end)
+        SD:RegisterUsageButton(b,"Company tab: "..spec[2])
         f.companyTabs[i]=b
     end
     f.companySettings=CreateFrame("Frame",nil,f.details)
     f.companySettings:SetAllPoints()
     f.companySettings:EnableMouse(false)
     f.companyControls={}
-    for i,caption in ipairs({"","Open StoneDock config"}) do
+    for i,caption in ipairs({"","Open StoneDock config","Record usage","Export usage"}) do
         local b=CreateFrame("Button",nil,f.companySettings)
         b:SetSize(164,24)
         b.caption=b:CreateFontString(nil,"OVERLAY")
@@ -318,15 +320,18 @@ function SD:CreateAdeptCompanyTabs(f)
         b.caption:SetText(caption)
         b:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")
         b:GetHighlightTexture():SetVertexColor(.8,.7,.45,.08)
-        local toggle=i==1
+        local action=i
         b:SetScript("OnClick",function()
             if SD:IsBusy() then SD.Print("Use layout settings outside combat and Edit Mode.") return end
-            if toggle then
+            if action==1 then
                 SD.db.adeptShowBagBar=not SD.db.adeptShowBagBar
                 SD:RefreshVariantControls()
-            else SD:OpenSettingsTab(SD.settingsTab or "master") end
+            elseif action==2 then SD:OpenSettingsTab(SD.settingsTab or "master")
+            elseif action==3 then SD:UsageCommand(SD:IsUsageRecording() and "stop" or "start")
+            else SD:UsageCommand("export") end
             SD:RefreshAdeptCompany()
         end)
+        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage recording","Usage export"})[i])
         f.companyControls[i]=b
     end
 end
@@ -344,6 +349,7 @@ function SD:RefreshAdeptCompany()
     f.companyAction:SetShown(company)
     f.companySettings:SetShown(not company)
     f.companyControls[1].caption:SetText("Bag bar: "..(self.db.adeptShowBagBar and "Shown" or "Hidden"))
+    f.companyControls[3].caption:SetText(self:IsUsageRecording() and "Stop recording" or "Record usage")
     for _,b in ipairs(f.companyControls) do
         b:SetEnabled(not self:IsBusy())
         b:SetAlpha(self:IsBusy() and .45 or 1)
@@ -426,6 +432,7 @@ function SD:RefreshAdeptArt(g)
             b:SetScript("OnClick",function()
                 if not InCombatLockdown() then callback() end
             end)
+            SD:RegisterUsageButton(b,title)
             return b
         end
         action(374,244,"At a glance","Open session statistics.",function() SD:OpenSettingsTab("session") end)
@@ -479,8 +486,8 @@ function SD:RefreshAdeptArt(g)
     f.companyAction:SetHeight(64*g.density)
     for i,b in ipairs(f.companyControls) do
         b:ClearAllPoints()
-        b:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",1732,-(34+(i-1)*27)*g.density)
-        b:SetHeight(24*g.density)
+        b:SetPoint("TOPLEFT",f.companySettings,"TOPLEFT",1732,-(34+(i-1)*22)*g.density)
+        b:SetHeight(20*g.density)
     end
     f.journeyAction:ClearAllPoints()
     f.journeyAction:SetPoint("TOPLEFT",f.details,"TOPLEFT",1522,-34*g.density)

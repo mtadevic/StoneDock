@@ -225,3 +225,25 @@ Gulveig 0.12.2 unifies the dark metal/bronze/emerald styling across unit, pet, c
 ## Tofu Bar
 
 Choose **Tofu Bar** in **Theme & layout**. The dark metal surround holds the central action banks with space for damage on the left and healing on the right. Open Details windows 1 and 2, then run `/stonedock tofumeters` outside combat to place them and save their positions in Details. Details is optional and installed separately. Move the item row with **Action bars & fading > Tofu item bar**, then click **Apply**.
+
+
+### Optional usage recording
+
+Use `/stonedock record start` before a run and `/stonedock record stop` afterwards.
+`/stonedock record mark looking for bandages` adds your own context. Export with
+`/stonedock record export`, or use the Record usage / Export usage controls in
+Adept's Company > Settings tab. `/stonedock record export previous` retrieves the
+previous session; starting another recording retains only one previous session.
+`/stonedock record clear` clears both stopped recordings.
+
+The recorder is off by default. It keeps at most 1,000 events per session and
+reports how many older events were dropped. It observes instrumented StoneDock
+controls, selected native/third-party windows opening or closing, group/combat
+context, canvas size, layout and StoneDock error contexts. Window visibility is
+an observation, not proof of a click or intent. It does not record chat, player
+names, typed input, combat-log data or item details. Explicit manual notes are
+included, limited to 140 characters. No polling timer runs; stopped hooks are
+inert and recorder events are unregistered. Recording stops on logout/reload
+and does not restart automatically. SavedVariables normally flush on logout or
+reload, so an unexpected client termination can lose the current recording.
+Export is a copyable summary and tab-separated timeline for troubleshooting.

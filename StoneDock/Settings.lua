@@ -123,11 +123,14 @@ function SD:BuildRivetSettings(key,anchor)
     return self.rivetSettingsPage
 end
 function SD:OpenSettingsTab(key,arg,label)
+    self:RecordUsage("action","Settings page: "..tostring(key))
+
     if self.settingsBuilding then return end
     key=key or self.settingsTab or "master"
     if (key=="items"or key=="positioning")and InCombatLockdown()then SD.Print("Configure items and positioning after combat.")return end
     if key=="positioning"and(self:IsBusy()or not self:IsOurLayoutActive())then SD.Print("Activate StoneDock and close Blizzard Edit Mode before positioning.")return end
     self:CreateSettingsWindow()
+    self:WatchUsageWindows(false)
     self.settingsBuilding=true
     local ok,err=pcall(function()
         if self.settingsPage then self.settingsPage:Hide() end

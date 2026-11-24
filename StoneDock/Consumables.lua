@@ -1,10 +1,12 @@
 local _, SD = ...
 SD.itemCategories={
-    {key="bandage",label="Bandage",short="Bnd"},{key="heal",label="Healing potion / Healthstone",short="Heal"},
-    {key="resource",label="Resource potion / Mana gem",short="Res"},{key="bufffood",label="Buff food for current spec",short="Meal"},
-    {key="buffpotion",label="Buff potion",short="Pot"},{key="alternate",label="Flask / elixir / scroll",short="Buff"},
-    {key="food",label="Health food",short="Food"},{key="drink",label="Mana drink",short="Drink"},
-    {key="utility",label="Utility consumable",short="Util"},
+    {key="bandage",label="Bandages",short="Bnd"},
+    {key="heal",label="Healing Items",short="Heal"},
+    {key="resource",label="Mana / resource Items",short="Mana"},
+    {key="food",label="Food / buff food",short="Food"},
+    {key="drink",label="Drink",short="Drink"},
+    {key="weapon",label="Weapon Enhancements",short="Wpn"},
+    {key="alternate",label="Potions / Flasks / Elixirs / Scrolls",short="Buff"},
 }
 local function safe(value) return not issecretvalue or not issecretvalue(value) end
 local function plain(value) return type(value)=="string" and safe(value) and value:lower():gsub("|c%x%x%x%x%x%x%x%x",""):gsub("|r","") or "" end
@@ -65,6 +67,11 @@ local function isWeaponStone(name)
     return not text:find(":",1,true)
         and (text:match("weight%s*stone$") or text:match("sharpening%s+stone$") or text:match("whet%s*stone$")) ~= nil
 end
+local function isWeaponConsumable(item)
+    return isWeaponStone(item.name)
+        or has(plain(item.name),{"wizard oil","mana oil","weapon oil","instant poison","deadly poison","crippling poison","mind-numbing poison","wound poison","anesthetic poison"})
+        or has(plain(item.description),{"apply to a weapon","applied to a weapon","coats a weapon"})
+end
 local function weaponEnchant(slot)
     if GetWeaponEnchantInfo then
         local main,_,_,_,off = GetWeaponEnchantInfo()
@@ -100,7 +107,7 @@ local function updateWeaponStone(button, mouseButton)
 end
 
 function SD:BindUtilityItem(button,item)
-    button.weaponStone=item and not item.toy and not item.slot and isWeaponStone(item.name) and item.id or nil
+    button.weaponStone=item and not item.toy and not item.slot and isWeaponConsumable(item) and item.id or nil
     if button.weaponStone and not button.weaponStoneClickInstalled then
         button:HookScript("PreClick",updateWeaponStone)
         button.weaponStoneClickInstalled=true
@@ -184,6 +191,7 @@ function SD:ClassifyConsumable(item,stat,resource,context)
     if isWeaponStone(item.name) then
         local damage = number(t:match("damage by ([%d,.]+)") or t:match("([%d,.]+) weapon damage"))
         categories.utility = recoveryScore(damage, (item.level or 0)*100+(item.quality or 0))
+        categories.weapon=categories.utility
         return categories
     end
     resource=resource or "mana"
@@ -248,6 +256,7 @@ function SD:ClassifyConsumable(item,stat,resource,context)
     if not next(categories) and item.hasUse and (eligible or not statBuff) then
         categories.utility=base-1000000
     end
+    if isWeaponConsumable(item) then categories.weapon=base end
     return categories,not not (categories.bufffood and not eligible)
 end
 
@@ -291,6 +300,8 @@ function SD:ScanConsumables()
     local all,seen={},{}
     local lists={}
     for _,category in ipairs(self.itemCategories) do lists[category.key]={} end
+    -- Keep legacy pools and saved rules available; the bar groups them into ten slots.
+    for _,key in ipairs({"bufffood","buffpotion","utility"}) do lists[key]={} end
     local playerLevel=UnitLevel and UnitLevel("player") or 999
     local maxBag=NUM_TOTAL_EQUIPPED_BAG_SLOTS or 5
     for bag=0,maxBag do
@@ -314,7 +325,7 @@ function SD:ScanConsumables()
                     local usable=true
                     -- A stone needs a weapon target. A negative standalone
                     -- usability result must not remove the targeting button.
-                    if C_Item.IsUsableItem and not weaponStone and subclass~=5 then usable=C_Item.IsUsableItem(id) end
+                    if C_Item.IsUsableItem and not isWeaponConsumable(item) and subclass~=5 then usable=C_Item.IsUsableItem(id) end
                     local desc=plain(item.description)
                     if not inPvp and (desc:find("only usable in battlegrounds",1,true) or desc:find("only be used in battlegrounds",1,true)
                         or desc:find("only usable in rated",1,true)) then usable=false end
@@ -341,13 +352,20 @@ end
 function SD:GetChosenItem(key)
     local overrides=self.db.itemOverrides[self.itemSpec or "0"] or {}
     local wanted=overrides[key]
+    if not wanted and key=="food" then wanted=overrides.bufffood end
+    if not wanted and key=="alternate" then wanted=overrides.buffpotion end
+    if not wanted and key=="weapon" and overrides.utility then
+        for _,item in ipairs(self.allConsumables or {}) do
+            if item.id==overrides.utility and isWeaponConsumable(item) then wanted=item.id break end
+        end
+    end
     if wanted then
         for _,item in ipairs(self.allConsumables or {}) do if item.id==wanted and self:GetItemRule(key,item.id)~=false then return item,true end end
         return nil,true -- A pinned item never silently becomes another item.
     end
     local list=self:GetUtilityChoices(key)
     for _,item in ipairs(list) do
-        if key~="bufffood" or not item.offSpecFood then return item,false end
+        if (key~="bufffood" and key~="food") or not item.offSpecFood then return item,false end
     end
     return nil,false
 end
@@ -361,6 +379,10 @@ function SD:CreateUtilityButtons()
     -- by an unprotected artwork parent during combat or Edit Mode.
     self.utilityRoot=CreateFrame("Frame","StoneDockUtilityRoot",UIParent)
     self.utilityRoot:SetFrameStrata("MEDIUM")
+    self.utilityRoot.backdrop=self.utilityRoot:CreateTexture(nil,"BACKGROUND")
+    self.utilityRoot.backdrop:SetPoint("TOPLEFT",self.utilityRoot,"TOPLEFT",-3,3)
+    self.utilityRoot.backdrop:SetPoint("BOTTOMRIGHT",self.utilityRoot,"BOTTOMRIGHT",3,-3)
+    self.utilityRoot.backdrop:SetColorTexture(0,0,0,.5)
     self.utilityButtons={}
     for i=1,2+#self.itemCategories do
         local b=CreateFrame("Button","StoneDockUtility"..i,self.utilityRoot,"SecureActionButtonTemplate")
@@ -368,7 +390,7 @@ function SD:CreateUtilityButtons()
         b:SetAttribute("type1","item")
         b.icon=b:CreateTexture(nil,"ARTWORK") b.icon:SetAllPoints()
         b.icon:SetTexCoord(.06,.94,.06,.94)
-        b.border=b:CreateTexture(nil,"BACKGROUND") b.border:SetPoint("TOPLEFT",-1,1) b.border:SetPoint("BOTTOMRIGHT",1,-1) b.border:SetColorTexture(.4,.45,.5,1)
+        b.border=b:CreateTexture(nil,"BACKGROUND") b.border:SetPoint("TOPLEFT",-1,1) b.border:SetPoint("BOTTOMRIGHT",1,-1) b.border:SetColorTexture(0,0,0,0)
         b.count=font(b,9) b.count:SetPoint("BOTTOMRIGHT",1,-1)
         b.empty=font(b,7) b.empty:SetPoint("CENTER")
         b.cooldown=CreateFrame("Cooldown",nil,b,"CooldownFrameTemplate") b.cooldown:SetAllPoints()
@@ -392,6 +414,7 @@ function SD:CreateUtilityButtons()
         b:HookScript("OnClick",function(self,button,down)
             if button=="RightButton" and not down then SD:Run("Choose consumable",function() SD:ShowUtilityFlyout(self,self.category and self.category.key or "trinkets") end) end
         end)
+        self:RegisterUsageButton(b,b.inventorySlot and ("Trinket slot "..b.inventorySlot) or ("Item category: "..b.category.key))
         self.utilityButtons[i]=b
     end
     if self.CreateHearthButton then self:CreateHearthButton() end
@@ -428,7 +451,8 @@ function SD:RefreshUtilityButtons(scan)
         elseif b.inventorySlot then
             b.itemID=GetInventoryItemID and GetInventoryItemID("player",b.inventorySlot)
             if b.itemID and self:GetItemRule("trinkets",b.itemID)==false then b.itemID=nil end
-            b:SetAttribute("item1",tostring(b.inventorySlot))
+            b:SetAttribute("type1",b.itemID and "item" or nil)
+            b:SetAttribute("item1",b.itemID and tostring(b.inventorySlot) or nil)
             b.icon:SetTexture(GetInventoryItemTexture and GetInventoryItemTexture("player",b.inventorySlot) or 134400)
             b.empty:SetText(b.itemID and "" or (i==1 and "T1" or "T2"))
         else
@@ -443,35 +467,25 @@ function SD:RefreshUtilityButtons(scan)
         if b.itemID~=previousItemID then b.cooldown:SetCooldown(0,0) end
     end
     -- Secure controls only change visibility and position outside combat.
-    -- Keep both ends fixed to the bag drawer regardless of available categories.
-    self.utilityRoot:SetScale(g.variant=="adept" and g.scale or 1)
+    -- Ten permanent positions: reserve both trinket slots even when unequipped.
+    self.utilityRoot:SetScale(g.scale)
     local size,spacing=g.utilityIconSize or 24*.85,g.utilityIconSize and 2 or 4
     local width=g.itemWell and g.itemWell.w or g.bagDrawer.w-12
-    local trinkets,items={},{}
-    for _,b in ipairs(self.utilityButtons) do
-        local available=b.hearth and b.hasAvailable or (not b.hearth and b.itemID~=nil)
-        b:SetShown(not not available)
+    local slots,availableCount=10,0
+    size=math.min(size,math.max(1,(width-(slots-1)*spacing)/slots))
+    for i,b in ipairs(self.utilityButtons) do
+        b:SetShown(i<=slots)
         b:SetSize(size,size)
-        if available then
-            local group=b.inventorySlot and trinkets or items
-            group[#group+1]=b
+        b:ClearAllPoints()
+        local x=i<=2 and (i-1)*(size+spacing) or width-size-(slots-i)*(size+spacing)
+        b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",x,0)
+        local available=b.itemID~=nil
+        if available then availableCount=availableCount+1 end
+        b.icon:SetAlpha(available and 1 or 0)
+        if not available then
+            if b.empty then b.empty:SetText(b.inventorySlot and (i==1 and "T1" or "T2") or (b.category and b.category.short or "Home")) end
+            b.count:SetText("")
         end
-    end
-    if g.itemWell then
-        local count=#trinkets+#items
-        if count>0 then
-            size=math.min(size,(width-math.max(0,count-1)*spacing)/count)
-            for _,group in ipairs({trinkets,items}) do
-                for _,b in ipairs(group) do b:SetSize(size,size) end
-            end
-        end
-    end
-    for i,b in ipairs(trinkets) do
-        b:ClearAllPoints() b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",(i-1)*(size+spacing),0)
-    end
-    -- Preserve category order; new available items extend the row toward the left.
-    for i,b in ipairs(items) do
-        b:ClearAllPoints() b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",width-size-(#items-i)*(size+spacing),0)
     end
     self.utilityRoot:ClearAllPoints()
     if g.itemWell then
@@ -484,7 +498,7 @@ function SD:RefreshUtilityButtons(scan)
         self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.bagDrawer.x+6,g.utilityY)
     end
     self.utilityRoot:SetSize(width,size)
-    local shown=self.utilityRoot:IsShown() and (#trinkets+#items)>0
+    local shown=self.utilityRoot:IsShown() and availableCount>0
     if not shown and self.utilityTicker then self.utilityTicker:Cancel()self.utilityTicker=nil end
     if shown and not self.utilityTicker then self.utilityTicker=C_Timer.NewTicker(.5,function()SD:UpdateUtilityCooldowns()end)end
     self:UpdateUtilityCooldowns()

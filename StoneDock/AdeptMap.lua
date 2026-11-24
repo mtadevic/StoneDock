@@ -183,6 +183,7 @@ local function refreshMinimap(self)
             GameTooltip:Show()
         end)
         toggle:SetScript("OnLeave",function() GameTooltip:Hide() end)
+        self:RegisterUsageButton(toggle,"Addon drawer")
     end
     self.adeptMapButtons=self.adeptMapButtons or {}
     if not self.adeptMapSaved then

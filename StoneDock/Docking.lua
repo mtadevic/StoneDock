@@ -118,6 +118,12 @@ function SD:FitNativeControlSizes()
             if bar then fit(bar,bar.actionButtons or {bar},width*g.scale,height*g.scale) end
         end
         if self.db.arrangeUtility then
+            if g.variant=="adept" then
+                for _,spec in ipairs({{StanceBar,g.auxLeft},{PetActionBar,g.auxRight},{PossessActionBar,g.auxRight}}) do
+                    local frame,well=spec[1],spec[2]
+                    if frame and well then fit(frame,frame.actionButtons or {frame},(well.w-12)*g.scale,well.h*g.scale) end
+                end
+            end
             fit(MicroMenu,{MicroMenu},(g.menuDrawer.w-16)*g.scale,(g.menuDrawer.h-4)*g.scale)
             fit(BagsBar,bagButtons(),(g.bagDrawer.w-16)*g.scale,(g.bagDrawer.h-4)*g.scale)
         end
@@ -227,15 +233,18 @@ function SD:PrecisionAlign(bagsOnly)
                 (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + ((g.variant=="tofu" or g.variant=="adept") and 0 or 24)*g.density) * g.scale)
         end
         if self.db.arrangeUtility and g.variant~="gulveig" then
-            correct(Enum.EditModeSystem.MicroMenu, nil, { MicroMenu },
-                (g.menuDrawer.x + g.menuDrawer.w / 2) * g.scale,
-                (g.menuDrawer.y + g.menuDrawer.h / 2 + 2) * g.scale)
+            local _,_,_,height=union({MicroMenu})
+            local y=g.variant=="adept" and (3*(MicroMenu and MicroMenu:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2)
+                or (g.menuDrawer.y+g.menuDrawer.h/2+2)*g.scale
+            correct(Enum.EditModeSystem.MicroMenu,nil,{MicroMenu},(g.menuDrawer.x+g.menuDrawer.w/2)*g.scale,y)
         end
     end
     if self.db.arrangeUtility and g.variant~="gulveig" then
-        correct(Enum.EditModeSystem.Bags, nil, bagButtons(),
-            (g.bagDrawer.x + g.bagDrawer.w / 2) * g.scale,
-            (g.bagDrawer.y + g.bagDrawer.h / 2 + 1) * g.scale)
+        local buttons=bagButtons()
+        local _,_,_,height=union(buttons)
+        local y=g.variant=="adept" and (3*(BagsBar and BagsBar:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2)
+            or (g.bagDrawer.y+g.bagDrawer.h/2+1)*g.scale
+        correct(Enum.EditModeSystem.Bags,nil,buttons,(g.bagDrawer.x+g.bagDrawer.w/2)*g.scale,y)
     end
     if changed then
         self:SaveAndRefreshLayout(full, index)
@@ -318,6 +327,13 @@ end
 
 function SD:CreateDocking()
     if not hooksecurefunc then return end
+    self.auxiliaryShowHooks=self.auxiliaryShowHooks or {}
+    for _,frame in pairs({StanceBar,PetActionBar,PossessActionBar}) do
+        if not self.auxiliaryShowHooks[frame] then
+            frame:HookScript("OnShow",function() if SD.db then SD:SchedulePrecisionAlignment() end end)
+            self.auxiliaryShowHooks[frame]=true
+        end
+    end
     if not self.trackingFitHooked and StatusTrackingBarManager then
         self.trackingFitHooked=true
         for _,method in ipairs({"CheckForLayoutChange","UpdateBarVisuals"}) do
@@ -410,3 +426,6 @@ SD:On("UI_SCALE_CHANGED",queueResizeAlignment)
 SD:On("PLAYER_REGEN_ENABLED",function()
     if SD.nativeFitAfterCombat then SD:FitNativeControlSizes() SD:SchedulePrecisionAlignment() end
 end)
+
+SD:On("UNIT_PET",function(unit) if unit=="player" and SD.db then SD:SchedulePrecisionAlignment() end end)
+SD:On("PET_BAR_UPDATE",function() if SD.db then SD:SchedulePrecisionAlignment() end end)

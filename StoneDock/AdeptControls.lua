@@ -48,10 +48,34 @@ local function suppress(frame,depth)
     end
 end
 
-local function glyphKind(name,bag)
-    if bag then return "bag" end
-    if name and name:lower():find("expand",1,true) then return "toggle" end
-    name=(name or ""):lower()
+function SD:GetAdeptBagGlyph(button)
+    local name=(button.GetName and button:GetName() or ""):lower()
+    if name:find("quiver",1,true) or name:find("ammo",1,true) then return "quiver" end
+    if name:find("key",1,true) or button.isKeyRing then return "keyring" end
+    if name:find("reagent",1,true) or button.isReagentBag then return "reagent" end
+    local id=button.GetID and button:GetID()
+    if type(id)=="number" and (not issecretvalue or not issecretvalue(id)) then
+        if id==-2 then return "keyring" end
+        if id==5 then return "reagent" end
+    end
+    local slot=button.GetInventorySlot and button:GetInventorySlot()
+    local index=name:match("characterbag(%d+)slot")
+    if not slot and index then slot=20+tonumber(index) end
+    local info=(C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if slot and GetInventoryItemID and info then
+        local item=GetInventoryItemID("player",slot)
+        if item then
+            local _,_,_,_,_,class=info(item)
+            if type(class)=="number" and (not issecretvalue or not issecretvalue(class)) and class==11 then return "quiver" end
+        end
+    end
+    return name:find("backpack",1,true) and "backpack" or "bag"
+end
+
+local function glyphKind(button,bag)
+    if bag then return SD:GetAdeptBagGlyph(button) end
+    local name=(button.GetName and button:GetName() or ""):lower()
+    if name:find("expand",1,true) then return "toggle" end
     for _,spec in ipairs({{"character","person"},{"spell","book"},{"skill","tools"},{"talent","tree"},
         {"achievement","medal"},{"quest","quest"},{"social","people"},{"guild","shield"},
         {"lfd","search"},{"lfg","search"},{"group","search"},{"pvp","tools"},
@@ -71,7 +95,7 @@ local function createSkin(button,kind)
     end
     art.fill=texture("BACKGROUND")
     art.fill:SetTexture(media,"REPEAT","REPEAT") art.fill:SetAllPoints()
-    art.fill:SetVertexColor(.25,.26,.27,1)
+    art.fill:SetVertexColor(.48,.49,.5,1)
     art.hover=texture("ARTWORK") art.hover:SetAllPoints()
     art.hover:SetColorTexture(.82,.71,.46,.12) art.hover:Hide()
     for _,edge in ipairs({{"TOPLEFT","TOPRIGHT",true},{"BOTTOMLEFT","BOTTOMRIGHT",true},
@@ -80,54 +104,20 @@ local function createSkin(button,kind)
         t:SetPoint(edge[1],button,edge[1],0,0) t:SetPoint(edge[2],button,edge[2],0,0)
         if edge[3] then t:SetHeight(1) else t:SetWidth(1) end
     end
-    local function path(points)
-        for i=2,#points do
-            local a,b=points[i-1],points[i]
-            local dx,dy=b[1]-a[1],b[2]-a[2]
-            local t=texture()
-            t:SetColorTexture(.84,.76,.57,1)
-            t:SetSize(math.sqrt(dx*dx+dy*dy),1.25)
-            t:SetPoint("CENTER",button,"CENTER",(a[1]+b[1])/2-12,(a[2]+b[2])/2-12)
-            t:SetRotation(math.atan2(dy,dx))
-            art.glyphs[#art.glyphs+1]=t
-        end
+    local icon=texture()
+    icon:SetTexture("Interface\\AddOns\\StoneDock\\Media\\AdeptControlGlyphs")
+    icon:SetSize(24,24)
+    icon:SetPoint("CENTER",button,"CENTER",0,0)
+    icon:SetVertexColor(.84,.76,.57,1)
+    art.glyphs[1]=icon
+    art.setKind=function(value)
+        local index=1
+        for i,name in ipairs({"person", "book", "tools", "tree", "medal", "quest", "shield", "people", "search", "bag", "gem", "help", "menu", "map", "toggle", "backpack", "quiver", "keyring", "reagent"}) do if name==value then index=i break end end
+        local col,row=(index-1)%8,math.floor((index-1)/8)
+        icon:SetTexCoord(col/8,(col+1)/8,row/4,(row+1)/4)
+        art.kind=value
     end
-    local function head(x,y)
-        path({{x-2,y-2},{x-3,y},{x-2,y+2},{x,y+3},{x+2,y+2},{x+3,y},{x+2,y-2},{x,y-3},{x-2,y-2}})
-    end
-    if kind=="toggle" then
-        path({{6,9},{12,15},{18,9}})
-    elseif kind=="bag" then
-        path({{5,5},{4,15},{6,18},{18,18},{20,15},{19,5},{5,5}})
-        path({{8,18},{8,21},{16,21},{16,18}}) path({{5,14},{19,14}}) path({{12,13},{12,10}})
-    elseif kind=="person" then
-        head(12,17) path({{4,5},{5,9},{9,12},{15,12},{19,9},{20,5},{4,5}})
-    elseif kind=="book" then
-        path({{12,4},{9,6},{3,6},{3,20},{9,20},{12,18},{15,20},{21,20},{21,6},{15,6},{12,4},{12,18}})
-    elseif kind=="tools" then
-        path({{5,4},{18,19},{16,21},{20,17}}) path({{19,4},{6,19},{4,17},{8,21}})
-    elseif kind=="tree" then
-        path({{12,4},{12,20}}) path({{5,14},{5,10},{19,10},{19,14}})
-        for _,x in ipairs({5,12,19}) do path({{x-2,15},{x-2,19},{x+2,19},{x+2,15},{x-2,15}}) end
-    elseif kind=="medal" or kind=="gem" then
-        path({{12,21},{20,14},{17,6},{7,6},{4,14},{12,21},{12,6}})
-        if kind=="medal" then path({{7,6},{6,2},{12,5},{18,2},{17,6}}) end
-    elseif kind=="quest" then
-        path({{5,3},{19,3},{19,21},{5,21},{5,3}}) path({{12,17},{12,10}}) path({{12,7},{12,6}})
-    elseif kind=="shield" then
-        path({{4,20},{12,22},{20,20},{19,10},{16,6},{12,3},{8,6},{5,10},{4,20}}) path({{12,18},{12,7}})
-    elseif kind=="people" or kind=="search" then
-        head(9,17) path({{2,5},{3,9},{6,11},{12,11},{15,9},{16,5}})
-        if kind=="people" then head(18,16) path({{17,10},{21,8},{22,5}})
-        else path({{16,7},{16,12},{20,14},{23,11},{22,7},{18,6},{16,7}}) path({{22,7},{24,4}}) end
-    elseif kind=="help" then
-        path({{6,17},{8,20},{16,20},{19,17},{18,14},{12,11},{12,8}}) path({{12,5},{12,4}})
-    elseif kind=="map" then
-        path({{3,4},{3,19},{9,21},{15,18},{21,20},{21,5},{15,3},{9,6},{3,4}})
-        path({{9,6},{9,21}}) path({{15,3},{15,18}})
-    else
-        for _,y in ipairs({6,12,18}) do path({{5,y},{19,y}}) end
-    end
+    art.setKind(kind)
     art.update=function()
         local on=enabled and art.active
         local usable=not button.IsEnabled or button:IsEnabled()
@@ -166,7 +156,7 @@ function SD:RefreshAdeptControlArt()
             surround:SetPoint("TOPLEFT",parent,"TOPLEFT",-3,3)
             surround:SetPoint("BOTTOMRIGHT",parent,"BOTTOMRIGHT",3,-3)
             surround:SetBackdrop({bgFile=media,edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1,tile=true,tileSize=64})
-            surround:SetBackdropColor(.22,.23,.24,1)
+            surround:SetBackdropColor(.4,.41,.42,1)
             surround:SetBackdropBorderColor(.55,.49,.35,.8)
             surrounds[parent]=surround
         end
@@ -177,7 +167,9 @@ function SD:RefreshAdeptControlArt()
         if not button or wanted[button] or not button.CreateTexture or not button.HookScript then return end
         wanted[button]=true
         local art=skins[button]
-        if not art then art=createSkin(button,glyphKind(button.GetName and button:GetName(),bag)) skins[button]=art end
+        local kind=glyphKind(button,bag)
+        if not art then art=createSkin(button,kind) skins[button]=art
+        elseif art.kind~=kind then art.setKind(kind) end
         art.active=true
         suppress(button,0)
         art.update()

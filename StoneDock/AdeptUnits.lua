@@ -168,6 +168,10 @@ local function create(frame,unit,compact)
     card.power:SetSize(compact and 100 or 164,2)
     card.power:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     card.power:SetStatusBarColor(.43,.58,.77,1)
+    if unit=="pet" then
+        card.happiness=text(card,8)
+        card.happiness:SetPoint("BOTTOMLEFT",8,2)
+    end
     return card
 end
 
@@ -177,6 +181,12 @@ function SD:UpdateAdeptUnitCards(event,changed)
     for _,card in pairs(cards) do
         local unit=card.unit
         if not changed or changed==unit or event=="UNIT_TARGET" then
+            if card.happiness then
+                local happiness=GetPetHappiness and GetPetHappiness()
+                local readable=type(happiness)=="number" and (not issecretvalue or not issecretvalue(happiness))
+                card.happiness:SetText(readable and ({"Unhappy","Content","Happy"})[happiness] or "")
+                if readable then card.happiness:SetTextColor(happiness==1 and .9 or .7,happiness==1 and .4 or .8,.5) end
+            end
             -- Native UI renderers accept opaque values directly.
             card.health:SetMinMaxValues(0,UnitHealthMax(unit))
             card.health:SetValue(UnitHealth(unit))
@@ -239,7 +249,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
         return
     end
     local entries={
-        {PlayerFrame,"player"},{TargetFrame,"target"},{FocusFrame,"focus",true},
+        {PlayerFrame,"player"},{TargetFrame,"target"},{FocusFrame,"focus",true},{PetFrame,"pet",true},
         {TargetFrameToT or (TargetFrame and (TargetFrame.totFrame or TargetFrame.ToT)),"targettarget",true},
     }
     local roots={}
@@ -353,6 +363,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
         "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
+    if GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
     self:UpdateAdeptUnitCards()
     self:RefreshAdeptAuraClearance()
 end
@@ -390,3 +401,5 @@ SD:On("PLAYER_UPDATE_RESTING",function() SD:QueueAdeptUnitFrameRefresh() end)
 SD:On("UNIT_AURA",function(unit)
     if (not issecretvalue or not issecretvalue(unit)) and (unit=="player" or unit=="target" or unit=="focus") then SD:QueueAdeptUnitFrameRefresh() end
 end)
+
+SD:On("UNIT_PET",function(unit) if unit=="player" then SD:QueueAdeptUnitFrameRefresh() end end)
