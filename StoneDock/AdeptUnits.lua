@@ -204,7 +204,8 @@ function SD:UpdateAdeptUnitCards(event,changed)
             card.pvp:SetShown(icon~=nil)
             card.pvp:SetTexture(icon and ("Interface\\TargetingFrame\\UI-PVP-"..icon) or nil)
             if card.happiness then
-                local happiness=GetPetHappiness and GetPetHappiness()
+                local getHappiness=C_PetInfo and C_PetInfo.GetPetHappiness or GetPetHappiness
+                local happiness=getHappiness and getHappiness()
                 local readable=type(happiness)=="number" and (not issecretvalue or not issecretvalue(happiness))
                 local valid=readable and (happiness==1 or happiness==2 or happiness==3)
                 card.happiness:SetText(valid and ({"Unhappy","Content","Happy"})[happiness] or "")
@@ -393,7 +394,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
         "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
-    if GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
+    if (C_PetInfo and C_PetInfo.GetPetHappiness) or GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
     self:UpdateAdeptUnitCards()
     self:RefreshAdeptAuraClearance()
 end
