@@ -2,7 +2,7 @@
 ## Title: StoneDock
 ## Notes: A dark stone dashboard around Blizzard's default interface.
 ## Author: Custom UI project
-## Version: 0.13.35
+## Version: 0.13.36
 ## SavedVariables: StoneDockDB
 ## SavedVariablesPerCharacter: StoneDockCharDB
 ## OptionalDeps: Blizzard_EditMode, Blizzard_Minimap, Blizzard_ActionBar, Blizzard_UnitFrame
@@ -14,6 +14,7 @@ Variants.lua
 Tofu.lua
 Adept.lua
 AdeptUnits.lua
+AdeptEnemies.lua
 AdeptMap.lua
 AdeptControls.lua
 OrnamentalFrames.lua

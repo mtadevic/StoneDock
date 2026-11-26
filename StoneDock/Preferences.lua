@@ -43,6 +43,11 @@ local schemas = {
     units = {title="Player, party & raid",description="Keep group frames readable and seated above your action bars.",sections={
         section("Display",{check("stoneUnits","Show stone trim"),check("groupClassColors","Use class colors"),
             check("splitRaid","Split raid groups around the map"),check("attachPlayerAuras","Attach buffs and debuffs to the player frame")}),
+        section("Adept engaged enemies",{
+            check("adeptEnemyList","Show engaged-enemies panel (Adept)","Display only; tracks available nameplates, target, focus and bosses while you are in combat. No clickable targeting or sounds."),
+            range("adeptEnemyOffsetX","Enemy panel horizontal offset",-1200,250,5),
+            range("adeptEnemyOffsetY","Enemy panel vertical offset",0,400,5),
+        }),
         section("Frame sizing",{range("unitSize","Player / target / focus size (%)",100,200,5),
             range("groupRowWidth","Group row width (%)",70,100,1),range("groupHeight","Preferred row height",24,72,2),
             range("groupOffsetX","Group horizontal offset",-350,700,5),range("groupOffsetY","Group vertical offset",-100,500,5)}),

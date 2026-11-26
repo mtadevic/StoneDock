@@ -296,6 +296,7 @@ function SD:RefreshVariantArt(g)
     self:RefreshTofuArt(g)
 
     self:RefreshAdeptArt(g)
+    self:RefreshAdeptEnemies(g)
     self:RefreshGulveigTrackingArt(gulveig and self.db.enabled and self:IsOurLayoutActive())
     if not gulveig and not self.gulveigBacking then return end
     if not self.gulveigBacking then

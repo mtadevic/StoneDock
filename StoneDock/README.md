@@ -247,3 +247,21 @@ inert and recorder events are unregistered. Recording stops on logout/reload
 and does not restart automatically. SavedVariables normally flush on logout or
 reload, so an unexpected client termination can lose the current recording.
 Export is a copyable summary and tab-separated timeline for troubleshooting.
+
+
+### Adept engaged enemies
+
+Adept shows a non-clickable enemy panel above the Journey section while you are
+in combat. Up to six rows show health and your threat state: ON YOU, RISING,
+THREAT, or GROUP (engaged with another group member). Your current target is
+kept first with a gold border; the header counts additional hidden enemies.
+The panel disappears when empty or combat ends and has no sound alerts.
+
+Enable enemy nameplates (V) for off-target tracking. This is a best-effort list
+of available nameplates, target, focus and bosses, not a guaranteed encounter
+roster. Enemies leaving those references disappear; restricted identity or
+engagement data may prevent a row from appearing. Health is rendered through
+native status bars. No nameplate settings or secure targeting are changed.
+
+Under config > Player, party & raid > Adept engaged enemies, toggle the panel
+or adjust its horizontal/vertical offset. It follows Adept scale and density.
