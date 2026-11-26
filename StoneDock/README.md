@@ -275,3 +275,8 @@ last scan and peak count for troubleshooting. Entering combat exits the preview.
 Drag the enemy-panel header outside combat to save its position. Use the test
 preview to move it while no enemies are present. Enemy rows stay non-clickable;
 only the header captures the mouse, and dragging stops when combat begins.
+
+The enemy panel uses a 50% black backdrop and role-dependent threat orbs. Tanks
+see green for secure aggro, yellow for insecure aggro and red when aggro is lost.
+Healers/damage see green for low threat, yellow for rising threat and red while
+taking aggro. Unknown role/threat stays gray. The blank header remains draggable.

@@ -46,6 +46,29 @@ function SD:GetAdeptEnemyStatus()
         stats.candidates,stats.hostile,stats.restricted,stats.listed)
         .."; peak listed="..peak.."; preview="..tostring(preview).."\nEnemy scan: "..table.concat(samples,"; ")
 end
+local function playerRole()
+    local role=UnitGroupRolesAssigned and UnitGroupRolesAssigned("player")
+    if plain(role) and (role=="TANK" or role=="HEALER" or role=="DAMAGER") then return role end
+    if SD.GetConsumableSpec then
+        local _,_,_,specRole=SD:GetConsumableSpec()
+        if plain(specRole) and (specRole=="TANK" or specRole=="HEALER" or specRole=="DAMAGER") then return specRole end
+    end
+end
+local orbColors={green={.25,.9,.35},yellow={1,.8,.15},red={1,.2,.15},unknown={.5,.5,.5}}
+local function threatColor(role,status,onYou)
+    if not role then return "unknown" end
+    if role=="TANK" then
+        if status==3 then return "green" end
+        if status==2 then return "yellow" end
+        if onYou then return "green" end
+        if status~=nil then return "red" end
+    else
+        if onYou or (status and status>=2) then return "red" end
+        if status==1 then return "yellow" end
+        if status==0 then return "green" end
+    end
+    return "unknown"
+end
 local function label(parent,size)
     local t=parent:CreateFontString(nil,"OVERLAY")
     t:SetFont("Fonts\\ARIALN.TTF",size,"") t:SetJustifyH("LEFT") t:SetWordWrap(false)
@@ -56,7 +79,7 @@ local function create()
     SD.adeptEnemies=panel
     panel:EnableMouse(false) panel:SetFrameStrata("MEDIUM") panel:SetClampedToScreen(true)
     panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-    panel:SetBackdropColor(.08,.082,.085,.94) panel:SetBackdropBorderColor(.4,.36,.27,.8)
+    panel:SetBackdropColor(0,0,0,.5) panel:SetBackdropBorderColor(.4,.36,.27,.8)
     panel.title=label(panel,9) panel.title:SetPoint("TOPLEFT",6,-4)
     panel.title:SetTextColor(.88,.8,.61)
     panel.drag=CreateFrame("Frame",nil,panel)
@@ -78,7 +101,10 @@ local function create()
         row.health:EnableMouse(false) row.health:SetPoint("BOTTOMLEFT",2,2) row.health:SetSize(160,4)
         row.health:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8") row.health:SetStatusBarColor(.66,.6,.45,1)
         local track=row.health:CreateTexture(nil,"BACKGROUND") track:SetAllPoints() track:SetColorTexture(.19,.19,.18,1)
-        row.name=label(row,10) row.name:SetPoint("TOPLEFT",3,-3) row.name:SetWidth(108)
+        row.orb=row:CreateTexture(nil,"OVERLAY")
+        row.orb:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+        row.orb:SetSize(9,9) row.orb:SetPoint("TOPLEFT",3,-4)
+        row.name=label(row,10) row.name:SetPoint("TOPLEFT",15,-3) row.name:SetWidth(96)
         row.name:SetTextColor(.9,.88,.8)
         row.status=label(row,8) row.status:SetPoint("TOPRIGHT",-3,-4) row.status:SetWidth(46) row.status:SetJustifyH("RIGHT")
         panel.rows[i]=row
@@ -111,7 +137,8 @@ function SD:FinishAdeptEnemyDrag()
     self.db.adeptEnemyOffsetX=x*factor/g.scale-1522
     self.db.adeptEnemyOffsetY=y*factor/g.scale-140*g.density
     panel:ClearAllPoints()
-    panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x*factor,y*factor)
+    -- GetLeft/GetBottom and SetPoint offsets both use this frame's scale.
+    panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x,y)
 end
 function SD:EnemyPanelCommand(argument)
     if argument~="test" then SD.Print(self:GetAdeptEnemyStatus()) return end
@@ -120,13 +147,14 @@ function SD:EnemyPanelCommand(argument)
     if not enabled then SD.Print("Enable the enemy panel in Adept's unit settings first.") return end
     preview=not preview
     if preview then
-        panel:SetFrameStrata("MEDIUM") panel:SetHeight(98) panel.title:SetText("ENEMIES - PREVIEW")
+        panel:SetFrameStrata("MEDIUM") panel:SetHeight(98) panel.title:SetText("PREVIEW")
         for i,row in ipairs(panel.rows) do
             row:SetShown(i<=3)
             if i<=3 then
                 row.name:SetText(({"Current target","Attacking you","Group enemy"})[i])
                 row.health:SetMinMaxValues(0,100) row.health:SetValue(100-i*18)
                 row.status:SetText(i==2 and "ON YOU" or "COMBAT") row.status:SetTextColor(.9,.8,.5)
+                row.orb:SetVertexColor(unpack(orbColors[({"green","yellow","red"})[i]]))
                 row:SetBackdropBorderColor(i==1 and 1 or .25,i==1 and .78 or .25,i==1 and .3 or .23,1)
             end
         end
@@ -196,12 +224,15 @@ function SD:UpdateAdeptEnemies()
     local count=#found
     stats.listed=count
     peak=math.max(peak,count)
-    panel.title:SetText("ENEMIES "..count..(count>MAX_ROWS and ("  (+"..(count-MAX_ROWS).." hidden)") or ""))
+    panel.enemyCount=count
+    panel.title:SetText(count>MAX_ROWS and ("+"..(count-MAX_ROWS).." more") or "")
+    local role=playerRole()
     for i,row in ipairs(panel.rows) do
         local enemy=found[i]
         row:SetShown(enemy~=nil)
         if enemy then
             row.unit=enemy.unit
+            row.orb:SetVertexColor(unpack(orbColors[threatColor(role,enemy.status,enemy.onYou)]))
             row.name:SetText(UnitName(enemy.unit))
             row.health:SetMinMaxValues(0,UnitHealthMax(enemy.unit)) row.health:SetValue(UnitHealth(enemy.unit))
             row:SetBackdropBorderColor(enemy.target and 1 or .25,enemy.target and .78 or .25,enemy.target and .3 or .23,1)
@@ -258,7 +289,8 @@ function SD:RefreshAdeptEnemies(g)
     panel.drag:EnableMouse(not InCombatLockdown())
     panel:SetScale(g.scale*g.density)
     panel:SetWidth(172) panel:ClearAllPoints()
-    panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",(1522+(self.db.adeptEnemyOffsetX or 0))*g.scale,
-        (140*g.density+(self.db.adeptEnemyOffsetY or 0))*g.scale)
+    local factor=panel:GetEffectiveScale()/UIParent:GetEffectiveScale()
+    panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",(1522+(self.db.adeptEnemyOffsetX or 0))*g.scale/factor,
+        (140*g.density+(self.db.adeptEnemyOffsetY or 0))*g.scale/factor)
     self:UpdateAdeptEnemies()
 end
