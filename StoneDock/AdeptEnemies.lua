@@ -1,6 +1,16 @@
 local _, SD = ...
 -- Display-only: never creates secure buttons, assigns unit attributes or changes nameplates.
-local MAX_ROWS=6
+local MAX_ROWS=20
+local function rowLimit()
+    local value=SD.db and SD.db.adeptEnemyRows
+    if type(value)~="number" or (issecretvalue and issecretvalue(value)) or value~=value then value=6 end
+    return math.max(1,math.min(MAX_ROWS,math.floor(value)))
+end
+local function backdropOpacity()
+    local value=SD.db and SD.db.adeptEnemyOpacity
+    if type(value)~="number" or (issecretvalue and issecretvalue(value)) or value~=value then value=.5 end
+    return math.max(0,math.min(1,value))
+end
 local plates,order={},{}
 local serial=0
 local enabled=false
@@ -79,7 +89,7 @@ local function create()
     SD.adeptEnemies=panel
     panel:EnableMouse(false) panel:SetFrameStrata("MEDIUM") panel:SetClampedToScreen(true)
     panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-    panel:SetBackdropColor(0,0,0,.5) panel:SetBackdropBorderColor(.4,.36,.27,.8)
+    panel:SetBackdropColor(0,0,0,backdropOpacity()) panel:SetBackdropBorderColor(.4,.36,.27,.8)
     panel.title=label(panel,9) panel.title:SetPoint("TOPLEFT",6,-4)
     panel.title:SetTextColor(.88,.8,.61)
     panel.drag=CreateFrame("Frame",nil,panel)
@@ -146,25 +156,28 @@ function SD:EnemyPanelCommand(argument)
     self:RefreshAdeptEnemies(self:GetGeometry())
     if not enabled then SD.Print("Enable the enemy panel in Adept's unit settings first.") return end
     preview=not preview
-    if preview then
-        panel:SetFrameStrata("MEDIUM") panel:SetHeight(98) panel.title:SetText("PREVIEW")
-        for i,row in ipairs(panel.rows) do
-            row:SetShown(i<=3)
-            if i<=3 then
-                row.name:SetText(({"Current target","Attacking you","Group enemy"})[i])
-                row.health:SetMinMaxValues(0,100) row.health:SetValue(100-i*18)
-                row.status:SetText(i==2 and "ON YOU" or "COMBAT") row.status:SetTextColor(.9,.8,.5)
-                row.orb:SetVertexColor(unpack(orbColors[({"green","yellow","red"})[i]]))
-                row:SetBackdropBorderColor(i==1 and 1 or .25,i==1 and .78 or .25,i==1 and .3 or .23,1)
-            end
+    if preview then self:DrawAdeptEnemyPreview() else panel:Hide() end
+end
+function SD:DrawAdeptEnemyPreview()
+    local count=rowLimit()
+    panel:SetHeight(20+count*26) panel.title:SetText("PREVIEW")
+    for i,row in ipairs(panel.rows) do
+        row:SetShown(i<=count)
+        if i<=count then
+            local sample=(i-1)%3+1
+            row.name:SetText(i==1 and "Current target" or ("Sample enemy "..i))
+            row.health:SetMinMaxValues(0,100) row.health:SetValue(100-sample*18)
+            row.status:SetText(sample==2 and "ON YOU" or "COMBAT") row.status:SetTextColor(.9,.8,.5)
+            row.orb:SetVertexColor(unpack(orbColors[({"green","yellow","red"})[sample]]))
+            row:SetBackdropBorderColor(i==1 and 1 or .25,i==1 and .78 or .25,i==1 and .3 or .23,1)
         end
-        panel:Show()
-    else panel:Hide() end
+    end
+    panel:Show()
 end
 function SD:UpdateAdeptEnemies()
     if not enabled then return end
     if panel then panel.drag:EnableMouse(not InCombatLockdown()) end
-    if preview and not InCombatLockdown() then return end
+    if preview and not InCombatLockdown() then self:DrawAdeptEnemyPreview() return end
     preview=false
     if not InCombatLockdown() then
         if panel then panel:Hide() end
@@ -225,12 +238,13 @@ function SD:UpdateAdeptEnemies()
     stats.listed=count
     peak=math.max(peak,count)
     panel.enemyCount=count
-    panel.title:SetText(count>MAX_ROWS and ("+"..(count-MAX_ROWS).." more") or "")
+    local limit=rowLimit()
+    panel.title:SetText(count>limit and ("+"..(count-limit).." more") or "")
     local role=playerRole()
     for i,row in ipairs(panel.rows) do
         local enemy=found[i]
-        row:SetShown(enemy~=nil)
-        if enemy then
+        row:SetShown(enemy~=nil and i<=limit)
+        if enemy and i<=limit then
             row.unit=enemy.unit
             row.orb:SetVertexColor(unpack(orbColors[threatColor(role,enemy.status,enemy.onYou)]))
             row.name:SetText(UnitName(enemy.unit))
@@ -241,7 +255,7 @@ function SD:UpdateAdeptEnemies()
             row.status:SetTextColor(enemy.onYou and 1 or .8,enemy.onYou and .4 or .8,enemy.onYou and .32 or .7)
         else row.unit=nil end
     end
-    panel:SetHeight(20+math.min(count,MAX_ROWS)*26)
+    panel:SetHeight(20+math.min(count,limit)*26)
     panel:SetShown(count>0)
 end
 local function queue()
@@ -287,6 +301,7 @@ function SD:RefreshAdeptEnemies(g)
     if not panel then create() end
     if panel.dragging then self:FinishAdeptEnemyDrag() end
     panel.drag:EnableMouse(not InCombatLockdown())
+    panel:SetBackdropColor(0,0,0,backdropOpacity())
     panel:SetScale(g.scale*g.density)
     panel:SetWidth(172) panel:ClearAllPoints()
     local factor=panel:GetEffectiveScale()/UIParent:GetEffectiveScale()

@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.40"
+SD.name, SD.version = addonName, "0.13.41"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -32,6 +32,8 @@ SD.defaults = {
     tofuShowBagBar = false,
     adeptShowBagBar = false,
     adeptEnemyList = true,
+    adeptEnemyRows = 6,
+    adeptEnemyOpacity = .5,
     adeptEnemyOffsetX = 0,
     adeptEnemyOffsetY = 0,
     tofuItemOffsetX = 0,

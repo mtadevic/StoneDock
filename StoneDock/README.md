@@ -280,3 +280,8 @@ The enemy panel uses a 50% black backdrop and role-dependent threat orbs. Tanks
 see green for secure aggro, yellow for insecure aggro and red when aggro is lost.
 Healers/damage see green for low threat, yellow for rising threat and red while
 taking aggro. Unknown role/threat stays gray. The blank header remains draggable.
+
+Adept engaged-enemy settings include background opacity (0-100%) and maximum
+visible enemies (1-20). Defaults are 50% and six rows. Additional detected enemies
+remain in the overflow count; the current target stays first. Preview shows the
+configured row count.
