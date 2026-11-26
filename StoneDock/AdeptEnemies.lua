@@ -6,9 +6,34 @@ local serial=0
 local enabled=false
 local ticker,queued
 local panel
+local stats={candidates=0,hostile=0,restricted=0,listed=0}
 local function plain(value) return not issecretvalue or not issecretvalue(value) end
 local function number(value) return type(value)=="number" and plain(value) end
 local function yes(value) return plain(value) and value==true end
+local function same(a,b)
+    if not UnitIsUnit then return false end
+    local ok,value=pcall(UnitIsUnit,a,b)
+    return ok and yes(value)
+end
+local function keyFor(unit)
+    -- Nameplate objects and unit tokens are public handles, not hidden identities.
+    -- Prefer the same plate handle for target/focus aliases when available.
+    if C_NamePlate and C_NamePlate.GetNamePlateForUnit and
+        (unit=="target" or unit=="focus" or unit:match("^nameplate%d+$")) then
+        local ok,plate=pcall(C_NamePlate.GetNamePlateForUnit,unit)
+        if ok and plate and plain(plate) then return plate end
+    end
+    local guid=UnitGUID and UnitGUID(unit)
+    if plain(guid) and type(guid)=="string" then return guid end
+    stats.restricted=stats.restricted+1
+    if unit~="target" and same(unit,"target") then return "target" end
+    return unit
+end
+function SD:GetAdeptEnemyStatus()
+    return string.format("Enemy panel: active=%s combat=%s visible=%s; last scan candidates=%d hostile=%d restricted identities=%d listed=%d",
+        tostring(not not enabled),tostring(not not InCombatLockdown()),tostring(panel and panel:IsShown() or false),
+        stats.candidates,stats.hostile,stats.restricted,stats.listed)
+end
 local function label(parent,size)
     local t=parent:CreateFontString(nil,"OVERLAY")
     t:SetFont("Fonts\\ARIALN.TTF",size,"") t:SetJustifyH("LEFT") t:SetWordWrap(false)
@@ -59,6 +84,7 @@ function SD:UpdateAdeptEnemies()
         if panel then panel:Hide() end
         order={} serial=0 return
     end
+    stats={candidates=0,hostile=0,restricted=0,listed=0}
     local units={"target","focus","boss1","boss2","boss3","boss4","boss5"}
     for unit in pairs(plates) do units[#units+1]=unit end
     local group=groupUnits()
@@ -67,24 +93,29 @@ function SD:UpdateAdeptEnemies()
         local exists=UnitExists and UnitExists(unit)
         local hostile=UnitCanAttack and UnitCanAttack("player",unit)
         local dead=UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit)
+        if yes(exists) then stats.candidates=stats.candidates+1 end
         if yes(exists) and yes(hostile) and not yes(dead) then
-            local guid=UnitGUID and UnitGUID(unit)
-            if type(guid)=="string" and plain(guid) and not seen[guid] then
+            stats.hostile=stats.hostile+1
+            local guid=keyFor(unit)
+            if not seen[guid] then
                 local status=threat("player",unit)
                 local victim=unit.."target"
                 local fighting=UnitAffectingCombat and yes(UnitAffectingCombat(unit))
-                local onYou=(fighting and UnitIsUnit and yes(UnitIsUnit(victim,"player"))) or (status and status>=2)
+                local onYou=(fighting and same(victim,"player")) or (status and status>=2)
                 local engaged=status~=nil or onYou
                 if not engaged then
                     for _,member in ipairs(group) do
-                        if threat(member,unit)~=nil or (fighting and UnitIsUnit and yes(UnitIsUnit(victim,member))) then engaged=true break end
+                        if threat(member,unit)~=nil  then engaged=true break end
                     end
                 end
+                local affiliation=engaged and "GROUP" or "COMBAT"
+                local denied=UnitIsTapDenied and UnitIsTapDenied(unit)
+                if not engaged and fighting and plain(denied) and not denied then engaged=true end
                 if engaged then
                     seen[guid]=true
                     if not order[guid] then serial=serial+1 order[guid]=serial end
-                    found[#found+1]={unit=unit,guid=guid,order=order[guid],status=status,onYou=onYou,
-                        target=UnitIsUnit and yes(UnitIsUnit(unit,"target"))}
+                    found[#found+1]={unit=unit,guid=guid,order=order[guid],status=status,onYou=onYou,affiliation=affiliation,
+                        target=same(unit,"target")}
                 end
             end
         end
@@ -97,6 +128,7 @@ function SD:UpdateAdeptEnemies()
     end)
     if not panel then create() end
     local count=#found
+    stats.listed=count
     panel.title:SetText("ENEMIES "..count..(count>MAX_ROWS and ("  (+"..(count-MAX_ROWS).." hidden)") or ""))
     for i,row in ipairs(panel.rows) do
         local enemy=found[i]
@@ -106,7 +138,7 @@ function SD:UpdateAdeptEnemies()
             row.name:SetText(UnitName(enemy.unit))
             row.health:SetMinMaxValues(0,UnitHealthMax(enemy.unit)) row.health:SetValue(UnitHealth(enemy.unit))
             row:SetBackdropBorderColor(enemy.target and 1 or .25,enemy.target and .78 or .25,enemy.target and .3 or .23,1)
-            local status=enemy.onYou and "ON YOU" or (enemy.status==1 and "RISING" or (enemy.status~=nil and "THREAT" or "GROUP"))
+            local status=enemy.onYou and "ON YOU" or (enemy.status==1 and "RISING" or (enemy.status~=nil and "THREAT" or enemy.affiliation))
             row.status:SetText(status)
             row.status:SetTextColor(enemy.onYou and 1 or .8,enemy.onYou and .4 or .8,enemy.onYou and .32 or .7)
         else row.unit=nil end

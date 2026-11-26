@@ -7,6 +7,7 @@ function SD:BuildReport()
     if GetPhysicalScreenSize then physicalW, physicalH = GetPhysicalScreenSize() end
     local lines = {
         "StoneDock " .. self.version .. " diagnostic report",
+        self.GetAdeptEnemyStatus and self:GetAdeptEnemyStatus() or "Enemy panel unavailable",
         "Client: " .. tostring(version) .. " / " .. tostring(build) .. " / interface " .. tostring(interface),
         "Physical display: " .. tostring(physicalW) .. " x " .. tostring(physicalH),
         string.format("UI canvas: %.1f x %.1f; scale %.4f; design scale %.4f", UIParent:GetWidth(), UIParent:GetHeight(), UIParent:GetEffectiveScale(), g.scale),

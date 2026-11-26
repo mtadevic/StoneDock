@@ -259,8 +259,10 @@ The panel disappears when empty or combat ends and has no sound alerts.
 
 Enable enemy nameplates (V) for off-target tracking. This is a best-effort list
 of available nameplates, target, focus and bosses, not a guaranteed encounter
-roster. Enemies leaving those references disappear; restricted identity or
-engagement data may prevent a row from appearing. Health is rendered through
+roster. Enemies leaving those references disappear; when group affiliation is unavailable, nearby fighting enemies not tagged by
+others can appear as COMBAT rather than a confirmed group engagement.
+Restricted threat is not interpreted as zero threat. Public nameplate handles
+or unit tokens allow display without reading restricted GUIDs. Health is rendered through
 native status bars. No nameplate settings or secure targeting are changed.
 
 Under config > Player, party & raid > Adept engaged enemies, toggle the panel
