@@ -8,6 +8,7 @@ function SD:BuildReport()
     local lines = {
         "StoneDock " .. self.version .. " diagnostic report",
         self.GetAdeptEnemyStatus and self:GetAdeptEnemyStatus() or "Enemy panel unavailable",
+        "Character export stage: "..tostring(self.characterExportStage or "not run this session"),
         "Client: " .. tostring(version) .. " / " .. tostring(build) .. " / interface " .. tostring(interface),
         "Physical display: " .. tostring(physicalW) .. " x " .. tostring(physicalH),
         string.format("UI canvas: %.1f x %.1f; scale %.4f; design scale %.4f", UIParent:GetWidth(), UIParent:GetHeight(), UIParent:GetEffectiveScale(), g.scale),
@@ -99,7 +100,7 @@ function SD:Command(message)
     local command, arg = (message or ""):match("^%s*(%S*)%s*(.-)%s*$")
     command = string.lower(command or "")
     if command == "" or command == "options" then self:ToggleOptions()
-    elseif command=="exportcharacter" or command=="characterexport" then self:ExportCharacterInformation()
+    elseif command=="exportcharacter" or command=="characterexport" then self:ExportCharacterInformation(arg)
     elseif command=="enemies" then self:EnemyPanelCommand(arg)
     elseif command=="record" then self:UsageCommand(arg)
     elseif command=="modules"then self:OpenSettingsTab("master")

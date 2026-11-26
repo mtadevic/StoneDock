@@ -319,3 +319,10 @@ Bank/mail/AH visit observations get timestamps and elapsed seconds, but those
 are not verified TSM scan timestamps. TSM cache ages remain unknown where its
 cache provides none. Compare raw-material value with crafting/disenchanting
 returns, fees and sale likelihood before consuming materials.
+
+
+If a character export triggers a client block, `/stonedock exportcharacter basic`
+exports live character/bag/equipment information without querying TSM or recipe
+data. The copy window does not automatically take keyboard focus; click its text
+and use Ctrl+A/Ctrl+C. Diagnostic reports include the last export stage, and the
+generic AddOn-block UI message is captured even without an attributed addon.

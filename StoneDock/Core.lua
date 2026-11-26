@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.43"
+SD.name, SD.version = addonName, "0.13.44"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -197,6 +197,14 @@ for _,event in ipairs({"ADDON_ACTION_BLOCKED","ADDON_ACTION_FORBIDDEN"}) do
     SD:On(event,function(addon,action)SD:RecordBlockedAction(event,addon,action)end)
 end
 
+-- Some client blocks surface only as the generic UI error, with no addon payload.
+SD:On("UI_ERROR_MESSAGE",function(_,message)
+    if type(message)~="string" or (issecretvalue and issecretvalue(message)) then return end
+    if message==ERR_INTERFACE_ACTION_BLOCKED or message==INTERFACE_ACTION_BLOCKED
+        or message=="Interface action failed because of an AddOn" then
+        SD:RecordBlockedAction("UI_ERROR_MESSAGE","not identified by client",message)
+    end
+end)
 SD:On("ADDON_LOADED", function(name)
     if name ~= addonName then return end
     SD:InitializeDB()

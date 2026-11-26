@@ -5,7 +5,10 @@ local function num(v) if public(v) and type(v)=="number" and v==v and math.abs(v
 local function str(v) if public(v) and type(v)=="string" then return v end end
 local function call(fn,...)
     if type(fn)~="function" then return end
+    local previous=SD.actionContext
+    if SD.exportingCharacter then SD.actionContext="Character export: "..(SD.characterExportStage or "data") end
     local ok,value=pcall(fn,...)
+    SD.actionContext=previous
     if ok and public(value) then return value end
 end
 local NULL={}
@@ -154,10 +157,11 @@ for _,event in ipairs({"TRADE_SKILL_SHOW","TRADE_SKILL_LIST_UPDATE"}) do
         C_Timer.After(.2,function()recipeQueued=nil SD:Run("Capture character recipes",function()SD:CaptureCharacterRecipes()end)end)
     end)
 end
-function SD:BuildCharacterInformation()
+function SD:BuildCharacterInformation(basic)
+    self.characterExportStage="character and professions"
     local notes=array()
     local clientVersion,clientBuild,_,clientInterface=GetBuildInfo()
-    local data={schema="stonedock.character_information",schema_version=2,addon_version=self.version,
+    local data={schema="stonedock.character_information",schema_version=2,addon_version=self.version,export_mode=basic and "basic" or "full",
         client={game=clientInterface==16001 and "World of Warcraft Forever" or "World of Warcraft",version=str(clientVersion),build=str(clientBuild),interface=num(clientInterface)},
         scope="current_character_only",exported_at_unix=num(call(time)),
         analysis_request="Suggest practical, legitimate ways to make gold at this character's level using its professions and resources. Separate immediate sales from farming and crafting. Explain requirements and uncertainty; do not assume current auction prices or access to other characters.",
@@ -172,7 +176,7 @@ function SD:BuildCharacterInformation()
     end
     data.tsm.price_units={dbmarket="copper_per_item",dbrecent="copper_per_item",dbminbuyout="copper_per_item",
         dbregionmarketavg="copper_per_item",dbregionsalerate="fraction",dbregionsoldperday="items_per_day",destroy="copper_per_item",crafting="copper_per_item"}
-    local sourceKeys=call(TSM_API and TSM_API.GetPriceSourceKeys,{})
+    local sourceKeys=not basic and call(TSM_API and TSM_API.GetPriceSourceKeys,{})
     local registered={}
     if type(sourceKeys)=="table" then for _,key in ipairs(sourceKeys) do if str(key) then registered[key:lower()]=true end end end
     data.tsm.price_diagnostics={queried_items=0,available_values=0,unavailable_values=0,error_values=0,unsupported_values=0,
@@ -184,12 +188,17 @@ function SD:BuildCharacterInformation()
         local counts=data.tsm.price_diagnostics counts.queried_items=counts.queried_items+1
         for _,source in ipairs(priceSources) do
             local value,status
-            if not TSM_API or type(TSM_API.GetCustomPriceValue)~="function" then status="api_unavailable"
+            if basic then status="disabled_basic_mode"
+            elseif not TSM_API or type(TSM_API.GetCustomPriceValue)~="function" then status="api_unavailable"
             elseif type(sourceKeys)=="table" and not registered[source] then status="unsupported_source"
             else
                 local rate=source=="dbregionsalerate" or source=="dbregionsoldperday"
                 -- TSM's own tooltip scales fractional sources before evaluation, then divides.
+                local previous=self.actionContext
+                if self.exportingCharacter then self.actionContext="Character export: TSM price "..source end
+                self.characterExportStage="TSM price "..source
                 local ok,result=pcall(TSM_API.GetCustomPriceValue,rate and (source.." * 1000") or source,key)
+                self.actionContext=previous
                 value=ok and num(result)
                 if value then
                     if rate then value=value/1000 end
@@ -215,7 +224,7 @@ function SD:BuildCharacterInformation()
                 out.item_type=str(kind) out.item_subtype=str(subkind) out.equip_location=str(slot) out.vendor_price_each_copper=num(vendor)
             end
         end
-        if not out.name and TSM_API then out.name=str(call(TSM_API.GetItemName,out.tsm_item_string)) end
+        if not basic and not out.name and TSM_API then out.name=str(call(TSM_API.GetItemName,out.tsm_item_string)) end
         if not out.name then missing=missing+1 out.name_status="not_cached" end
         local price=prices(out.tsm_item_string)
         out.prices=price.values out.price_status=price.statuses
@@ -223,6 +232,7 @@ function SD:BuildCharacterInformation()
         if price.values.dbminbuyout~=NULL then out.tsm_minbuyout_each_copper=price.values.dbminbuyout end
         return out
     end
+    self.characterExportStage="live bags and equipment"
     local bagMap={}
     local container=C_Container
     if container and container.GetContainerNumSlots and container.GetContainerItemInfo then
@@ -275,12 +285,13 @@ function SD:BuildCharacterInformation()
         end
     end
     data.tsm.market_context=str(realm)
-    local db=type(TradeSkillMasterDB)=="table" and TradeSkillMasterDB
+    local db=not basic and type(TradeSkillMasterDB)=="table" and TradeSkillMasterDB
     local scope=name and faction and realm and ("s@"..name.." - "..faction.." - "..realm.."@internalData@")
+    self.characterExportStage="TSM inventory"
     for _,spec in ipairs({{"bank","bankQuantity","GetBankQuantity"},{"mail","mailQuantity","GetMailQuantity"},{"auctions","auctionQuantity","GetAuctionQuantity"}}) do
         local section=data.tsm[spec[1]]
         local cache=db and scope and db[scope..spec[2]]
-        local api=TSM_API and TSM_API[spec[3]]
+        local api=not basic and TSM_API and TSM_API[spec[3]]
         section.source="TSM_current_character_cache" section.age="unknown"
         section.snapshot_timestamp_status="not_provided_by_TSM_cache"
         local observed=StoneDockCharDB and StoneDockCharDB.characterExportObservations and StoneDockCharDB.characterExportObservations[spec[1]]
@@ -304,9 +315,10 @@ function SD:BuildCharacterInformation()
             table.sort(section.items,function(a,b)return a.tsm_item_string<b.tsm_item_string end)
         else section.status="unavailable" end
     end
-    self:CaptureCharacterRecipes()
+    self.characterExportStage="personal recipes"
+    if not basic then self:CaptureCharacterRecipes() end
     data.known_recipes={professions=array(),coverage="observed_personal_profession_windows; may be incomplete"}
-    local recipeCache=StoneDockCharDB and StoneDockCharDB.characterExportRecipes or {}
+    local recipeCache=not basic and StoneDockCharDB and StoneDockCharDB.characterExportRecipes or {}
     for _,profession in ipairs(data.professions) do
         local stored=recipeCache[profession.skill_id]
         local section={skill_id=profession.skill_id,name=profession.name,recipes=array(),status="not_observed"}
@@ -337,9 +349,18 @@ function SD:BuildCharacterInformation()
     notes[#notes+1]="Bag items are aggregated by base item ID; enchantments and random variants are not differentiated. Recipe coverage is limited to observed personal profession windows; clear profession filters and open each profession before export. Recipe output ranges are not guaranteed yields. Bank binding and quest completion are not exported."
     return data
 end
-function SD:ExportCharacterInformation()
+function SD:ExportCharacterInformation(mode)
     if self:IsBusy() then SD.Print("Export character information outside combat and Edit Mode.") return end
-    local result=self:BuildCharacterInformation()
-    self:ShowCopyDialog("Character information - JSON",json(result,0))
+    self.exportingCharacter=true self.characterExportStage="starting"
+    local ok,result=pcall(self.BuildCharacterInformation,self,mode=="basic")
+    self.exportingCharacter=nil
+    if not ok then self:ReportError("Character export: "..self.characterExportStage,result) return end
+    self.characterExportStage="serialize JSON"
+    local encoded,text=pcall(json,result,0)
+    if not encoded then self:ReportError("Character export JSON",text) return end
+    self.characterExportStage="copy dialog"
+    local shown,err=pcall(self.ShowCopyDialog,self,"Character information - JSON",text,true)
+    if not shown then self:ReportError("Character export copy dialog",err) return end
+    self.characterExportStage="finished ("..(mode=="basic" and "basic" or "full")..")"
     self:RecordUsage("action","Export character information")
 end

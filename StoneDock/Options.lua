@@ -150,7 +150,7 @@ function SD:ConfirmRebuild()
     StaticPopup_Show("STONEDOCK_REBUILD")
 end
 
-function SD:ShowCopyDialog(title, contents)
+function SD:ShowCopyDialog(title, contents, manualFocus)
     if not self.copyDialog then
         local f = CreateFrame("Frame", "StoneDockCopyDialog", UIParent, "BackdropTemplate")
         self.copyDialog = f
@@ -181,8 +181,8 @@ function SD:ShowCopyDialog(title, contents)
     self.copyDialog.heading:SetText(title)
     self.copyDialog.edit:SetText(contents or "")
     self.copyDialog:Show()
-    self.copyDialog.edit:SetFocus()
-    self.copyDialog.edit:HighlightText()
+    if not manualFocus then self.copyDialog.edit:SetFocus() end
+    if not manualFocus then self.copyDialog.edit:HighlightText() end
 end
 
 
