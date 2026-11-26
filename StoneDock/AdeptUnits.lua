@@ -173,8 +173,14 @@ local function create(frame,unit,compact)
     card.power:SetStatusBarTexture("Interface\\Buttons\\WHITE8X8")
     card.power:SetStatusBarColor(.43,.58,.77,1)
     if unit=="pet" then
-        card.happiness=text(card,8)
-        card.happiness:SetPoint("BOTTOMLEFT",8,2)
+        card.happinessIcon=card:CreateTexture(nil,"OVERLAY")
+        card.happinessIcon:SetTexture("Interface\\PetPaperDollFrame\\UI-PetHappiness")
+        card.happinessIcon:SetSize(10,10)
+        card.happinessIcon:SetPoint("BOTTOMLEFT",8,1)
+        card.happinessIcon:Hide()
+        card.happiness=text(card,9)
+        card.happiness:SetPoint("BOTTOMLEFT",22,1)
+        card.happiness:SetWidth(82)
     end
     return card
 end
@@ -184,7 +190,7 @@ function SD:UpdateAdeptUnitCards(event,changed)
     if issecretvalue and issecretvalue(changed) then return end
     for _,card in pairs(cards) do
         local unit=card.unit
-        if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" then
+        if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" or (unit=="pet" and event=="UNIT_PET" and changed=="player") then
             -- These badges are artwork only; native unit-frame clicks stay intact.
             local flagged=UnitIsPVP and UnitIsPVP(unit)
             local ffa=UnitIsPVPFreeForAll and UnitIsPVPFreeForAll(unit)
@@ -200,8 +206,15 @@ function SD:UpdateAdeptUnitCards(event,changed)
             if card.happiness then
                 local happiness=GetPetHappiness and GetPetHappiness()
                 local readable=type(happiness)=="number" and (not issecretvalue or not issecretvalue(happiness))
-                card.happiness:SetText(readable and ({"Unhappy","Content","Happy"})[happiness] or "")
-                if readable then card.happiness:SetTextColor(happiness==1 and .9 or .7,happiness==1 and .4 or .8,.5) end
+                local valid=readable and (happiness==1 or happiness==2 or happiness==3)
+                card.happiness:SetText(valid and ({"Unhappy","Content","Happy"})[happiness] or "")
+                card.happinessIcon:SetShown(not not valid)
+                if valid then
+                    local offset=(3-happiness)*.1875
+                    card.happinessIcon:SetTexCoord(offset,offset+.1875,0,.359375)
+                    local colors={{1,.35,.3},{1,.82,.25},{.45,.9,.45}}
+                    card.happiness:SetTextColor(unpack(colors[happiness]))
+                end
             end
             -- Native UI renderers accept opaque values directly.
             card.health:SetMinMaxValues(0,UnitHealthMax(unit))
@@ -377,7 +390,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
     self.adeptUnitEvents:UnregisterAllEvents()
     for _,event in ipairs({"UNIT_HEALTH","UNIT_MAXHEALTH","UNIT_POWER_UPDATE","UNIT_MAXPOWER",
         "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED",
-        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD"}) do
+        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
     if GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
