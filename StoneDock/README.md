@@ -271,3 +271,7 @@ or adjust its horizontal/vertical offset. It follows Adept scale and density.
 Use `/stonedock enemies test` outside combat to toggle sample rows for placement.
 `/stonedock enemies` prints detection status; the diagnostic report includes the
 last scan and peak count for troubleshooting. Entering combat exits the preview.
+
+Drag the enemy-panel header outside combat to save its position. Use the test
+preview to move it while no enemies are present. Enemy rows stay non-clickable;
+only the header captures the mouse, and dragging stops when combat begins.

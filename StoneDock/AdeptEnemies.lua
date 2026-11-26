@@ -59,6 +59,16 @@ local function create()
     panel:SetBackdropColor(.08,.082,.085,.94) panel:SetBackdropBorderColor(.4,.36,.27,.8)
     panel.title=label(panel,9) panel.title:SetPoint("TOPLEFT",6,-4)
     panel.title:SetTextColor(.88,.8,.61)
+    panel.drag=CreateFrame("Frame",nil,panel)
+    panel.drag:SetPoint("TOPLEFT") panel.drag:SetPoint("TOPRIGHT") panel.drag:SetHeight(18)
+    panel.drag:EnableMouse(true) panel.drag:RegisterForDrag("LeftButton")
+    panel:SetMovable(true)
+    panel.drag:SetScript("OnDragStart",function()
+        if InCombatLockdown() or SD.editing then return end
+        panel.dragging=true panel.dragGeometry=SD:GetGeometry() panel:StartMoving()
+    end)
+    panel.drag:SetScript("OnDragStop",function() SD:FinishAdeptEnemyDrag() end)
+    panel:SetScript("OnHide",function() SD:FinishAdeptEnemyDrag() end)
     panel.rows={}
     for i=1,MAX_ROWS do
         local row=CreateFrame("Frame",nil,panel,"BackdropTemplate")
@@ -90,6 +100,19 @@ local function threat(unit,enemy)
     local status=UnitThreatSituation and UnitThreatSituation(unit,enemy)
     if number(status) then return status end
 end
+function SD:FinishAdeptEnemyDrag()
+    if not panel or not panel.dragging then return end
+    panel.dragging=nil panel:StopMovingOrSizing()
+    local x,y=panel:GetLeft(),panel:GetBottom()
+    if not number(x) or not number(y) then return end
+    local g=panel.dragGeometry or self:GetGeometry()
+    panel.dragGeometry=nil
+    local factor=panel:GetEffectiveScale()/UIParent:GetEffectiveScale()
+    self.db.adeptEnemyOffsetX=x*factor/g.scale-1522
+    self.db.adeptEnemyOffsetY=y*factor/g.scale-140*g.density
+    panel:ClearAllPoints()
+    panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x*factor,y*factor)
+end
 function SD:EnemyPanelCommand(argument)
     if argument~="test" then SD.Print(self:GetAdeptEnemyStatus()) return end
     if InCombatLockdown() then SD.Print("Preview the enemy panel outside combat.") return end
@@ -112,6 +135,7 @@ function SD:EnemyPanelCommand(argument)
 end
 function SD:UpdateAdeptEnemies()
     if not enabled then return end
+    if panel then panel.drag:EnableMouse(not InCombatLockdown()) end
     if preview and not InCombatLockdown() then return end
     preview=false
     if not InCombatLockdown() then
@@ -208,7 +232,7 @@ function SD:RefreshAdeptEnemies(g)
             if event=="NAME_PLATE_UNIT_ADDED" or event=="NAME_PLATE_UNIT_REMOVED" then
                 if type(unit)=="string" and plain(unit) then plates[unit]=event=="NAME_PLATE_UNIT_ADDED" and true or nil end
             end
-            if event=="PLAYER_REGEN_DISABLED" then peak=0 end
+            if event=="PLAYER_REGEN_DISABLED" then peak=0 SD:FinishAdeptEnemyDrag() end
             combatTicker() queue()
         end)
     end
@@ -230,6 +254,8 @@ function SD:RefreshAdeptEnemies(g)
     combatTicker()
     if not enabled then preview=false if panel then panel:Hide() end return end
     if not panel then create() end
+    if panel.dragging then self:FinishAdeptEnemyDrag() end
+    panel.drag:EnableMouse(not InCombatLockdown())
     panel:SetScale(g.scale*g.density)
     panel:SetWidth(172) panel:ClearAllPoints()
     panel:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",(1522+(self.db.adeptEnemyOffsetX or 0))*g.scale,

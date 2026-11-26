@@ -45,8 +45,8 @@ local schemas = {
             check("splitRaid","Split raid groups around the map"),check("attachPlayerAuras","Attach buffs and debuffs to the player frame")}),
         section("Adept engaged enemies",{
             check("adeptEnemyList","Show engaged-enemies panel (Adept)","Display only; tracks available nameplates, target, focus and bosses while you are in combat. No clickable targeting or sounds."),
-            range("adeptEnemyOffsetX","Enemy panel horizontal offset",-1200,250,5),
-            range("adeptEnemyOffsetY","Enemy panel vertical offset",0,400,5),
+            range("adeptEnemyOffsetX","Enemy panel horizontal offset",-1920,1920,5),
+            range("adeptEnemyOffsetY","Enemy panel vertical offset",-1200,1200,5),
         }),
         section("Frame sizing",{range("unitSize","Player / target / focus size (%)",100,200,5),
             range("groupRowWidth","Group row width (%)",70,100,1),range("groupHeight","Preferred row height",24,72,2),
