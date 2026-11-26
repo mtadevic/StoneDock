@@ -302,3 +302,20 @@ used only internally to select the exact cache; names and chat are not exported.
 No alt totals, guild bank or warbank are read. Unknown cache ages and unsupported
 cache shapes are labeled; unavailable does not mean empty. Visit bank/mail/AH
 with TSM enabled to refresh snapshots. Cached prices are not guaranteed profits.
+
+
+Character JSON schema v2 adds prices.dbmarket, dbrecent, dbminbuyout,
+dbregionmarketavg, dbregionsalerate, dbregionsoldperday, destroy and crafting
+to item records (including recipe outputs and reagents). Each has a price_status;
+missing values are null, never guessed. Price units are declared under tsm.
+Sale rate is a fraction and sold-per-day is items/day, not copper. TSM being
+loaded does not mean its AuctionDB has prices for your ruleset or every item.
+
+Open each of your own profession windows with filters cleared before export.
+Known recipes, output ranges and reagent alternatives are cached per character
+with observation times. Linked, guild and NPC profession windows are excluded.
+Coverage may be filtered/incomplete; old observations are explicitly cached.
+Bank/mail/AH visit observations get timestamps and elapsed seconds, but those
+are not verified TSM scan timestamps. TSM cache ages remain unknown where its
+cache provides none. Compare raw-material value with crafting/disenchanting
+returns, fees and sale likelihood before consuming materials.

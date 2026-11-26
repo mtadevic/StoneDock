@@ -8,6 +8,7 @@ local function call(fn,...)
     local ok,value=pcall(fn,...)
     if ok and public(value) then return value end
 end
+local NULL={}
 local ARRAY={}
 local function array() return setmetatable({},ARRAY) end
 local function quote(s)
@@ -17,6 +18,7 @@ local function quote(s)
     end)..'"'
 end
 local function json(value,depth)
+    if value==NULL then return "null" end
     local kind=type(value)
     if kind=="string" then return quote(value)
     elseif kind=="number" then return num(value) and tostring(value) or "null"
@@ -64,10 +66,98 @@ local function professions()
     table.sort(result,function(a,b)return a.skill_id<b.skill_id end)
     return result
 end
+local priceSources={"dbmarket","dbrecent","dbminbuyout","dbregionmarketavg","dbregionsalerate","dbregionsoldperday","destroy","crafting"}
+local function now() return num(call(time)) end
+local function age(timestamp)
+    local current=now()
+    if current and num(timestamp) and timestamp<=current then return current-timestamp end
+end
+function SD:CaptureCharacterRecipes()
+    if InCombatLockdown() or not StoneDockCharDB then return end
+    local api=C_TradeSkillUI
+    if not api or not api.GetRecipeInfo then return end
+    -- Only positively identified personal profession windows are eligible.
+    for _,key in ipairs({"IsTradeSkillLinked","IsTradeSkillGuild","IsNPCCrafting"}) do
+        if type(api[key])~="function" then return end
+        local value=call(api[key])
+        if value~=false then return end
+    end
+    local base=call(api.GetBaseProfessionInfo)
+    local skill=type(base)=="table" and num(base.professionID)
+    if not skill then
+        local child=call(api.GetChildProfessionInfo)
+        skill=type(child)=="table" and num(child.parentProfessionID or child.professionID)
+    end
+    if not skill then return end
+    local owned=false
+    for _,info in ipairs(professions()) do if info.skill_id==skill then owned=true break end end
+    if not owned then return end
+    local ids=call(api.GetAllRecipeIDs)
+    local coverage="all_recipe_ids_returned"
+    if type(ids)~="table" then
+        ids=call(api.GetFilteredRecipeIDs,{}) coverage="visible_filtered_recipes_only"
+    end
+    if type(ids)~="table" then return end
+    StoneDockCharDB.characterExportRecipes=StoneDockCharDB.characterExportRecipes or {}
+    local store=StoneDockCharDB.characterExportRecipes[skill] or {recipes={}}
+    StoneDockCharDB.characterExportRecipes[skill]=store
+    store.coverage=coverage store.observed_at_unix=now()
+    local examined=0
+    for _,id in ipairs(ids) do
+        examined=examined+1 if examined>1500 then store.truncated=true break end
+        if num(id) then
+            local info=call(api.GetRecipeInfo,id)
+            if type(info)=="table" and public(info.learned) then
+                if info.learned==true then
+                    local row={recipe_id=id,name=str(info.name),learned=true,observed_at_unix=now(),reagent_slots={}}
+                    local schematic=call(api.GetRecipeSchematic,id,false)
+                    if type(schematic)=="table" then
+                        row.output_item_id=num(schematic.outputItemID)
+                        row.output_quantity_min=num(schematic.quantityMin) row.output_quantity_max=num(schematic.quantityMax)
+                        for index,slot in ipairs(schematic.reagentSlotSchematics or {}) do
+                            if index>40 then break end
+                            local entry={quantity_required=num(slot.quantityRequired),required=slot.required==true,
+                                reagent_type=num(slot.reagentType),alternatives={}}
+                            for j,reagent in ipairs(slot.reagents or {}) do
+                                if j>20 then break end
+                                local reagentID=num(reagent.itemID)
+                                if reagentID then entry.alternatives[#entry.alternatives+1]={item_id=reagentID} end
+                            end
+                            row.reagent_slots[#row.reagent_slots+1]=entry
+                        end
+                        row.reagents_status="schematic_returned"
+                    else row.reagents_status="unavailable" end
+                    if not row.output_item_id then
+                        local link=str(call(api.GetRecipeItemLink,id))
+                        row.output_item_id=link and tonumber(link:match("item:(%d+)"))
+                    end
+                    store.recipes[id]=row
+                elseif info.learned==false then store.recipes[id]=nil end
+            end
+        end
+    end
+end
+local function observeSnapshot(event)
+    if not StoneDockCharDB then return end
+    StoneDockCharDB.characterExportObservations=StoneDockCharDB.characterExportObservations or {}
+    local section=event:find("BANK") and "bank" or (event:find("MAIL") and "mail" or "auctions")
+    StoneDockCharDB.characterExportObservations[section]={event=event,observed_at_unix=now()}
+end
+for _,event in ipairs({"BANKFRAME_OPENED","BANKFRAME_CLOSED","MAIL_SHOW","MAIL_INBOX_UPDATE","AUCTION_HOUSE_SHOW"}) do
+    SD:On(event,function()observeSnapshot(event)end)
+end
+local recipeQueued
+for _,event in ipairs({"TRADE_SKILL_SHOW","TRADE_SKILL_LIST_UPDATE"}) do
+    SD:On(event,function()
+        if recipeQueued or InCombatLockdown() then return end
+        recipeQueued=true
+        C_Timer.After(.2,function()recipeQueued=nil SD:Run("Capture character recipes",function()SD:CaptureCharacterRecipes()end)end)
+    end)
+end
 function SD:BuildCharacterInformation()
     local notes=array()
     local clientVersion,clientBuild,_,clientInterface=GetBuildInfo()
-    local data={schema="stonedock.character_information",schema_version=1,addon_version=self.version,
+    local data={schema="stonedock.character_information",schema_version=2,addon_version=self.version,
         client={game=clientInterface==16001 and "World of Warcraft Forever" or "World of Warcraft",version=str(clientVersion),build=str(clientBuild),interface=num(clientInterface)},
         scope="current_character_only",exported_at_unix=num(call(time)),
         analysis_request="Suggest practical, legitimate ways to make gold at this character's level using its professions and resources. Separate immediate sales from farming and crafting. Explain requirements and uncertainty; do not assume current auction prices or access to other characters.",
@@ -79,6 +169,40 @@ function SD:BuildCharacterInformation()
         tsm={available=type(TSM_API)=="table",bank={items=array()},mail={items=array()},auctions={items=array()}},limitations=notes}
     if self.GetConsumableSpec then
         local _,_,spec,role=self:GetConsumableSpec() data.character.specialization=str(spec) data.character.role=str(role)
+    end
+    data.tsm.price_units={dbmarket="copper_per_item",dbrecent="copper_per_item",dbminbuyout="copper_per_item",
+        dbregionmarketavg="copper_per_item",dbregionsalerate="fraction",dbregionsoldperday="items_per_day",destroy="copper_per_item",crafting="copper_per_item"}
+    local sourceKeys=call(TSM_API and TSM_API.GetPriceSourceKeys,{})
+    local registered={}
+    if type(sourceKeys)=="table" then for _,key in ipairs(sourceKeys) do if str(key) then registered[key:lower()]=true end end end
+    data.tsm.price_diagnostics={queried_items=0,available_values=0,unavailable_values=0,error_values=0,unsupported_values=0,
+        note="TSM detection does not confirm AuctionDB data availability. No-value results may require a TSM data update or may be item/source-specific."}
+    local priceCache={}
+    local function prices(key)
+        if priceCache[key] then return priceCache[key] end
+        local values,statuses={},{}
+        local counts=data.tsm.price_diagnostics counts.queried_items=counts.queried_items+1
+        for _,source in ipairs(priceSources) do
+            local value,status
+            if not TSM_API or type(TSM_API.GetCustomPriceValue)~="function" then status="api_unavailable"
+            elseif type(sourceKeys)=="table" and not registered[source] then status="unsupported_source"
+            else
+                local rate=source=="dbregionsalerate" or source=="dbregionsoldperday"
+                -- TSM's own tooltip scales fractional sources before evaluation, then divides.
+                local ok,result=pcall(TSM_API.GetCustomPriceValue,rate and (source.." * 1000") or source,key)
+                value=ok and num(result)
+                if value then
+                    if rate then value=value/1000 end
+                    status="available"
+                else status=ok and "no_value_returned" or "query_error" end
+            end
+            values[source]=value or NULL statuses[source]=status
+            if status=="available" then counts.available_values=counts.available_values+1
+            elseif status=="query_error" then counts.error_values=counts.error_values+1
+            elseif status=="unsupported_source" then counts.unsupported_values=counts.unsupported_values+1
+            else counts.unavailable_values=counts.unavailable_values+1 end
+        end
+        priceCache[key]={values=values,statuses=statuses} return priceCache[key]
     end
     local missing=0
     local function item(id,key)
@@ -93,10 +217,10 @@ function SD:BuildCharacterInformation()
         end
         if not out.name and TSM_API then out.name=str(call(TSM_API.GetItemName,out.tsm_item_string)) end
         if not out.name then missing=missing+1 out.name_status="not_cached" end
-        if TSM_API and TSM_API.GetCustomPriceValue then
-            out.tsm_dbmarket_each_copper=num(call(TSM_API.GetCustomPriceValue,"dbmarket",out.tsm_item_string))
-            out.tsm_minbuyout_each_copper=num(call(TSM_API.GetCustomPriceValue,"dbminbuyout",out.tsm_item_string))
-        end
+        local price=prices(out.tsm_item_string)
+        out.prices=price.values out.price_status=price.statuses
+        if price.values.dbmarket~=NULL then out.tsm_dbmarket_each_copper=price.values.dbmarket end
+        if price.values.dbminbuyout~=NULL then out.tsm_minbuyout_each_copper=price.values.dbminbuyout end
         return out
     end
     local bagMap={}
@@ -158,6 +282,13 @@ function SD:BuildCharacterInformation()
         local cache=db and scope and db[scope..spec[2]]
         local api=TSM_API and TSM_API[spec[3]]
         section.source="TSM_current_character_cache" section.age="unknown"
+        section.snapshot_timestamp_status="not_provided_by_TSM_cache"
+        local observed=StoneDockCharDB and StoneDockCharDB.characterExportObservations and StoneDockCharDB.characterExportObservations[spec[1]]
+        if type(observed)=="table" then
+            section.last_observed_event=str(observed.event) section.last_observed_at_unix=num(observed.observed_at_unix)
+            section.seconds_since_observed_event=age(observed.observed_at_unix)
+            section.observation_note="UI event time, not a verified TSM snapshot timestamp."
+        end
         if type(cache)=="table" and type(api)=="function" then
             section.status="cached_snapshot" local examined=0 local omitted=0
             for key in pairs(cache) do
@@ -173,11 +304,37 @@ function SD:BuildCharacterInformation()
             table.sort(section.items,function(a,b)return a.tsm_item_string<b.tsm_item_string end)
         else section.status="unavailable" end
     end
+    self:CaptureCharacterRecipes()
+    data.known_recipes={professions=array(),coverage="observed_personal_profession_windows; may be incomplete"}
+    local recipeCache=StoneDockCharDB and StoneDockCharDB.characterExportRecipes or {}
+    for _,profession in ipairs(data.professions) do
+        local stored=recipeCache[profession.skill_id]
+        local section={skill_id=profession.skill_id,name=profession.name,recipes=array(),status="not_observed"}
+        if stored then
+            section.status="cached_observation" section.observed_at_unix=num(stored.observed_at_unix)
+            section.age_seconds=age(stored.observed_at_unix) section.coverage=str(stored.coverage)
+            section.truncated=stored.truncated or nil
+            for _,row in pairs(stored.recipes or {}) do
+                local copy={recipe_id=row.recipe_id,name=row.name,learned=true,output_quantity_min=row.output_quantity_min,
+                    output_quantity_max=row.output_quantity_max,observed_at_unix=row.observed_at_unix,
+                    reagents_status=row.reagents_status,reagent_slots=array()}
+                if row.output_item_id then copy.output=item(row.output_item_id) end
+                for _,slot in ipairs(row.reagent_slots or {}) do
+                    local entry={quantity_required=slot.quantity_required,required=slot.required,reagent_type=slot.reagent_type,alternatives=array()}
+                    for _,reagent in ipairs(slot.alternatives or {}) do entry.alternatives[#entry.alternatives+1]=item(reagent.item_id) end
+                    copy.reagent_slots[#copy.reagent_slots+1]=entry
+                end
+                section.recipes[#section.recipes+1]=copy
+            end
+            table.sort(section.recipes,function(a,b)return a.recipe_id<b.recipe_id end)
+        end
+        data.known_recipes.professions[#data.known_recipes.professions+1]=section
+    end
     if #data.professions==0 then notes[#notes+1]="No profession ranks returned. This may mean none are learned or the profession APIs are unavailable; do not assume no professions." end
     if missing>0 then notes[#notes+1]=missing.." item records lack cached names; IDs are included. Re-export after the client has loaded item information." end
     notes[#notes+1]="TSM cache age is unknown. Visit the bank, mailbox and auction house with TSM enabled to refresh those snapshots. Unavailable does not mean empty. TSM cache-schema changes may make these sections unavailable."
-    notes[#notes+1]="TSM market/minimum-buyout values are cached estimates in copper, not guaranteed sale prices, sell rates or profit after fees. Missing prices are omitted."
-    notes[#notes+1]="Bag items are aggregated by base item ID; enchantments and random variants are not differentiated. Known recipes, bank binding and quest completion are not exported."
+    notes[#notes+1]="TSM market/minimum-buyout values are cached estimates in copper, not guaranteed sale prices, sell rates or profit after fees. Missing prices are explicit null values with per-source statuses. Zero is preserved when actually returned."
+    notes[#notes+1]="Bag items are aggregated by base item ID; enchantments and random variants are not differentiated. Recipe coverage is limited to observed personal profession windows; clear profession filters and open each profession before export. Recipe output ranges are not guaranteed yields. Bank binding and quest completion are not exported."
     return data
 end
 function SD:ExportCharacterInformation()
