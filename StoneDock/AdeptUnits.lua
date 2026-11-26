@@ -150,6 +150,8 @@ local function create(frame,unit,compact)
     card.level=text(card,compact and 9 or 10)
     card.level:SetPoint("TOP",rim,"BOTTOM",0,4)
     local heading=text(card,compact and 8 or 9)
+    card.heading=heading
+    heading:SetWidth(compact and 100 or 164)
     heading:SetPoint("TOPLEFT",8,-5)
     heading:SetText(unit=="targettarget" and "TARGET OF TARGET" or unit:upper())
     heading:SetTextColor(.67,.66,.61)
@@ -191,6 +193,15 @@ function SD:UpdateAdeptUnitCards(event,changed)
     for _,card in pairs(cards) do
         local unit=card.unit
         if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" or (unit=="pet" and event=="UNIT_PET" and changed=="player") then
+            local classification=UnitClassification and UnitClassification(unit)
+            local readableClass=not issecretvalue or not issecretvalue(classification)
+            local label=readableClass and ({elite="ELITE",rareelite="RARE ELITE",rare="RARE",worldboss="BOSS"})[classification]
+            local role=unit=="targettarget" and (label and "TOT" or "TARGET OF TARGET") or unit:upper()
+            card.heading:SetText(role..(label and (" / "..label) or ""))
+            if label then
+                local rare=classification=="rare" or classification=="rareelite"
+                card.heading:SetTextColor(rare and .8 or 1,rare and .83 or .78,rare and .9 or .32)
+            else card.heading:SetTextColor(.67,.66,.61) end
             -- These badges are artwork only; native unit-frame clicks stay intact.
             local flagged=UnitIsPVP and UnitIsPVP(unit)
             local ffa=UnitIsPVPFreeForAll and UnitIsPVPFreeForAll(unit)
@@ -391,7 +402,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
     self.adeptUnitEvents:UnregisterAllEvents()
     for _,event in ipairs({"UNIT_HEALTH","UNIT_MAXHEALTH","UNIT_POWER_UPDATE","UNIT_MAXPOWER",
         "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED",
-        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET"}) do
+        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET","UNIT_CLASSIFICATION_CHANGED"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
     if (C_PetInfo and C_PetInfo.GetPetHappiness) or GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
