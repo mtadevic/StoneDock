@@ -6,10 +6,21 @@ local serial=0
 local enabled=false
 local ticker,queued
 local panel
+local preview=false
+local peak=0
+local samples={}
 local stats={candidates=0,hostile=0,restricted=0,listed=0}
 local function plain(value) return not issecretvalue or not issecretvalue(value) end
 local function number(value) return type(value)=="number" and plain(value) end
-local function yes(value) return plain(value) and value==true end
+local function yes(value) return plain(value) and (value==true or value==1) end
+local function state(value)
+    if not plain(value) then return "restricted" end
+    if value==nil then return "nil" end
+    if value==true then return "true" end
+    if value==false then return "false" end
+    if type(value)=="number" then return "number:"..tostring(value) end
+    return type(value)
+end
 local function same(a,b)
     if not UnitIsUnit then return false end
     local ok,value=pcall(UnitIsUnit,a,b)
@@ -33,6 +44,7 @@ function SD:GetAdeptEnemyStatus()
     return string.format("Enemy panel: active=%s combat=%s visible=%s; last scan candidates=%d hostile=%d restricted identities=%d listed=%d",
         tostring(not not enabled),tostring(not not InCombatLockdown()),tostring(panel and panel:IsShown() or false),
         stats.candidates,stats.hostile,stats.restricted,stats.listed)
+        .."; peak listed="..peak.."; preview="..tostring(preview).."\nEnemy scan: "..table.concat(samples,"; ")
 end
 local function label(parent,size)
     local t=parent:CreateFontString(nil,"OVERLAY")
@@ -42,7 +54,7 @@ end
 local function create()
     panel=CreateFrame("Frame","StoneDockAdeptEnemies",UIParent,"BackdropTemplate")
     SD.adeptEnemies=panel
-    panel:EnableMouse(false) panel:SetFrameStrata("LOW") panel:SetClampedToScreen(true)
+    panel:EnableMouse(false) panel:SetFrameStrata("MEDIUM") panel:SetClampedToScreen(true)
     panel:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
     panel:SetBackdropColor(.08,.082,.085,.94) panel:SetBackdropBorderColor(.4,.36,.27,.8)
     panel.title=label(panel,9) panel.title:SetPoint("TOPLEFT",6,-4)
@@ -78,13 +90,38 @@ local function threat(unit,enemy)
     local status=UnitThreatSituation and UnitThreatSituation(unit,enemy)
     if number(status) then return status end
 end
+function SD:EnemyPanelCommand(argument)
+    if argument~="test" then SD.Print(self:GetAdeptEnemyStatus()) return end
+    if InCombatLockdown() then SD.Print("Preview the enemy panel outside combat.") return end
+    self:RefreshAdeptEnemies(self:GetGeometry())
+    if not enabled then SD.Print("Enable the enemy panel in Adept's unit settings first.") return end
+    preview=not preview
+    if preview then
+        panel:SetFrameStrata("MEDIUM") panel:SetHeight(98) panel.title:SetText("ENEMIES - PREVIEW")
+        for i,row in ipairs(panel.rows) do
+            row:SetShown(i<=3)
+            if i<=3 then
+                row.name:SetText(({"Current target","Attacking you","Group enemy"})[i])
+                row.health:SetMinMaxValues(0,100) row.health:SetValue(100-i*18)
+                row.status:SetText(i==2 and "ON YOU" or "COMBAT") row.status:SetTextColor(.9,.8,.5)
+                row:SetBackdropBorderColor(i==1 and 1 or .25,i==1 and .78 or .25,i==1 and .3 or .23,1)
+            end
+        end
+        panel:Show()
+    else panel:Hide() end
+end
 function SD:UpdateAdeptEnemies()
     if not enabled then return end
+    if preview and not InCombatLockdown() then return end
+    preview=false
     if not InCombatLockdown() then
         if panel then panel:Hide() end
         order={} serial=0 return
     end
     stats={candidates=0,hostile=0,restricted=0,listed=0}
+    samples={}
+    local plateCount=0 for _ in pairs(plates) do plateCount=plateCount+1 end
+    samples[1]="tracked plates="..plateCount
     local units={"target","focus","boss1","boss2","boss3","boss4","boss5"}
     for unit in pairs(plates) do units[#units+1]=unit end
     local group=groupUnits()
@@ -93,14 +130,19 @@ function SD:UpdateAdeptEnemies()
         local exists=UnitExists and UnitExists(unit)
         local hostile=UnitCanAttack and UnitCanAttack("player",unit)
         local dead=UnitIsDeadOrGhost and UnitIsDeadOrGhost(unit)
-        if yes(exists) then stats.candidates=stats.candidates+1 end
+        if yes(exists) then
+            stats.candidates=stats.candidates+1
+            if #samples<7 then samples[#samples+1]=unit.." exists="..state(exists).." attack="..state(hostile).." dead="..state(dead) end
+        end
         if yes(exists) and yes(hostile) and not yes(dead) then
             stats.hostile=stats.hostile+1
             local guid=keyFor(unit)
             if not seen[guid] then
                 local status=threat("player",unit)
                 local victim=unit.."target"
-                local fighting=UnitAffectingCombat and yes(UnitAffectingCombat(unit))
+                local fightingValue=UnitAffectingCombat and UnitAffectingCombat(unit)
+                local fighting=yes(fightingValue)
+                if #samples<10 then samples[#samples+1]=unit.." fighting="..state(fightingValue).." threat="..(status~=nil and tostring(status) or "unavailable") end
                 local onYou=(fighting and same(victim,"player")) or (status and status>=2)
                 local engaged=status~=nil or onYou
                 if not engaged then
@@ -129,6 +171,7 @@ function SD:UpdateAdeptEnemies()
     if not panel then create() end
     local count=#found
     stats.listed=count
+    peak=math.max(peak,count)
     panel.title:SetText("ENEMIES "..count..(count>MAX_ROWS and ("  (+"..(count-MAX_ROWS).." hidden)") or ""))
     for i,row in ipairs(panel.rows) do
         local enemy=found[i]
@@ -165,6 +208,7 @@ function SD:RefreshAdeptEnemies(g)
             if event=="NAME_PLATE_UNIT_ADDED" or event=="NAME_PLATE_UNIT_REMOVED" then
                 if type(unit)=="string" and plain(unit) then plates[unit]=event=="NAME_PLATE_UNIT_ADDED" and true or nil end
             end
+            if event=="PLAYER_REGEN_DISABLED" then peak=0 end
             combatTicker() queue()
         end)
     end
@@ -184,7 +228,7 @@ function SD:RefreshAdeptEnemies(g)
         end
     end
     combatTicker()
-    if not enabled then if panel then panel:Hide() end return end
+    if not enabled then preview=false if panel then panel:Hide() end return end
     if not panel then create() end
     panel:SetScale(g.scale*g.density)
     panel:SetWidth(172) panel:ClearAllPoints()

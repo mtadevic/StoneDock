@@ -267,3 +267,7 @@ native status bars. No nameplate settings or secure targeting are changed.
 
 Under config > Player, party & raid > Adept engaged enemies, toggle the panel
 or adjust its horizontal/vertical offset. It follows Adept scale and density.
+
+Use `/stonedock enemies test` outside combat to toggle sample rows for placement.
+`/stonedock enemies` prints detection status; the diagnostic report includes the
+last scan and peak count for troubleshooting. Entering combat exits the preview.
