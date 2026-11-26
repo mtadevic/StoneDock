@@ -70,6 +70,10 @@ function SD:BuildSessionPanel()
     end)
     f:SetScript("OnHide",function()if f.ticker then f.ticker:Cancel()f.ticker=nil end end)
     H.button(f,"Export character information (JSON)",350,-530,300,function()SD:ExportCharacterInformation()end)
+    H.button(f,"Toggle economic trainer/vendor observations",22,-574,628,function()
+        SD.db.economicObservations=not (SD.db.economicObservations~=false)
+        SD.Print("Economic observations: "..(SD.db.economicObservations and "enabled" or "disabled"))
+    end)
     H.button(f,"Reset this session",22,-530,300,function()SD:ResetSession()update()end)
     update()f:Show()if not f.ticker then f.ticker=C_Timer.NewTicker(1,update)end
     return f

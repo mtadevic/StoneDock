@@ -326,3 +326,24 @@ exports live character/bag/equipment information without querying TSM or recipe
 data. The copy window does not automatically take keyboard focus; click its text
 and use Ctrl+A/Ctrl+C. Diagnostic reports include the last export stage, and the
 generic AddOn-block UI message is captured even without an attributed addon.
+
+
+### Economic observations (JSON schema v3)
+
+Visit trainers with available/unavailable services visible, open your own
+professions with unlearned recipes visible, and visit vendors before exporting.
+Trainer/vendor observations are stored for the current character, capped at eight
+NPC snapshots per kind and 200 rows each. Toggle collection in Session tracker.
+Trainer costs and requirements reflect this character's displayed services; no
+training, purchases or filter changes are automated. Missing trainer spell IDs
+are not guessed from names. Learned/unlearned personal recipes are separate.
+
+Outputs include class/subclass and binding rules alongside quality/item level.
+Every priced item has a destroy_valuation with its availability status. This is
+TSM's configured estimate, not measured Forever yields or a Salvager adjustment.
+Vendor prices are per bundle, stock can be limited, and extended costs may be
+unpriced. Metadata does not prove an item can be disenchanted.
+
+Disenchant result telemetry, fully attributed dungeon accounting, personal AH
+sale velocity and camp-effect measurement are not implemented; the JSON states
+that explicitly. They require reliable source/receipt and buff attribution.

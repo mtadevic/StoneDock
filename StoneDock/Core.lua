@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.44"
+SD.name, SD.version = addonName, "0.13.45"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -7,6 +7,7 @@ SD.defaults = {
     opacity = 1,
     accent = "silver",
     gatheringEnabled = false,
+    economicObservations = true,
 
     fishingAudioBoost = true,
     stoneTexture = "weathered",

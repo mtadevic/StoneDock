@@ -111,8 +111,8 @@ function SD:CaptureCharacterRecipes()
         if num(id) then
             local info=call(api.GetRecipeInfo,id)
             if type(info)=="table" and public(info.learned) then
-                if info.learned==true then
-                    local row={recipe_id=id,name=str(info.name),learned=true,observed_at_unix=now(),reagent_slots={}}
+                if info.learned==true or info.learned==false then
+                    local row={recipe_id=id,name=str(info.name),learned=info.learned,observed_at_unix=now(),reagent_slots={}}
                     local schematic=call(api.GetRecipeSchematic,id,false)
                     if type(schematic)=="table" then
                         row.output_item_id=num(schematic.outputItemID)
@@ -135,7 +135,7 @@ function SD:CaptureCharacterRecipes()
                         row.output_item_id=link and tonumber(link:match("item:(%d+)"))
                     end
                     store.recipes[id]=row
-                elseif info.learned==false then store.recipes[id]=nil end
+                end
             end
         end
     end
@@ -161,7 +161,7 @@ function SD:BuildCharacterInformation(basic)
     self.characterExportStage="character and professions"
     local notes=array()
     local clientVersion,clientBuild,_,clientInterface=GetBuildInfo()
-    local data={schema="stonedock.character_information",schema_version=2,addon_version=self.version,export_mode=basic and "basic" or "full",
+    local data={schema="stonedock.character_information",schema_version=3,addon_version=self.version,export_mode=basic and "basic" or "full",
         client={game=clientInterface==16001 and "World of Warcraft Forever" or "World of Warcraft",version=str(clientVersion),build=str(clientBuild),interface=num(clientInterface)},
         scope="current_character_only",exported_at_unix=num(call(time)),
         analysis_request="Suggest practical, legitimate ways to make gold at this character's level using its professions and resources. Separate immediate sales from farming and crafting. Explain requirements and uncertainty; do not assume current auction prices or access to other characters.",
@@ -218,16 +218,21 @@ function SD:BuildCharacterInformation(basic)
         local out={item_id=id,tsm_item_string=key or ("i:"..id)}
         local fn=C_Item and C_Item.GetItemInfo or GetItemInfo
         if fn then
-            local ok,name,_,quality,level,required,kind,subkind,_,slot,_,vendor=pcall(fn,id)
+            local ok,name,_,quality,level,required,kind,subkind,_,slot,_,vendor,classID,subclassID,bindType=pcall(fn,id)
             if ok then
                 out.name=str(name) out.quality=num(quality) out.item_level=num(level) out.required_level=num(required)
                 out.item_type=str(kind) out.item_subtype=str(subkind) out.equip_location=str(slot) out.vendor_price_each_copper=num(vendor)
+                out.item_class_id=num(classID) out.item_subclass_id=num(subclassID) out.bind_type=num(bindType)
+                out.binding_rule=({[0]="none",[1]="bind_on_pickup",[2]="bind_on_equip",[3]="bind_on_use",[4]="quest_item"})[num(bindType)] or "unknown"
+                out.disenchantability={status="not_verified_by_native_API",basis="Class, quality and level are metadata only; do not assume every eligible-looking item can be disenchanted."}
             end
         end
         if not basic and not out.name and TSM_API then out.name=str(call(TSM_API.GetItemName,out.tsm_item_string)) end
         if not out.name then missing=missing+1 out.name_status="not_cached" end
         local price=prices(out.tsm_item_string)
         out.prices=price.values out.price_status=price.statuses
+        out.destroy_valuation={value_copper=price.values.destroy,status=price.statuses.destroy,source="TSM configured destroy",
+            model="TSM conversion estimate; not measured Forever-specific disenchant yields or a Salvager-adjusted observation"}
         if price.values.dbmarket~=NULL then out.tsm_dbmarket_each_copper=price.values.dbmarket end
         if price.values.dbminbuyout~=NULL then out.tsm_minbuyout_each_copper=price.values.dbminbuyout end
         return out
@@ -321,13 +326,13 @@ function SD:BuildCharacterInformation(basic)
     local recipeCache=not basic and StoneDockCharDB and StoneDockCharDB.characterExportRecipes or {}
     for _,profession in ipairs(data.professions) do
         local stored=recipeCache[profession.skill_id]
-        local section={skill_id=profession.skill_id,name=profession.name,recipes=array(),status="not_observed"}
+        local section={skill_id=profession.skill_id,name=profession.name,recipes=array(),unlearned_recipes=array(),status="not_observed"}
         if stored then
             section.status="cached_observation" section.observed_at_unix=num(stored.observed_at_unix)
             section.age_seconds=age(stored.observed_at_unix) section.coverage=str(stored.coverage)
             section.truncated=stored.truncated or nil
             for _,row in pairs(stored.recipes or {}) do
-                local copy={recipe_id=row.recipe_id,name=row.name,learned=true,output_quantity_min=row.output_quantity_min,
+                local copy={recipe_id=row.recipe_id,name=row.name,learned=row.learned~=false,output_quantity_min=row.output_quantity_min,
                     output_quantity_max=row.output_quantity_max,observed_at_unix=row.observed_at_unix,
                     reagents_status=row.reagents_status,reagent_slots=array()}
                 if row.output_item_id then copy.output=item(row.output_item_id) end
@@ -336,17 +341,48 @@ function SD:BuildCharacterInformation(basic)
                     for _,reagent in ipairs(slot.alternatives or {}) do entry.alternatives[#entry.alternatives+1]=item(reagent.item_id) end
                     copy.reagent_slots[#copy.reagent_slots+1]=entry
                 end
-                section.recipes[#section.recipes+1]=copy
+                local list=row.learned==false and section.unlearned_recipes or section.recipes
+                list[#list+1]=copy
             end
             table.sort(section.recipes,function(a,b)return a.recipe_id<b.recipe_id end)
+            table.sort(section.unlearned_recipes,function(a,b)return a.recipe_id<b.recipe_id end)
         end
         data.known_recipes.professions[#data.known_recipes.professions+1]=section
+    end
+    local function copyObservation(value,key)
+        if type(value)~="table" then return value end
+        local isList=key=="trainers" or key=="vendors" or key=="services" or key=="items" or key=="ability_requirements"
+        local result=isList and array() or {}
+        for k,v in pairs(value) do result[k]=copyObservation(v,k) end
+        return result
+    end
+    self.characterExportStage="economic observations"
+    data.economics={collection_enabled=self.db.economicObservations~=false,trainer_services=array(),vendor_inventories=array(),
+        capabilities={destroy="TSM estimate with status; not empirical yields",trainer_services="observed displayed services only",
+            unlearned_recipes="observed personal profession list only",item_metadata="native cached metadata",
+            disenchant_yields="not implemented: source-to-result and Salvager attribution require live validation",
+            dungeon_accounting="not implemented: raw coin, repair and loot-source attribution require live validation",
+            realized_sale_velocity="not implemented: regional estimates are not personal realized sales",
+            camp_buff_effect="not implemented: no verified buff attribution"}}
+    if not basic then
+        if self.CaptureEconomicTrainer then self:CaptureEconomicTrainer() self:CaptureEconomicVendor() end
+        local observations=StoneDockCharDB and StoneDockCharDB.economicObservations or {}
+        for _,snapshot in ipairs(observations.trainers or {}) do
+            local copy=copyObservation(snapshot) copy.age_seconds=age(snapshot.observed_at_unix)
+            data.economics.trainer_services[#data.economics.trainer_services+1]=copy
+        end
+        for _,snapshot in ipairs(observations.vendors or {}) do
+            local copy=copyObservation(snapshot) copy.age_seconds=age(snapshot.observed_at_unix)
+            for _,row in ipairs(copy.items) do if row.item_id then row.item=item(row.item_id) end end
+            data.economics.vendor_inventories[#data.economics.vendor_inventories+1]=copy
+        end
     end
     if #data.professions==0 then notes[#notes+1]="No profession ranks returned. This may mean none are learned or the profession APIs are unavailable; do not assume no professions." end
     if missing>0 then notes[#notes+1]=missing.." item records lack cached names; IDs are included. Re-export after the client has loaded item information." end
     notes[#notes+1]="TSM cache age is unknown. Visit the bank, mailbox and auction house with TSM enabled to refresh those snapshots. Unavailable does not mean empty. TSM cache-schema changes may make these sections unavailable."
     notes[#notes+1]="TSM market/minimum-buyout values are cached estimates in copper, not guaranteed sale prices, sell rates or profit after fees. Missing prices are explicit null values with per-source statuses. Zero is preserved when actually returned."
     notes[#notes+1]="Bag items are aggregated by base item ID; enchantments and random variants are not differentiated. Recipe coverage is limited to observed personal profession windows; clear profession filters and open each profession before export. Recipe output ranges are not guaranteed yields. Bank binding and quest completion are not exported."
+    notes[#notes+1]="Trainer service costs are character-discounted observations; unavailable services are not necessarily learnable now. Service names are not reliable spell-ID mappings. Vendor prices are per bundle; extended costs may be uncollected. Filters and limited vendor stock can limit coverage."
     return data
 end
 function SD:ExportCharacterInformation(mode)
