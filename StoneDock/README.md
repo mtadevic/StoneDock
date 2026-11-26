@@ -285,3 +285,20 @@ Adept engaged-enemy settings include background opacity (0-100%) and maximum
 visible enemies (1-20). Defaults are 50% and six rows. Additional detected enemies
 remain in the overflow count; the current target stays first. Preview shows the
 configured row count.
+
+
+### Character information JSON
+
+Use `/stonedock exportcharacter`, or Config > Session tracker > Export character
+information (JSON). Copy the result into an LLM to ask for level-appropriate
+gold-making ideas. Run outside combat and Edit Mode. Nothing is uploaded.
+
+Includes client/ruleset context, level/class/race/faction, money (copper), zone,
+profession ranks, live bag stacks/binding and equipment. With TSM loaded, the
+installed v4 current-character cache schema provides candidate bank/mail/auction
+items and public APIs provide current-character quantities and available market
+estimates. Forever surname/ruleset scoping is supported. Character names are
+used only internally to select the exact cache; names and chat are not exported.
+No alt totals, guild bank or warbank are read. Unknown cache ages and unsupported
+cache shapes are labeled; unavailable does not mean empty. Visit bank/mail/AH
+with TSM enabled to refresh snapshots. Cached prices are not guaranteed profits.

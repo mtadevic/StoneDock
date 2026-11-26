@@ -69,6 +69,7 @@ function SD:BuildSessionPanel()
         if not f.ticker then f.ticker=C_Timer.NewTicker(1,function()if f:IsShown()then update()end end)end
     end)
     f:SetScript("OnHide",function()if f.ticker then f.ticker:Cancel()f.ticker=nil end end)
+    H.button(f,"Export character information (JSON)",350,-530,300,function()SD:ExportCharacterInformation()end)
     H.button(f,"Reset this session",22,-530,300,function()SD:ResetSession()update()end)
     update()f:Show()if not f.ticker then f.ticker=C_Timer.NewTicker(1,update)end
     return f
