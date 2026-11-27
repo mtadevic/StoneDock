@@ -1,7 +1,7 @@
 local _, SD = ...
 SD.moduleDefinitions={
- {key="enabled",label="Dashboard & stone panels",description="Master visibility for the dock, Command Center, item row and optional HUD."},
- {key="showInfo",label="Command Center",description="Clickable status information on the right panel."},
+ {key="enabled",label="Adept dashboard",description="Master visibility for the dock, item row and health/resource display."},
+ {key="showInfo",label="Dashboard information",description="Status, readiness, Journey and Company information."},
  {key="showHUD",label="Curved health/resource HUD",description="The optional curved player display."},
  {key="showUtility",label="Trinkets & consumable row",description="Secure item buttons and their flyouts."},
  {key="stoneUnits",label="Unit-frame stone trim",description="Decorative edges on native group frames."},
@@ -12,15 +12,13 @@ SD.moduleDefinitions={
  {key="arrangeUtility",label="Bag/menu docking",description="Automatically arrange bag windows and interface controls."},
  {key="fadeUI",label="Dashboard combat fading",description="Use your configured out-of-combat opacity."},
  {key="fadeHUD",label="HUD combat fading",description="Separate fading for the curved HUD."},
- {key="rivets",flag=true,label="Clickable rivets",description="Corner buttons and assigned actions."},
  {key="profiles",flag=true,label="Profiles & layout snapshots",description="Automatic spec settings and named recovery snapshots."},
  {key="positioning",flag=true,label="Positioning editor",description="Draggable handles and sizing controls."},
  {key="session",flag=true,label="Session tracker",description="Gold, XP and play-session statistics."},
  {key="readiness",flag=true,label="Readiness checklist",description="Gear, bags and consumable preparation."},
  {key="waypoints",flag=true,label="Waypoint desk",description="Coordinates, saved locations and native navigation."},
  {key="quests",flag=true,label="Quest notebook",description="Tracked quests, objectives and map shortcuts."},
- {key="gatheringEnabled",label="Gathering & fishing",description="Track catches and materials in Command Center."},
- {key="notesCustomize",flag=true,label="Command Center customization",description="Choose visible information and click actions."},
+ {key="gatheringEnabled",label="Gathering & fishing",description="Track catches and materials in the Expedition tab."},
 }
 function SD:IsModuleEnabled(key)
     return self.db and (not self.db.moduleFlags or self.db.moduleFlags[key]~=false)
@@ -39,7 +37,6 @@ function SD:SetModule(key,enabled)
     if (key=="gatheringEnabled" or key=="enabled") and not enabled then self:StopGathering() end
     if key=="gatheringEnabled" and enabled then self:UpdatePoleFishing() end
     self:RefreshPanels()
-    self:RefreshRivetVisibility()
     if not self:IsModuleEnabled("positioning")then self:ClearPositionHandles()end
     if key=="arrangeGroups"or key=="splitRaid"then
         if CompactRaidFrameContainer and CompactRaidFrameContainer.TryUpdate then CompactRaidFrameContainer:TryUpdate()end
@@ -48,17 +45,14 @@ function SD:SetModule(key,enabled)
     end
     return true
 end
-function SD:RefreshRivetVisibility()
-    for _,button in pairs(self.rivetControls or {})do button:SetShown(self:IsModuleEnabled("rivets") and not self.editing)end
-end
 function SD:BuildMasterPanel()
     local CreateFrame,H=self:WindowBuilder("masterPanel")
     local f=CreateFrame("Frame",nil,UIParent)self.masterPanel=f f:SetSize(690,720)
     H.text(f,"Enable features",22,22,-20,640)
-    H.text(f,"Choose which StoneDock features to use. Open a category on the left to configure it. Changes apply outside combat.",12,22,-62,640)
+    H.text(f,"Choose which Lazai Adept features to use. Open a category on the left to configure it. Changes apply outside combat.",12,22,-62,640)
     f.checks={}
     local groups = {
-        {"Dashboard", {"enabled", "showInfo", "showUtility", "arrangeUtility", "rivets", "positioning", "notesCustomize"}},
+        {"Dashboard", {"enabled", "showInfo", "showUtility", "arrangeUtility", "positioning"}},
         {"Combat & group frames", {"showHUD", "fadeUI", "fadeHUD", "stoneUnits", "arrangeGroups", "splitRaid", "dockPet", "attachPlayerAuras"}},
         {"Gameplay tools & profiles", {"gatheringEnabled", "session", "readiness", "waypoints", "quests", "profiles"}},
     }
@@ -94,8 +88,6 @@ function SD:BuildMasterPanel()
     H.text(f,"Snapshots preserve module choices. Appearance/docking defaults are shared; HUD, groups and pet preferences follow the current character/spec.",11,22,-675,640)
     return f
 end
-SD:On("PLAYER_LOGIN",function()SD:RefreshRivetVisibility()end)
-
 function SD:RestoreOriginalAuras()
     local backup=StoneDockCharDB.preFeatureLayout
     if not backup or not self:IsOurLayoutActive()then return end

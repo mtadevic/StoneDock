@@ -315,7 +315,7 @@ function SD:CreateAdeptCompanyTabs(f)
     f.usageHeader:SetJustifyH("LEFT")
     f.usageHeader:SetTextColor(.88,.8,.61)
     f.companyControls={}
-    for i,caption in ipairs({"","Open StoneDock config","Start","Stop","Add Note","Export"}) do
+    for i,caption in ipairs({"","Open Lazai Adept config","Start","Stop","Add Note","Export"}) do
         local b=CreateFrame("Button",nil,f.companySettings)
         b:SetSize(164,24)
         b.caption=b:CreateFontString(nil,"OVERLAY")
@@ -337,7 +337,7 @@ function SD:CreateAdeptCompanyTabs(f)
             else SD:UsageCommand("export") end
             SD:RefreshAdeptCompany()
         end)
-        SD:RegisterUsageButton(b,({"Bag bar visibility","StoneDock config","Usage start","Usage stop","Usage note","Usage export"})[i],i>=3)
+        SD:RegisterUsageButton(b,({"Bag bar visibility","Lazai Adept config","Usage start","Usage stop","Usage note","Usage export"})[i],i>=3)
         f.companyControls[i]=b
     end
 end

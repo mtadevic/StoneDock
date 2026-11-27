@@ -1,14 +1,56 @@
-local _, SD = ...function SD:LayoutBackdrop(mode)    if not self.layoutBackdrop then        local f=CreateFrame("Frame","StoneDockLayoutBackdrop",WorldFrame or UIParent)        self.layoutBackdrop=f        f:SetFrameStrata("BACKGROUND")        f:SetFrameLevel(0)        f:SetAllPoints(UIParent)        f:EnableMouse(false)        f.fill=f:CreateTexture(nil,"BACKGROUND")        f.fill:SetAllPoints()        f.fill:SetColorTexture(.115,.135,.16,1)        f.lines={}        f:Hide()    end    local f=self.layoutBackdrop    if mode=="off" then f:Hide() return end    if mode=="grid" then f.grid=not (f:IsShown() and f.grid)    elseif mode~="on" then        if f:IsShown() then f:Hide() return end        f.grid=false    end    local width,height=UIParent:GetWidth(),UIParent:GetHeight()    local used=0    local function line(x,y,w,h,center)        used=used+1        local t=f.lines[used]        if not t then t=f:CreateTexture(nil,"ARTWORK") f.lines[used]=t end        t:ClearAllPoints()        t:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",x,y)        t:SetSize(w,h)        t:SetColorTexture(center and .85 or .75,center and .72 or .82,center and .45 or .9,center and .38 or .07)        t:SetShown(f.grid)    end    for x=64,width-1,64 do line(x,0,1,height,false) end    for y=64,height-1,64 do line(0,y,width,1,false) end    line(width/2,0,1,height,true)    line(0,height/2,width,1,true)    for i=used+1,#f.lines do f.lines[i]:Hide() end    f:Show()endSD:On("DISPLAY_SIZE_CHANGED",function()    if SD.layoutBackdrop and SD.layoutBackdrop:IsShown() then SD:LayoutBackdrop("on") endend)
-
+local _, SD = ...
+function SD:LayoutBackdrop(mode)
+    if not self.layoutBackdrop then
+        local f=CreateFrame("Frame","StoneDockLayoutBackdrop",WorldFrame or UIParent)
+        self.layoutBackdrop=f
+        f:SetFrameStrata("BACKGROUND")
+        f:SetFrameLevel(0)
+        f:SetAllPoints(UIParent)
+        f:EnableMouse(false)
+        f.fill=f:CreateTexture(nil,"BACKGROUND")
+        f.fill:SetAllPoints()
+        f.fill:SetColorTexture(.115,.135,.16,1)
+        f.lines={}
+        f:Hide()
+    end
+    local f=self.layoutBackdrop
+    if mode=="off" then f:Hide() return end
+    if mode=="grid" then f.grid=not (f:IsShown() and f.grid)
+    elseif mode~="on" then
+        if f:IsShown() then f:Hide() return end
+        f.grid=false
+    end
+    local width,height=UIParent:GetWidth(),UIParent:GetHeight()
+    local used=0
+    local function line(x,y,w,h,center)
+        used=used+1
+        local t=f.lines[used]
+        if not t then t=f:CreateTexture(nil,"ARTWORK") f.lines[used]=t end
+        t:ClearAllPoints()
+        t:SetPoint("BOTTOMLEFT",f,"BOTTOMLEFT",x,y)
+        t:SetSize(w,h)
+        t:SetColorTexture(center and .85 or .75,center and .72 or .82,center and .45 or .9,center and .38 or .07)
+        t:SetShown(f.grid)
+    end
+    for x=64,width-1,64 do line(x,0,1,height,false) end
+    for y=64,height-1,64 do line(0,y,width,1,false) end
+    line(width/2,0,1,height,true)
+    line(0,height/2,width,1,true)
+    for i=used+1,#f.lines do f.lines[i]:Hide() end
+    f:Show()
+end
+SD:On("DISPLAY_SIZE_CHANGED",function()
+    if SD.layoutBackdrop and SD.layoutBackdrop:IsShown() then SD:LayoutBackdrop("on") end
+end)
 function SD:BuildReport()
     local version, build, _, interface = GetBuildInfo()
     local g = self:GetGeometry()
     local physicalW, physicalH
     if GetPhysicalScreenSize then physicalW, physicalH = GetPhysicalScreenSize() end
     local lines = {
-        "StoneDock " .. self.version .. " diagnostic report",
-        self.GetAdeptEnemyStatus and self:GetAdeptEnemyStatus() or "Enemy panel unavailable",
-        "Character export stage: "..tostring(self.characterExportStage or "not run this session"),
+        "Lazai Adept " .. self.version .. " diagnostic report",
+        self.GetAdeptEnemyStatus and self:GetAdeptEnemyStatus() or "Enemy panel unavailable",
+        "Character export stage: "..tostring(self.characterExportStage or "not run this session"),
         "Client: " .. tostring(version) .. " / " .. tostring(build) .. " / interface " .. tostring(interface),
         "Physical display: " .. tostring(physicalW) .. " x " .. tostring(physicalH),
         string.format("UI canvas: %.1f x %.1f; scale %.4f; design scale %.4f", UIParent:GetWidth(), UIParent:GetHeight(), UIParent:GetEffectiveScale(), g.scale),
@@ -79,35 +121,32 @@ function SD:BuildReport()
     end
     return table.concat(lines, "\n")
 end
-
 function SD:ShowReport()
     local ok,report=pcall(self.BuildReport,self)
     if not ok then
-        report="StoneDock "..tostring(self.version).." diagnostic fallback\n"
+        report="Lazai Adept "..tostring(self.version).." diagnostic fallback\n"
             .."Report generation failed: "..tostring(report).."\n"
             .."Current-session error: "..tostring(self.lastError or "none").."\n"
             .."Previous recorded error: "..tostring(StoneDockCharDB.lastError or "none")
     end
     StoneDockCharDB.lastReport=report
-    local shown,err=pcall(self.ShowCopyDialog,self,"StoneDock diagnostics",report)
+    local shown,err=pcall(self.ShowCopyDialog,self,"Lazai Adept diagnostics",report)
     if not shown then
         SD.Print("Diagnostic window failed: "..tostring(err))
         SD.Print(report)
     end
 end
-
 function SD:Command(message)
     local command, arg = (message or ""):match("^%s*(%S*)%s*(.-)%s*$")
     command = string.lower(command or "")
     if command == "" or command == "options" then self:ToggleOptions()
-    elseif command=="exportcharacter" or command=="characterexport" then self:ExportCharacterInformation(arg)
-    elseif command=="itemsmove" then self:ToggleUtilityMover(arg=="reset")
-    elseif command=="enemies" then self:EnemyPanelCommand(arg)
+    elseif command=="exportcharacter" or command=="characterexport" then self:ExportCharacterInformation(arg)
+    elseif command=="itemsmove" then self:ToggleUtilityMover(arg=="reset")
+    elseif command=="enemies" then self:EnemyPanelCommand(arg)
     elseif command=="record" then self:UsageCommand(arg)
     elseif command=="modules"then self:OpenSettingsTab("master")
     elseif command=="session"or command=="readiness"or command=="waypoints"or command=="quests"then self:OpenSettingsTab(command)
-    elseif command=="notes"then self:OpenSettingsTab("notesCustomize")
-    elseif command == "backdrop" then self:LayoutBackdrop(arg)
+    elseif command == "backdrop" then self:LayoutBackdrop(arg)
     elseif command == "profiles" or command=="backups" then self:ShowProfiles()
     elseif command == "move" then self:ShowPositioning()
     elseif command == "snapshot" then self:SaveSnapshot(arg)
@@ -115,14 +154,13 @@ function SD:Command(message)
     elseif command == "hearth" then self:ShowHearthMenu()
     elseif command == "close" then
         self:CloseSettings()
-        for _,key in ipairs({"options","advanced","unitOptions","profileWindow","positionWindow","itemPicker","rivetMenu"}) do if self[key] then self[key]:Hide() end end
+        for _,key in ipairs({"options","advanced","unitOptions","profileWindow","positionWindow","itemPicker"}) do if self[key] then self[key]:Hide() end end
         if self.itemFlyout and not InCombatLockdown() then self.itemFlyout:Hide() end
         if self.hearthMenu and not InCombatLockdown() then self.hearthMenu:Hide() end
     elseif command == "itemauto" then
         local spec=self:GetConsumableSpec()
         if self.db.itemOverrides[spec] then self.db.itemOverrides[spec][arg]=nil end
         self:RefreshUtilityButtons(true)
-    elseif command == "rivets" then self:ShowRivetAssignments("left1",self.rivetControls.left1)
     elseif command == "items" then
         local key=arg~="" and arg:lower() or "bufffood"
         if key=="refresh" then
@@ -139,7 +177,7 @@ function SD:Command(message)
         for _,category in ipairs(self.itemCategories) do
             if category.key==key then self:ShowItemPicker(key,category.label) return end
         end
-        SD.Print("Item categories: bandage, heal, resource, bufffood, buffpotion, alternate, food, drink, utility, hearth. Use /stonedock items refresh to rescan.")
+        SD.Print("Item categories: bandage, heal, resource, bufffood, buffpotion, alternate, food, drink, utility, hearth. Use /la items refresh to rescan.")
     elseif command == "auras" then self:ApplySessionLayout(true)
     elseif command == "units" then self:ToggleUnitOptions()
     elseif command == "raidpreview" then self:PreviewRaid(tonumber(arg) or 20)
@@ -147,7 +185,6 @@ function SD:Command(message)
     elseif command == "install" or command == "activate" then self:ActivateLayout()
     elseif command == "restore" then self:RestoreLayout()
     elseif command == "rebuild" then self:ConfirmRebuild()
-    elseif command == "tofumeters" then self:DockTofuMeters()
     elseif command == "align" then self:AlignLayout()
     elseif command == "edit" then self:OpenEditMode()
     elseif command == "report" then self:ShowReport()
@@ -170,13 +207,12 @@ function SD:Command(message)
         self.db.opacity = SD.Clamp(tonumber(arg), 0.4, 1) self:RefreshPanels()
     elseif command == "height" and tonumber(arg) then
         self.db.density = SD.Clamp(tonumber(arg), 0.8, 1.2) self:RefreshPanels()
-        SD.Print("Panel height changed. Use /stonedock rebuild to match native frame placement.")
+        SD.Print("Panel height changed. Use /la rebuild to match native frame placement.")
     else
-        SD.Print("/stonedock opens settings. Commands: install, restore, rebuild, edit, preview, show, hide, report, export, backdrop [grid|on|off].")
+        SD.Print("/la opens settings. Commands: install, restore, rebuild, edit, preview, show, hide, report, export, backdrop [grid|on|off].")
         SD.Print("Appearance: accent silver|violet|green|bronze; opacity 0.4-1; height 0.8-1.2; hud; hudscale 0.6-1.4.")
     end
 end
-
-SLASH_STONEDOCK1 = "/stonedock"
-SLASH_STONEDOCK2 = "/sdock"
+SLASH_STONEDOCK1 = "/la"
+SLASH_STONEDOCK2 = "/lazaiadept"
 SlashCmdList.STONEDOCK = function(message) SD:Run("Command", function() SD:Command(message) end) end

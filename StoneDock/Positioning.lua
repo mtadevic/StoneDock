@@ -12,15 +12,6 @@ function SD:ConfigurePetLayout(layout)
     local info=H.find(layout,Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Pet)
     if not info then return end
     info.anchorInfo={point="BOTTOMRIGHT",relativeTo="PlayerFrame",relativePoint="BOTTOMLEFT",offsetX=self.db.petOffsetX*self:GetGeometry().scale,offsetY=self.db.petOffsetY*self:GetGeometry().scale}
-    if self.layoutName=="Tofu Bar" then
-        local g=self:GetGeometry()
-        info.anchorInfo.offsetX=(g.pet.x-g.player.x+self.db.petOffsetX-self.defaults.petOffsetX)*g.scale
-        info.anchorInfo.offsetY=(g.pet.y-g.player.y+self.db.petOffsetY-self.defaults.petOffsetY)*g.scale
-    elseif self.layoutName=="Gulveig Bar" then
-        info.anchorInfo.point="TOPLEFT"
-        info.anchorInfo.offsetX=(24+self.db.petOffsetX)*self:GetGeometry().scale
-        info.anchorInfo.offsetY=(-26+self.db.petOffsetY)*self:GetGeometry().scale
-    end
     info.anchorInfo2=nil info.isInDefaultPosition=false
     H.setting(info,Enum.EditModeUnitFrameSetting.FrameSize,self.db.petScale*self:GetGeometry().scale)
 end
@@ -35,42 +26,6 @@ function SD:ApplyPetLayout()
     local ok=self:Run("Dock pet frame",function()self:SaveAndRefreshLayout(full,full.activeLayout)end)
     if ok then self:CaptureProfile() end
     return ok
-end
-function SD:ShowPositioning()
-    if self:IsBusy() then SD.Print("Finish combat and close Blizzard Edit Mode first.") return end
-    if not self:IsOurLayoutActive() then SD.Print("Activate StoneDock first.") return end
-    if self.positionWindow then
-        local f=self.positionWindow self.positionUndo=self:SnapshotData()
-        f.refreshing=true for _,slider in ipairs(f.sliders)do slider:SetValue(self.db[slider.dbKey])end f.refreshing=nil
-        if f.dockCheck then f.dockCheck:SetChecked(self.db.dockPet)end
-        f:Show()self:RefreshPositionHandles()self:RefreshFading(true)return
-    end
-    self:ClearPositionHandles()
-    local f=CreateFrame("Frame",nil,UIParent,"BackdropTemplate") self.positionWindow=f
-    f:SetSize(590,630) f:SetPoint("TOP",0,-45) f:SetFrameStrata("DIALOG") f:SetClampedToScreen(true)
-    f:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\Stone.tga",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=256,edgeSize=14})
-    local H=self.ControlHelpers
-    H.text(f,"POSITIONING",22,24,-22,540)
-    H.text(f,"Drag the labeled handles. Positions snap to an 8-unit grid and nearby frame edges. Action banks share vertical placement. Combat closes this mode. Native Edit Mode remains available for all other frames.",12,24,-60,540)
-    self.positionUndo=self:SnapshotData()
-    f.sliders={
-        H.slider(f,"Action bar width (%)","barWidth",70,110,1,24,-132,function()SD:RefreshPanels()end),
-        H.slider(f,"Action-bank separation","barSpread",-100,100,1,310,-132,function()SD:RefreshPanels()end),
-        H.slider(f,"Pet frame size (%)","petScale",50,150,5,24,-220),
-        H.slider(f,"Pet horizontal offset","petOffsetX",-500,500,2,310,-220),
-        H.slider(f,"Pet vertical offset","petOffsetY",-300,300,2,24,-306),
-        H.slider(f,"Group row width (%)","groupRowWidth",70,100,1,310,-306,function()SD:QueueRaidSplit()end),
-    }
-    f.refreshing=true for _,s in ipairs(f.sliders)do s:SetValue(SD.db[s.dbKey])end f.refreshing=nil
-    H.button(f,"Dock pet beside player",24,-394,260,function() SD.db.dockPet=true SD:ApplyPetLayout() SD:RefreshPositionHandles() end)
-    H.button(f,"Apply sizing & alignment",310,-394,255,function()SD:AlignLayout() SD:ApplyPetLayout() SD:RefreshPositionHandles()end)
-    local dock=H.check(f,"Keep pet frame docked beside player","dockPet",24,-490) dock:SetChecked(self.db.dockPet) f.dockCheck=dock
-    H.button(f,"Blizzard Edit Mode",24,-442,260,function()f:Hide()SD:OpenEditMode()end)
-    H.button(f,"Profiles & snapshots",310,-442,255,function()f:Hide()SD:ShowProfiles()end)
-    H.button(f,"Cancel changes",24,-538,260,function()local undo=SD.positionUndo SD:CloseSettings()SD:RestoreSnapshotData(undo)end)
-    H.button(f,"Done",310,-538,255,function()SD:AlignLayout()SD:CaptureProfile()SD:CloseSettings()end)
-    f:SetScript("OnHide",function()SD:ClearPositionHandles()SD:RefreshFading()end)
-    f:Show() self:RefreshPositionHandles() self:RefreshFading(true)
 end
 function SD:ClearPositionHandles()
     for _,h in ipairs(self.positionHandles or {})do h:StopMovingOrSizing()h:Hide()end

@@ -1,23 +1,17 @@
 local _, SD = ...
 local builders={
-    appearance=SD.ToggleOptions,
-    bars=SD.ToggleAdvanced,
-    units=SD.ToggleUnitOptions,
     items=SD.ShowItemPicker,
     profiles=SD.ShowProfiles,
-    positioning=SD.ShowPositioning,
-    rivets=SD.ShowRivetAssignments,
+
 }
 local tabs={
     {"master","Enable features","masterPanel","Getting started"},
     {"profiles","Profiles & backups","profileWindow"},
-    {"appearance","Theme & layout","options","Interface"},
+    {"appearance","Appearance & layout","options","Interface"},
     {"positioning","Move & resize","positionWindow"},
     {"bars","Action bars & fading","advanced"},
     {"hud","Curved health HUD","hudPanel"},
     {"units","Player, party & raid","unitOptions"},
-    {"rivets","Corner shortcuts","rivetMenu"},
-    {"notesCustomize","Command Center","notesCustomizePanel"},
     {"items","Consumables & travel","itemPicker","Gameplay"},
     {"gathering","Gathering & fishing","gatheringPanel"},
     {"readiness","Readiness checklist","readinessPanel"},
@@ -37,7 +31,6 @@ function SD:RefreshSettingsFooter()
     f.saveStatus:SetText(staged and (dirty and "|cffffce75Unsaved changes on this page|r" or "|cff83d6adAll changes applied|r")
         or "Use the actions on this page to continue.")
 end
-
 function SD:CloseSettings()
     if self.settingsWindow then self.settingsWindow:Hide()end
 end
@@ -47,7 +40,7 @@ function SD:CreateSettingsWindow()
     f:SetSize(950,820)f:SetScale(math.min(1,(UIParent:GetWidth()-40)/950,(UIParent:GetHeight()-40)/820))f:SetPoint("CENTER")f:SetFrameStrata("DIALOG")f:SetClampedToScreen(true)
     f:SetMovable(true)f:EnableMouse(true)f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart",function()f:StartMoving()end)f:SetScript("OnDragStop",function()f:StopMovingOrSizing()end)
-    f:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\WeatheredStone.tga",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=256,edgeSize=16})
+    f:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\AdeptSurface.tga",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=256,edgeSize=16})
     self:StyleCard(f,false)
     local title=f:CreateFontString(nil,"OVERLAY","GameFontNormalLarge")title:SetPoint("TOPLEFT",22,-20)title:SetText("STONEDOCK  |  SETTINGS")
     local close=CreateFrame("Button",nil,f,"UIPanelCloseButton")close:SetPoint("TOPRIGHT",-6,-6)close:SetScript("OnClick",function()SD:CloseSettings()end)
@@ -82,7 +75,6 @@ function SD:CreateSettingsWindow()
     f:SetScript("OnHide",function()
         if SD.settingsPage then SD.settingsPage:Hide() end
         for _,spec in ipairs(tabs)do local page=SD[spec[3]]if page then page:Hide()end end
-        if SD.rivetSettingsPage then SD.rivetSettingsPage:Hide()end
         if SD.disabledModulePage then SD.disabledModulePage:Hide()end
         SD:ClearPositionHandles()SD:RefreshFading()
     end)
@@ -103,42 +95,21 @@ function SD:AdoptSettingsPage(page,parent,y)
     end
     page:Show()
 end
-function SD:BuildRivetSettings(key,anchor)
-    if not self.rivetSettingsPage then
-        local f=CreateFrame("Frame",nil,self.settingsWindow.content)self.rivetSettingsPage=f
-        f:SetSize(690,700)
-        local H=self.ControlHelpers
-        H.text(f,"RIVET ACTIONS",20,20,-20,640)
-        H.text(f,"Select a corner rivet, then assign its action below.",12,20,-56,640)
-        local panels={{"left","Conversation"},{"right","Command Center"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}
-        for row,spec in ipairs(panels)do for i=1,2 do
-            local id=spec[1]..i
-            H.button(f,spec[2]..(i==1 and " - left"or " - right"),20+(i-1)*315,-80-(row-1)*34,300,function()SD:OpenSettingsTab("rivets",id,SD.rivetControls and SD.rivetControls[id])end)
-        end end
-    end
-    key=key or self.settingsRivetKey or "left1"self.settingsRivetKey=key
-    anchor=anchor or (self.rivetControls and self.rivetControls[key])or UIParent
-    builders.rivets(self,key,anchor)
-    self:AdoptSettingsPage(self.rivetMenu,self.rivetSettingsPage,-270)
-    return self.rivetSettingsPage
-end
 function SD:OpenSettingsTab(key,arg,label)
     self:RecordUsage("navigation","Settings page: "..tostring(key))
-
     if self.settingsBuilding then return end
     key=key or self.settingsTab or "master"
     if (key=="items"or key=="positioning")and InCombatLockdown()then SD.Print("Configure items and positioning after combat.")return end
-    if key=="positioning"and(self:IsBusy()or not self:IsOurLayoutActive())then SD.Print("Activate StoneDock and close Blizzard Edit Mode before positioning.")return end
+    if key=="positioning"and(self:IsBusy()or not self:IsOurLayoutActive())then SD.Print("Activate Lazai Adept and close Blizzard Edit Mode before positioning.")return end
     self:CreateSettingsWindow()
     self:WatchUsageWindows(false)
     self.settingsBuilding=true
     local ok,err=pcall(function()
         if self.settingsPage then self.settingsPage:Hide() end
         for _,spec in ipairs(tabs)do local page=self[spec[3]]if page then page:Hide()end end
-        if self.rivetSettingsPage then self.rivetSettingsPage:Hide()end
         if self.disabledModulePage then self.disabledModulePage:Hide()end
         local page
-        local featureKeys={session=true,readiness=true,waypoints=true,quests=true,notesCustomize=true,positioning=true,rivets=true,profiles=true}
+        local featureKeys={session=true,readiness=true,waypoints=true,quests=true,positioning=true,profiles=true}
         local schema=self:PreferenceSchema(key)
         if featureKeys[key]and not self:IsModuleEnabled(key)then
             local CreateFrame,H=self:WindowBuilder("disabledModulePage")
@@ -149,20 +120,17 @@ function SD:OpenSettingsTab(key,arg,label)
         elseif schema then page=self:BuildPreferencePage(key,schema)
         elseif key=="master"then page=self:BuildMasterPanel()
         elseif key=="gathering"then page=self:BuildGatheringPanel()
-        elseif key=="hud"then page=self:BuildHUDPanel()
+
         elseif key=="session"then page=self:BuildSessionPanel()
         elseif key=="readiness"then page=self:BuildReadinessPanel()
         elseif key=="waypoints"then page=self:BuildWaypointsPanel()
         elseif key=="quests"then page=self:BuildQuestsPanel()
-        elseif key=="notesCustomize"then page=self:BuildNotesPanel()
-        elseif key=="rivets"then page=self:BuildRivetSettings(arg,label)
         elseif key=="items"then
             page=self:BuildItemPreferences(arg)
-        elseif key=="appearance"then builders.appearance(self,true)page=self.options
-        elseif key=="bars"then builders.bars(self,true)page=self.advanced
-        elseif key=="units"then builders.units(self)page=self.unitOptions
+
+
         elseif key=="profiles"then builders.profiles(self)page=self.profileWindow
-        elseif key=="positioning"then builders.positioning(self)page=self.positionWindow
+
         end
         if not page then error("Unknown settings tab: "..tostring(key))end
         self:AdoptSettingsPage(page)
@@ -192,5 +160,4 @@ function SD:ToggleUnitOptions()self:OpenSettingsTab("units")end
 function SD:ShowItemPicker(key,label)self:OpenSettingsTab("items",key,label)end
 function SD:ShowProfiles()self:OpenSettingsTab("profiles")end
 function SD:ShowPositioning()self:OpenSettingsTab("positioning")end
-function SD:ShowRivetAssignments(key,anchor)self:OpenSettingsTab("rivets",key,anchor)end
 SD:On("PLAYER_REGEN_DISABLED",function()if SD.settingsTab=="positioning"then SD:CloseSettings()end end)

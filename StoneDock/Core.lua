@@ -1,22 +1,15 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.51"
+SD.name, SD.version = addonName, "0.14.0"
 SD.defaults = {
     enabled = true,
-    layoutVariant = "stone",
     density = 1,
     opacity = 1,
     accent = "silver",
-    gatheringEnabled = false,
-    economicObservations = true,
-
+    gatheringEnabled = false,
+    economicObservations = true,
     fishingAudioBoost = true,
-    stoneTexture = "weathered",
     moduleFlags = {},
-    noteRows = {},
-    noteActions = {},
     showInfo = true,
-    chatStyle = false,
-    showLabels = true,
     showGuides = false,
     showHUD = false,
     hudScale = 1,
@@ -29,19 +22,15 @@ SD.defaults = {
     hudTicks = true,
     hudPowerColor = true,
     hudHealthColor = "red",
-    gulveigShowBagBar = false,
-    tofuShowBagBar = false,
-    adeptShowBagBar = false,
-    adeptEnemyList = true,
-    adeptEnemyRows = 6,
-    adeptEnemyOpacity = .5,
-    adeptEnemyOffsetX = 0,
+    adeptShowBagBar = false,
+    adeptEnemyList = true,
+    adeptEnemyRows = 6,
+    adeptEnemyOpacity = .5,
+    adeptEnemyOffsetX = 0,
     adeptEnemyOffsetY = 0,
-    tofuItemOffsetX = 0,
-    tofuItemOffsetY = 0,
     barOffsetX = 0,
     barOffsetY = 0,
-    barSpread = 0,
+
     barWidth = 100,
     fadeUI = false,
     fadeHUD = false,
@@ -51,7 +40,7 @@ SD.defaults = {
     stoneUnits = true,
     groupClassColors = true,
     attachPlayerAuras = true,
-    showUtility = true,
+    showUtility = true,
     utilityPositions = {},
     dockPet = true,
     petScale = 80,
@@ -59,7 +48,6 @@ SD.defaults = {
     petOffsetY = 0,
     itemOverrides = {},
     itemRules = {},
-    rivetActions = {},
     hearthDiscovered = {},
     splitRaid = true,
     unitSize = 100,
@@ -80,9 +68,8 @@ SD.colors = {
     green = { 0.43, 0.65, 0.34 },
     bronze = { 0.70, 0.53, 0.31 },
 }
-SD.layoutName = "StoneDock - Dark Stone"
+SD.layoutName = "Adept"
 SD.listeners = {}
-
 function SD.Copy(value, seen)
     if type(value) ~= "table" then return value end
     seen = seen or {}
@@ -92,30 +79,25 @@ function SD.Copy(value, seen)
     for key, item in pairs(value) do result[key] = SD.Copy(item, seen) end
     return result
 end
-
 function SD.Clamp(value, low, high)
     return math.max(low, math.min(high, value))
 end
-
 function SD.Print(message)
-    local text = "|cffadbfceStoneDock|r  " .. tostring(message)
+    local text = "|cffadbfceLazai Adept|r  " .. tostring(message)
     if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage(text) end
 end
-
 function SD:On(event, callback)
     self.listeners[event] = self.listeners[event] or {}
     table.insert(self.listeners[event], callback)
     self.events:RegisterEvent(event)
 end
-
 function SD:ReportError(context, err)
     local detail = tostring(err)
     if self.RecordUsage then pcall(self.RecordUsage,self,"error",context) end
     self.lastError = context .. ": " .. detail
     StoneDockCharDB.lastError = self.lastError
-    SD.Print(context .. " could not finish. Use /stonedock report to copy the details.")
+    SD.Print(context .. " could not finish. Use /la report to copy the details.")
 end
-
 function SD:Run(context, callback, ...)
     local previous=self.actionContext
     local previousParent=self.parentActionContext
@@ -127,7 +109,6 @@ function SD:Run(context, callback, ...)
     if not ok then self:ReportError(context, result) end
     return ok, result, detail
 end
-
 function SD:IsBusy()
     if InCombatLockdown() then
         return true, "Finish combat first, then try again."
@@ -137,7 +118,6 @@ function SD:IsBusy()
     end
     return false
 end
-
 function SD:InitializeDB()
     StoneDockDB = type(StoneDockDB) == "table" and StoneDockDB or {}
     StoneDockCharDB = type(StoneDockCharDB) == "table" and StoneDockCharDB or {}
@@ -148,20 +128,18 @@ function SD:InitializeDB()
     db.density = SD.Clamp(tonumber(db.density) or 1, 0.8, 1.2)
     db.opacity = SD.Clamp(tonumber(db.opacity) or self.defaults.opacity, 0.4, 1)
     db.hudScale = SD.Clamp(tonumber(db.hudScale) or 1, 0.6, 1.4)
-    for key, bounds in pairs({unitSize={100,200},groupWidth={72,160},groupRowWidth={70,100},groupHeight={24,72},groupOffsetX={-350,700},groupOffsetY={-100,500},hudOffsetX={-600,600},hudOffsetY={-450,450},hudGap={60,500},hudHeight={140,280},hudArcWidth={32,72},tofuItemOffsetX={-500,500},tofuItemOffsetY={-180,350},barOffsetX={-100,100},barOffsetY={-15,180},barSpread={-100,100},barWidth={70,110},uiRestAlpha={0,1},hudRestAlpha={0,1}}) do
+    for key, bounds in pairs({unitSize={100,200},groupWidth={72,160},groupRowWidth={70,100},groupHeight={24,72},groupOffsetX={-350,700},groupOffsetY={-100,500},hudOffsetX={-600,600},hudOffsetY={-450,450},hudGap={60,500},hudHeight={140,280},hudArcWidth={32,72},barOffsetX={-100,100},barOffsetY={-15,180},barWidth={70,110},uiRestAlpha={0,1},hudRestAlpha={0,1}}) do
         db[key] = SD.Clamp(tonumber(db[key]) or self.defaults[key], bounds[1], bounds[2])
     end
-    for _,key in ipairs({"moduleFlags","noteRows","noteActions"})do if type(db[key])~="table"then db[key]={}end end
+    for _,key in ipairs({"moduleFlags"})do if type(db[key])~="table"then db[key]={}end end
     if type(db.itemRules)~="table" then db.itemRules={} end
     if type(db.itemOverrides)~="table" then db.itemOverrides={} end
     if type(db.hearthDiscovered)~="table" then db.hearthDiscovered={} end
-    if type(db.rivetActions)~="table" then db.rivetActions={} end
     if not self.colors[db.accent] then db.accent = "silver" end
     self.db = db
     if self.InitializeProfiles then self:InitializeProfiles() end
     if self.InitializeLayoutVariant then self:InitializeLayoutVariant() end
 end
-
 SD.events = CreateFrame("Frame")
 SD.events:SetScript("OnEvent", function(_, event, ...)
     local list = SD.listeners[event]
@@ -169,7 +147,6 @@ SD.events:SetScript("OnEvent", function(_, event, ...)
         for _, callback in ipairs(list) do SD:Run(event, callback, ...) end
     end
 end)
-
 -- Blocked protected actions do not necessarily raise a Lua exception.
 -- Keep a small deduplicated record without touching protected UI or error handlers.
 function SD:RecordBlockedAction(event, addon, action)
@@ -193,25 +170,23 @@ function SD:RecordBlockedAction(event, addon, action)
     if debugstack then record.stack=debugstack(2,10,0):sub(1,2500) end
     records[#records+1]=record
     if #records>8 then table.remove(records,1) end
-    if name==self.name then SD.Print("A blocked interface action was recorded. Use /stonedock report for details.") end
+    if name==self.name then SD.Print("A blocked interface action was recorded. Use /la report for details.") end
 end
 for _,event in ipairs({"ADDON_ACTION_BLOCKED","ADDON_ACTION_FORBIDDEN"}) do
     SD:On(event,function(addon,action)SD:RecordBlockedAction(event,addon,action)end)
 end
-
--- Some client blocks surface only as the generic UI error, with no addon payload.
-SD:On("UI_ERROR_MESSAGE",function(_,message)
-    if type(message)~="string" or (issecretvalue and issecretvalue(message)) then return end
-    if message==ERR_INTERFACE_ACTION_BLOCKED or message==INTERFACE_ACTION_BLOCKED
-        or message=="Interface action failed because of an AddOn" then
-        SD:RecordBlockedAction("UI_ERROR_MESSAGE","not identified by client",message)
-    end
-end)
+-- Some client blocks surface only as the generic UI error, with no addon payload.
+SD:On("UI_ERROR_MESSAGE",function(_,message)
+    if type(message)~="string" or (issecretvalue and issecretvalue(message)) then return end
+    if message==ERR_INTERFACE_ACTION_BLOCKED or message==INTERFACE_ACTION_BLOCKED
+        or message=="Interface action failed because of an AddOn" then
+        SD:RecordBlockedAction("UI_ERROR_MESSAGE","not identified by client",message)
+    end
+end)
 SD:On("ADDON_LOADED", function(name)
     if name ~= addonName then return end
     SD:InitializeDB()
 end)
-
 SD:On("PLAYER_LOGIN", function()
     if not SD.db then SD:InitializeDB() end
     SD:CreatePanels()
@@ -219,18 +194,16 @@ SD:On("PLAYER_LOGIN", function()
     SD:CreateDocking()
     SD:CreateFading()
     SD:RefreshPanels()
-    SD:CreateOptions()
     SD:StartInfoTicker()
     if EventRegistry then
         EventRegistry:RegisterCallback("EditMode.Enter", function() SD:SetEditing(true) end, SD)
         EventRegistry:RegisterCallback("EditMode.Exit", function() SD:SetEditing(false) end, SD)
     end
     if not StoneDockCharDB.welcomed then
-        SD.Print("Welcome. Choose your starting layout; /stonedock opens settings later.")
+        SD.Print("Welcome. Choose your starting layout; /la opens settings later.")
         C_Timer.After(2, function() SD:PromptForLayout() end)
     end
 end)
-
 local refreshPending
 local function scheduleRefresh()
     if refreshPending or not SD.db then return end

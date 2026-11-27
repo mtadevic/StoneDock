@@ -1,20 +1,9 @@
 local _, SD = ...
-
-function SD:CardAccent()
-    if self.db and self.db.stoneTexture=="kintsugi" then return .86,.67,.40 end
-    return .49,.86,.66
-end
-
--- Shared expedition-style surfaces for settings, tools and status cards.
-function SD:StyleCard(frame, active)
+function SD:CardAccent() return .49,.86,.66 end
+function SD:StyleCard(frame,active)
     frame:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
-    if self.db and self.db.stoneTexture=="kintsugi" then
-        frame:SetBackdropColor(.018,.017,.016,.98)
-        frame:SetBackdropBorderColor(active and .73 or .40,active and .53 or .30,active and .27 or .18,1)
-    else
-        frame:SetBackdropColor(.025,.065,.058,.97)
-        frame:SetBackdropBorderColor(active and .30 or .17,active and .68 or .34,active and .48 or .28,1)
-    end
+    frame:SetBackdropColor(.025,.065,.058,.97)
+    frame:SetBackdropBorderColor(active and .30 or .17,active and .68 or .34,active and .48 or .28,1)
 end
 function SD:StyleAction(button)
     self:StyleCard(button,false)
@@ -23,7 +12,6 @@ function SD:StyleAction(button)
     if button.SetHighlightTexture then button:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight","ADD") end
     if button.GetFontString then local label=button:GetFontString() if label then label:SetTextColor(self:CardAccent()) end end
 end
-
 -- Reuse dynamic window controls. WoW frames are not garbage-collected when
 -- hidden, so rebuilding a menu must not allocate another full frame tree.
 function SD:WindowBuilder(key)
@@ -67,7 +55,6 @@ function SD:WindowBuilder(key)
     end
     return frame,H
 end
-
 -- Bound asynchronous item-data requests. Ignore completions that StoneDock
 -- never requested; an unavailable item cannot produce a request/rescan loop.
 function SD:RequestItemData(id)
@@ -82,7 +69,6 @@ SD:On("GET_ITEM_INFO_RECEIVED",function(id,success)
     SD.itemDataRequests[id]=success==false and "failed" or "loaded"
     if success~=false then SD:QueueConsumables()end
 end)
-
 -- Native layout records are plain data. Equality avoids writes and their
 -- follow-up event cascades when applying an already-matching configuration.
 function SD.Equal(a,b,seen)
@@ -93,7 +79,6 @@ function SD.Equal(a,b,seen)
     for key in pairs(b)do if a[key]==nil then return false end end
     return true
 end
-
 SD:On("BAG_UPDATE_DELAYED",function()
     -- A real inventory change may make a previously unavailable item resolvable.
     -- Completion events themselves never reset this bound.

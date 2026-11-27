@@ -6,29 +6,23 @@ local function range(key, label, low, high, step)
 end
 local function section(title, controls) return {title=title,controls=controls} end
 local schemas = {
-    appearance = {title="Theme & layout", description="Choose the look and spacing of your dashboard.", sections={
+    appearance = {title="Appearance & layout", description="Choose the look and spacing of your dashboard.", sections={
         section("Appearance",{
-            selectOption("layoutVariant","Layout",{{"stone","StoneDock dashboard"},{"gulveig","Gulveig Bar"},{"tofu","Tofu Bar"},{"adept","Adept"}}),
-            selectOption("stoneTexture","Theme",{{"weathered","Weathered Stone"},{"classic","Original Stone"},{"carved","Carved Ruins"},{"kintsugi","Onyx Kintsugi"}}),
             selectOption("accent","Accent color",{{"silver","Silver"},{"violet","Violet"},{"green","Moss"},{"bronze","Bronze"}}),
             selectOption("density","Panel height",{{0.85,"Compact"},{1,"Standard"},{1.15,"Roomy"}}),
             range("opacity","Panel opacity",0.4,1,0.05),
         }),
-        section("Panel details",{check("chatStyle","Style Gulveig chat with artwork and background"),check("showLabels","Show panel headings"),check("showGuides","Show placement guides")}),
+        section("Panel details",{check("showGuides","Show placement guides")}),
         section("Native layout management",{
             check("arrangeUnits","Arrange player, target and focus"),check("arrangeGroups","Arrange party and raid"),
             check("arrangeChat","Arrange chat"),check("arrangeUtility","Arrange bags, menu and tracking bars"),
-            check("gulveigShowBagBar","Show native bag bar"),
-            check("tofuShowBagBar","Show native bag bar"),
             check("adeptShowBagBar","Show native bag bar"),
             check("useExtraBars","Enable additional action bars"),
         }),
     }},
     bars = {title="Action bars & fading",description="Move the action banks together and choose their out-of-combat visibility.",sections={
         section("Action banks",{range("barOffsetX","Horizontal offset",-100,100,1),range("barOffsetY","Vertical offset",-15,180,1),
-            range("barSpread","Distance from center",-100,100,1),range("barWidth","Width (%)",70,110,1)}),
-        section("Tofu item bar",{range("tofuItemOffsetX","Horizontal offset",-500,500,1),
-            range("tofuItemOffsetY","Vertical offset",-180,350,1)}),
+            range("barWidth","Width (%)",70,110,1)}),
         section("Out of combat",{check("fadeUI","Fade the dashboard"),range("uiRestAlpha","Dashboard opacity",0,1,0.05),
             check("fadeHUD","Fade the curved HUD"),range("hudRestAlpha","HUD opacity",0,1,0.05),check("revealOnHover","Reveal the dashboard on mouseover")}),
     }},
@@ -56,7 +50,7 @@ local schemas = {
     }},
     positioning = {title="Move & resize",description="Adjust bank and pet placement. Use Blizzard Edit Mode for individual native frames.",sections={
         section("Action banks",{range("barOffsetX","Horizontal offset",-100,100,1),range("barOffsetY","Vertical offset",-15,180,1),
-            range("barWidth","Width (%)",70,110,1),range("barSpread","Distance from center",-100,100,1)}),
+            range("barWidth","Width (%)",70,110,1)}),
         section("Pet frame",{check("dockPet","Dock pet beside player"),range("petScale","Size (%)",50,150,5),
             range("petOffsetX","Horizontal offset",-500,500,2),range("petOffsetY","Vertical offset",-300,300,2)}),
     }},
@@ -85,9 +79,6 @@ function SD:SetPreferenceValue(page, field, value)
     local draft = self:GetPreferenceDraft(page)
     draft.fields[field.key] = field
     if value == read(field) then draft.values[field.key]=nil else draft.values[field.key]=value end
-    if field.key=="stoneTexture" and value=="kintsugi" then
-        self:SetPreferenceValue(page,{key="accent"},"bronze")
-    end
     self:RefreshSettingsFooter()
 end
 function SD:HasPreferenceChanges(key)
@@ -133,9 +124,8 @@ function SD:ApplyPreferences(key)
     end
     local oldLayoutName=self.layoutName
     local ok, failure = pcall(function()
-        if changed.layoutVariant and not self:ActivateLayoutVariant(self.db.layoutVariant) then error("Could not activate the selected layout.") end
         if self:IsOurLayoutActive() then
-            local layoutChanges = changed.density or changed.barOffsetX or changed.barOffsetY or changed.barWidth or changed.barSpread
+            local layoutChanges = changed.density or changed.barOffsetX or changed.barOffsetY or changed.barWidth
             if layoutChanges and not self:AlignLayout(self.db.nativeGeometry or previous) then error("Could not save layout placement.") end
             if (changed.unitSize or changed.groupHeight or changed.groupRowWidth or changed.groupOffsetX or changed.groupOffsetY or changed.arrangeGroups) and not self:ApplyUnitLayout() then error("Could not save unit frame settings.") end
             if key=="positioning" and self.db.dockPet and not self:ApplyPetLayout() then error("Could not save pet placement.") end
@@ -318,43 +308,14 @@ function SD:BuildPreferencePage(key, definition)
     return page
 end
 
-local layoutForPreference = {
-    stoneTexture = "stone",
-    showLabels = "stone",
-    barSpread = "stone",
-    chatStyle = "gulveig",
-    gulveigShowBagBar = "gulveig",
-    tofuShowBagBar = "tofu",
-    adeptShowBagBar = "adept",
-    tofuItemOffsetX = "tofu",
-    tofuItemOffsetY = "tofu",
-}
-
 function SD:PreferenceSchema(key)
-    local schema = schemas[key]
-    if schema then
-        local activeLayout = self:GetLayoutVariant()
-        local sections = {}
-        for _, group in ipairs(schema.sections) do
-            local controls = {}
-            for _, field in ipairs(group.controls) do
-                local layout = layoutForPreference[field.key]
-                if not layout or layout == activeLayout then
-                    controls[#controls + 1] = field
-                end
-            end
-            if #controls > 0 then
-                sections[#sections + 1] = section(group.title, controls)
-            end
-        end
-        return {title=schema.title, description=schema.description, sections=sections}
-    end
+    if schemas[key] then return schemas[key] end
     if key=="master" then
         local groups={}
         local definitions={}
         for _, entry in ipairs(self.moduleDefinitions) do definitions[entry.key]=entry end
         for _, group in ipairs({
-            {"Dashboard",{"enabled","showInfo","showUtility","arrangeUtility","rivets","positioning","notesCustomize"}},
+            {"Dashboard",{"enabled","showInfo","showUtility","arrangeUtility","positioning"}},
             {"Combat & frames",{"showHUD","fadeUI","fadeHUD","stoneUnits","arrangeGroups","splitRaid","dockPet","attachPlayerAuras"}},
             {"Gameplay & profiles",{"gatheringEnabled","session","readiness","waypoints","quests","profiles"}},
         }) do
@@ -370,34 +331,9 @@ function SD:PreferenceSchema(key)
             end
             groups[#groups+1]=section(group[1],controls)
         end
-        return {title="Enable features",description="Choose the StoneDock features you want, then apply this page.",sections=groups}
+        return {title="Enable features",description="Choose the Lazai Adept features you want, then apply this page.",sections=groups}
     end
-    if key=="notesCustomize" then
-        local groups={}
-        for _, entry in ipairs(self.noteRowDefinitions) do
-            local row=check("row:"..entry[1],"Show "..entry[2])
-            row.read=function() return SD.db.noteRows[entry[1]]~=false end
-            row.write=function(value) SD.db.noteRows[entry[1]]=value end
-            local action=selectOption("action:"..entry[1],"Click action",self.noteActionDefinitions)
-            action.read=function() return SD.db.noteActions[entry[1]] or "default" end
-            action.write=function(value) SD.db.noteActions[entry[1]]=value end
-            groups[#groups+1]=section(entry[2],{row,action})
-        end
-        return {title="Command Center",description="Choose visible rows and their shortcuts. An expedition card appears here while gathering.",sections=groups}
-    end
-    if key=="rivets" then
-        local controls={}
-        for _, panel in ipairs({{"left","Conversation"},{"right","Command Center"},{"map","Map"},{"leftWell","Left action bank"},{"rightWell","Right action bank"}}) do
-            for index=1,2 do
-                local id=panel[1]..index
-                local field=selectOption(id,panel[2]..(index==1 and " / left" or " / right"),self.rivetActionOptions)
-                field.read=function() return SD.db.rivetActions[id] or SD.rivetActionDefaults[panel[1]][index] end
-                field.write=function(value) SD.db.rivetActions[id]=value end
-                controls[#controls+1]=field
-            end
-        end
-        return {title="Corner shortcuts",description="Choose an action for each corner rivet.",sections={section("Rivet actions",controls)}}
-    end
+
 end
 
 function SD:BuildItemPreferences(category)

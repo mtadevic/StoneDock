@@ -1,5 +1,4 @@
 local _, SD = ...
-
 function SD:GetItemRule(key,id)
     local rules=self.db.itemRules or {}
     local spec=rules[self.itemSpec or self:GetConsumableSpec()] or {}
@@ -53,7 +52,6 @@ function SD:GetUtilityChoices(key)
     end
     return result
 end
-
 -- The flyout only uses items. It never changes inclusion, exclusions or defaults.
 function SD:ShowUtilityFlyout(owner,key)
     if InCombatLockdown() then SD.Print('Open item choices after combat.') return end
@@ -73,14 +71,14 @@ function SD:ShowUtilityFlyout(owner,key)
         RegisterStateDriver(f,'stonedockcombat','[combat] combat; idle')
         f.combatDriverRegistered=true
     end
-    f.usageCategory=key
-    if not f.usageVisibilityHooked then
-        f:HookScript('OnHide',function(frame)
-            if frame.usageVisible then SD:RecordUsage('flyout_close',tostring(frame.usageCategory)) end
-            frame.usageVisible=false
-        end)
-        f.usageVisibilityHooked=true
-    end
+    f.usageCategory=key
+    if not f.usageVisibilityHooked then
+        f:HookScript('OnHide',function(frame)
+            if frame.usageVisible then SD:RecordUsage('flyout_close',tostring(frame.usageCategory)) end
+            frame.usageVisible=false
+        end)
+        f.usageVisibilityHooked=true
+    end
     f.owner=owner
     f:SetFrameStrata('DIALOG') f:SetClampedToScreen(true)
     f:SetPoint('BOTTOMLEFT',owner,'TOPLEFT',0,8)
@@ -88,7 +86,7 @@ function SD:ShowUtilityFlyout(owner,key)
     local rows=math.max(1,math.ceil(#items/6))
     local width=columns*36+16
     f:SetSize(width,math.min(6,rows)*36+16)
-    f:SetBackdrop({bgFile='Interface\\AddOns\\StoneDock\\Media\\Stone.tga',edgeFile='Interface\\Tooltips\\UI-Tooltip-Border',tile=true,tileSize=256,edgeSize=12})
+    f:SetBackdrop({bgFile='Interface\\AddOns\\StoneDock\\Media\\AdeptSurface.tga',edgeFile='Interface\\Tooltips\\UI-Tooltip-Border',tile=true,tileSize=256,edgeSize=12})
     local child=f
     local insetX,insetY=8,-8
     if rows>6 then
@@ -111,8 +109,8 @@ function SD:ShowUtilityFlyout(owner,key)
         b.icon=b.icon or b:CreateTexture(nil,'ARTWORK') b.icon:SetAllPoints() b.icon:SetTexture(item.icon or 134400)
         b.icon:SetTexCoord(.06,.94,.06,.94)
         b.border=b.border or b:CreateTexture(nil,'BACKGROUND') b.border:SetPoint('TOPLEFT',-1,1) b.border:SetPoint('BOTTOMRIGHT',1,-1) b.border:SetColorTexture(.4,.45,.5,1)
-        b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
-        if b.cooldown.SetCountdownFont then b.cooldown:SetCountdownFont("GameFontNormalSmall") end
+        b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
+        if b.cooldown.SetCountdownFont then b.cooldown:SetCountdownFont("GameFontNormalSmall") end
         self:FitItemCooldown(b)
         if C_Item and C_Item.GetItemCooldown then local start,duration=C_Item.GetItemCooldown(item.id) if start and duration then b.cooldown:SetCooldown(start,duration) end end
         b:RegisterForClicks('AnyUp','AnyDown')
@@ -131,16 +129,15 @@ function SD:ShowUtilityFlyout(owner,key)
         f:SetWidth(180)
         H.text(child,'No available items.',12,8,-10,164)
     end
-    f:Show()
-    f.usageVisible=true
-    self:RecordUsage('flyout_open',tostring(key))
+    f:Show()
+    f.usageVisible=true
+    self:RecordUsage('flyout_open',tostring(key))
 end
 function SD:ShowHearthMenu()
     self:CreateUtilityButtons()
     self:ShowUtilityFlyout(self.hearthButton,'hearth')
     self.hearthMenu=self.itemFlyout
 end
-
 function SD:ShowItemPicker(key,label)
     if InCombatLockdown() then SD.Print('Change item settings after combat.') return end
     key=key or 'bufffood'
@@ -149,7 +146,7 @@ function SD:ShowItemPicker(key,label)
     local CreateFrame,H=self:WindowBuilder('itemPicker')
     local f=CreateFrame('Frame',nil,UIParent,'BackdropTemplate') self.itemPicker=f
     f:SetSize(650,600) f:SetPoint('CENTER') f:SetFrameStrata('DIALOG')
-    f:SetBackdrop({bgFile='Interface\\AddOns\\StoneDock\\Media\\Stone.tga',edgeFile='Interface\\Tooltips\\UI-Tooltip-Border',tile=true,tileSize=256,edgeSize=14})
+    f:SetBackdrop({bgFile='Interface\\AddOns\\StoneDock\\Media\\AdeptSurface.tga',edgeFile='Interface\\Tooltips\\UI-Tooltip-Border',tile=true,tileSize=256,edgeSize=14})
     H.text(f,'ITEM SETTINGS - '..(label or key),18,20,-18,610)
     H.text(f,'Default pins the row button. Include adds an item; Exclude removes it. Auto restores category detection. Changes apply to this spec only.',11,20,-48,610)
     local tabs={}
@@ -198,7 +195,6 @@ function SD:ShowItemPicker(key,label)
     H.button(f,'Close settings',20,-552,610,function() SD:CloseSettings() end)
     f:Show()
 end
-
 -- Defer until the click has performed its native secure item action.
 SD:On("GLOBAL_MOUSE_UP",function(button)
     local f=SD.itemFlyout

@@ -198,9 +198,6 @@ local function refreshMinimap(self)
         if self.adeptMapSaved.alphas[region]==nil then self.adeptMapSaved.alphas[region]=region:GetAlpha() end
         region:SetAlpha(0)
     end
-    if self.mapCaption then self.mapCaption:Hide() end
-    if self.mapRim then self.mapRim:Hide() end
-    if self.gulveigZonePlate then self.gulveigZonePlate:Hide() end
     -- Keep native map tools in a single header row, with their original anchors restored on exit.
     self.adeptMapNativeControls=self.adeptMapNativeControls or {}
     local g=self:GetGeometry()

@@ -31,8 +31,6 @@ end
 
 function SD:SetFadeAlphas(ui, hud)
     if self.canvas then self.canvas:SetAlpha(self.db.opacity * ui) end
-    if self.tofuArt then self.tofuArt:SetAlpha(self.db.opacity * ui) end
-    if self.gulveigBacking then self.gulveigBacking:SetAlpha(self.db.opacity * ui) end
     if self.hud then self.hud:SetAlpha(hud) end
     self.fadeOriginalAlphas = self.fadeOriginalAlphas or {}
     for frame in pairs(self.fadeFrames or {}) do
@@ -58,9 +56,7 @@ end
 
 function SD:IsDashboardHovered()
     if not MouseIsOver then return false end
-    for _, frame in pairs(self.panels or {}) do
-        if frame:IsShown() and MouseIsOver(frame) then return true end
-    end
+    if self.adeptConsole and self.adeptConsole:IsShown() and MouseIsOver(self.adeptConsole) then return true end
     for frame in pairs(self.fadeFrames or {}) do
         if frame:IsShown() and MouseIsOver(frame) then return true end
     end
@@ -85,7 +81,7 @@ function SD:RefreshFading(immediate)
     if self.advanced and self.advanced:IsShown() then ui, hud = 1, 1 end
     if (self.positionWindow and self.positionWindow:IsShown()) or (self.profileWindow and self.profileWindow:IsShown()) then ui,hud=1,1 end
     if self.unitOptions and self.unitOptions:IsShown() then ui, hud = 1, 1 end
-    if (self.itemFlyout and self.itemFlyout:IsShown()) or (self.itemPicker and self.itemPicker:IsShown()) or (self.rivetMenu and self.rivetMenu:IsShown()) or (self.hearthMenu and self.hearthMenu:IsShown()) then ui,hud=1,1 end
+    if (self.itemFlyout and self.itemFlyout:IsShown()) or (self.itemPicker and self.itemPicker:IsShown()) or (self.hearthMenu and self.hearthMenu:IsShown()) then ui,hud=1,1 end
     if immediate or combat then
         self.fadeAnimator:SetScript("OnUpdate", nil)
         if immediate or self.currentUIAlpha~=ui or self.currentHUDAlpha~=hud then self:SetFadeAlphas(ui, hud)end

@@ -1,24 +1,23 @@
 ## Interface: 120105
-## Title: StoneDock
-## Notes: A dark stone dashboard around Blizzard's default interface.
+## Title: Lazai Adept
+## Notes: A compact Adept dashboard around Blizzard's native interface.
 ## Author: Custom UI project
-## Version: 0.13.51
+## Version: 0.14.0
 ## SavedVariables: StoneDockDB
 ## SavedVariablesPerCharacter: StoneDockCharDB
 ## OptionalDeps: Blizzard_EditMode, Blizzard_Minimap, Blizzard_ActionBar, Blizzard_UnitFrame
 ## IconTexture: Interface\Icons\INV_Stone_04
 
-Core.lua
+Core.lua
 Usage.lua
-Variants.lua
-Tofu.lua
-Adept.lua
-AdeptUnits.lua
-AdeptEnemies.lua
-AdeptMap.lua
-AdeptControls.lua
+Setup.lua
+Adept.lua
+AdeptUnits.lua
+AdeptEnemies.lua
+AdeptMap.lua
+AdeptControls.lua
 BarArt.lua
-OrnamentalFrames.lua
+
 Geometry.lua
 Layout.lua
 Panels.lua
@@ -27,25 +26,24 @@ HUD.lua
 Fading.lua
 Runtime.lua
 Options.lua
-Advanced.lua
+
 Units.lua
 Auras.lua
 Consumables.lua
-Rivets.lua
+
 Hearth.lua
 ItemMenus.lua
 Profiles.lua
 Positioning.lua
-FieldNotes.lua
+
 MiningData.lua
 Routes.lua
 Gathering.lua
 Modules.lua
-Features.lua
-CharacterExport.lua
+Features.lua
+CharacterExport.lua
 Economics.lua
-NotesSettings.lua
-Expedition.lua
+
 Preferences.lua
 Settings.lua
 Commands.lua

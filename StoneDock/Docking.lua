@@ -146,7 +146,6 @@ function SD:PrecisionAlign(bagsOnly)
     local index = full.activeLayout
     local layout = full.layouts[index]
     local g = self:GetGeometry()
-    if g.variant=="gulveig" and bagsOnly then return end
     local changed = false
     local function correct(system, systemIndex, frames, targetX, targetY)
         local x, y = union(frames)
@@ -164,21 +163,6 @@ function SD:PrecisionAlign(bagsOnly)
     end
     if not bagsOnly then
         local nativeBars = { MainActionBar, MultiBarBottomLeft, MultiBarBottomRight, MultiBarRight, MultiBarLeft }
-        local tofuTopY
-        if g.variant=="tofu" then
-            self:FitTofuTopRow()
-            local lower=MultiBarBottomLeft and MultiBarBottomLeft.actionButtons
-            local upper=MainActionBar and MainActionBar.actionButtons
-            if lower and upper and lower[1] and lower[6] then
-                local _,_,_,rowHeight=union({lower[1]})
-                local _,_,_,upperHeight=union({upper[1]})
-                local _,_,_,lowerHeight=union({lower[1],lower[6]})
-                if rowHeight and upperHeight and lowerHeight and lowerHeight>2*rowHeight then
-                    local gap=lowerHeight-2*rowHeight
-                    tofuTopY=g.bars[2].y*g.scale+lowerHeight/2+gap+upperHeight/2
-                end
-            end
-        end
         for n, spec in ipairs(g.bars) do
             local bar, buttons = nativeBars[n], {}
             if bar and bar.actionButtons then
@@ -186,7 +170,7 @@ function SD:PrecisionAlign(bagsOnly)
                     if bar.actionButtons[i] then table.insert(buttons, bar.actionButtons[i]) end
                 end
             elseif bar then table.insert(buttons, bar) end
-            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, (n==1 and tofuTopY) or spec.y * g.scale)
+            correct(Enum.EditModeSystem.ActionBar, spec.index, buttons, spec.x * g.scale, spec.y * g.scale)
         end
         -- Native auxiliary frames have invisible padding; align visible icons.
         for _,spec in ipairs({
@@ -198,11 +182,6 @@ function SD:PrecisionAlign(bagsOnly)
             local buttons={}
             if frame and frame.actionButtons then
                 for _,button in ipairs(frame.actionButtons) do buttons[#buttons+1]=button end
-            elseif frame and g.variant=="tofu" and spec[1]==11 and StanceButton1 then
-                for i=1,(NUM_STANCE_SLOTS or 10) do
-                    local button=_G["StanceButton"..i]
-                    if button then buttons[#buttons+1]=button end
-                end
             elseif frame then buttons[1]=frame end
             local _,_,w,h=union(buttons)
             if w then
@@ -213,37 +192,23 @@ function SD:PrecisionAlign(bagsOnly)
                 if g.auxTopInset then
                     local top=alignRight and g.auxRightTop or well.y+well.h-g.auxTopInset
                     bottom=top*g.scale-h
-                    if g.variant=="tofu" and spec[1]==11 then
-                        edge=(well.x+24)*g.scale
-                        bottom=(well.y+well.h/2)*g.scale-h/2
-                    end
-                end
-                local main=spec[5]
-                local _,_,mainWidth,mainHeight=union(main and (main.actionButtons or {main}) or {})
-                if mainWidth and spec[6] and not g.variant then
-                    edge=spec[6].x*g.scale+(alignRight and mainWidth/2 or -mainWidth/2)
-                    bottom=spec[6].y*g.scale+mainHeight/2+4*g.scale
                 end
                 local targetX=edge+(alignRight and -w/2 or w/2)
                 correct(Enum.EditModeSystem.ActionBar,spec[1],buttons,targetX,bottom+h/2)
             end
         end
-        if g.variant~="gulveig" then
-            correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
-                (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2 + ((g.variant=="tofu" or g.variant=="adept") and 0 or 24)*g.density) * g.scale)
-        end
-        if self.db.arrangeUtility and g.variant~="gulveig" then
+        correct(Enum.EditModeSystem.Minimap, nil, { Minimap },
+            (g.map.x + g.map.w / 2) * g.scale, (g.map.y + g.map.h / 2) * g.scale)
+        if self.db.arrangeUtility then
             local _,_,_,height=union({MicroMenu})
-            local y=g.variant=="adept" and (3*(MicroMenu and MicroMenu:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2)
-                or (g.menuDrawer.y+g.menuDrawer.h/2+2)*g.scale
+            local y=3*(MicroMenu and MicroMenu:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2
             correct(Enum.EditModeSystem.MicroMenu,nil,{MicroMenu},(g.menuDrawer.x+g.menuDrawer.w/2)*g.scale,y)
         end
     end
-    if self.db.arrangeUtility and g.variant~="gulveig" then
+    if self.db.arrangeUtility then
         local buttons=bagButtons()
         local _,_,_,height=union(buttons)
-        local y=g.variant=="adept" and (3*(BagsBar and BagsBar:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2)
-            or (g.bagDrawer.y+g.bagDrawer.h/2+1)*g.scale
+        local y=3*(BagsBar and BagsBar:GetEffectiveScale() or UIParent:GetEffectiveScale())/UIParent:GetEffectiveScale()+(height or 0)/2
         correct(Enum.EditModeSystem.Bags,nil,buttons,(g.bagDrawer.x+g.bagDrawer.w/2)*g.scale,y)
     end
     if changed then
@@ -352,7 +317,7 @@ function SD:CreateDocking()
     if not self.bagControlsHooked and BagsBar and BagsBar.Layout then
         self.bagControlsHooked = true
         hooksecurefunc(BagsBar, "Layout", function()
-            if SD.db and SD.db.enabled and SD.layoutName~="Gulveig Bar"
+            if SD.db and SD.db.enabled
                 and not SD.layoutWriteBusy and not SD.precisionBusy and SD:IsOurLayoutActive() then
                 SD:SchedulePrecisionAlignment(true)
             end

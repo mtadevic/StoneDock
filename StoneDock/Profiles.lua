@@ -53,9 +53,6 @@ function SD:CaptureProfile()
     if key=="adept" and self.db.arrangeUnits and not self:NeedsGeometryAlignment() then
         self.profile.adeptUnitAnchorRevision=self.adeptUnitAnchorRevision
     end
-    if key=="tofu" and self.db.arrangeUnits and not self:NeedsGeometryAlignment() then
-        self.profile.tofuUnitAnchorRevision=self.tofuUnitAnchorRevision
-    end
 end
 function SD:ApplyProfileNative()
     if not self.profile then return true end
@@ -72,26 +69,15 @@ function SD:ApplyProfileNative()
             self:RebaseNativeSize(info,previous,destination)
         end
     end
-    self:UpgradeDefaultUnitAnchors(native)
-    local migrateTofu=key=="tofu" and self.db.arrangeUnits
-        and self.profile.tofuUnitAnchorRevision~=self.tofuUnitAnchorRevision
     local migrateAdept=key=="adept" and self.db.arrangeUnits
         and self.profile.adeptUnitAnchorRevision~=self.adeptUnitAnchorRevision
     if migrateAdept then
         native=SD.Copy(native)
         self:PlaceAdeptUnitAnchors({systems=native},self:GetGeometry())
     end
-    if migrateTofu then
-        native=SD.Copy(native)
-        self:PlaceTofuUnitAnchors({systems=native},self:GetGeometry())
-    end
     if self.db.arrangeGroups then
-        if key=="tofu" and not migrateTofu then native=SD.Copy(native) end
         local info=self.UnitLayoutHelpers.find({systems=native},Enum.EditModeSystem.UnitFrame,Enum.EditModeUnitFrameSystemIndices.Party)
         self:ConfigureNativeParty(info)
-        if key=="tofu" then
-            self:PlaceTofuRaidAnchor({systems=native},self:GetGeometry())
-        end
     end
     local full=self:GetFullLayouts() if not full then return false end
     local layout=full.layouts[full.activeLayout]
@@ -118,10 +104,6 @@ function SD:ApplyProfileNative()
         if migrateAdept then
             store[key]=native
             self.profile.adeptUnitAnchorRevision=self.adeptUnitAnchorRevision
-        end
-        if migrateTofu then
-            store[key]=native
-            self.profile.tofuUnitAnchorRevision=self.tofuUnitAnchorRevision
         end
     end
     return ok
@@ -155,7 +137,7 @@ end
 function SD:RestoreSnapshotData(snapshot)
     if self:IsBusy() or not snapshot then return false end
     -- Only restore our active native layout; no other named layout is edited.
-    if snapshot.layout and not self:IsOurLayoutActive() then SD.Print("Activate StoneDock before restoring its native layout.") return false end
+    if snapshot.layout and not self:IsOurLayoutActive() then SD.Print("Activate Lazai Adept before restoring its native layout.") return false end
     if snapshot.layout and snapshot.layout.layoutName~=self.layoutName then SD.Print("Select the snapshot’s layout before restoring it.") return false end
     self.profileSwitching=true
     local ok=true

@@ -490,16 +490,8 @@ function SD:RefreshUtilityButtons(scan)
     end
     width=math.max(size,visible*(size+spacing)-spacing)
     self.utilityRoot:ClearAllPoints()
-    if g.itemWell then
-        self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.itemWell.x,g.itemWell.y)
-    elseif g.variant=="gulveig" and ChatFrame1 then
-        -- A live native anchor preserves clearance as chat moves or grows.
-        -- This secure root is positioned only in this out-of-combat refresh.
-        self.utilityRoot:SetPoint("BOTTOMRIGHT",ChatFrame1,"TOPRIGHT",22,44)
-    else
-        self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.bagDrawer.x+6,g.utilityY)
-    end
-    local saved=self.db.utilityPositions and self.db.utilityPositions[g.variant or "stone"]
+    self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.itemWell.x,g.itemWell.y)
+    local saved=self.db.utilityPositions and self.db.utilityPositions["adept"]
     if saved then
         self.utilityRoot:ClearAllPoints()
         self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",saved.x,saved.y)
@@ -533,7 +525,7 @@ function SD:FinishUtilityDrag()
     local x,y=mover:GetLeft(),mover:GetBottom()
     if not x or not y then return end
     self.db.utilityPositions=self.db.utilityPositions or {}
-    self.db.utilityPositions[mover.variant or g.variant or "stone"]={x=x,y=y}
+    self.db.utilityPositions["adept"]={x=x,y=y}
     mover.variant=nil
     self.utilityMoveMode=false
     if InCombatLockdown() then self.itemsDirty=true return end

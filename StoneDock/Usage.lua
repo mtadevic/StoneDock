@@ -12,7 +12,7 @@ local windows={
     {"MerchantFrame","Merchant"},{"GossipFrame","NPC dialogue"},{"BankFrame","Bank"},
     {"AuctionHouseFrame","Auction house"},{"ContainerFrameCombinedBags","Combined bags"},
     {"Questie_BaseFrame","Questie"},{"NaowhForeverThreatMeter","Naowh threat meter"},
-    {"StoneDockSettings","StoneDock settings"},
+    {"StoneDockSettings","Lazai Adept settings"},
 }
 for i=1,13 do windows[#windows+1]={"ContainerFrame"..i,"Bag window "..i} end
 local function clean(value,limit)
@@ -113,7 +113,7 @@ function SD:StartUsageRecording()
     self:RecordUsage("record_start","Opt-in session")
     self:WatchUsageWindows(true)
     if self.RefreshAdeptCompany then self:RefreshAdeptCompany() end
-    SD.Print("Usage recording started. /stonedock record mark <note> adds context; record stop ends it.")
+    SD.Print("Usage recording started. /la record mark <note> adds context; record stop ends it.")
 end
 function SD:StopUsageRecording(quiet)
     local s=self.usageSession
@@ -123,12 +123,12 @@ function SD:StopUsageRecording(quiet)
     if self.usageNoteDialog then self.usageNoteDialog:Hide() end
     if eventFrame then eventFrame:UnregisterAllEvents() end
     if self.RefreshAdeptCompany then self:RefreshAdeptCompany() end
-    if not quiet then SD.Print("Usage recording stopped. /stonedock record export opens the report.") end
+    if not quiet then SD.Print("Usage recording stopped. /la record export opens the report.") end
 end
 function SD:BuildUsageExport(previous)
     local s=previous and StoneDockCharDB.usageRecorderPrevious or StoneDockCharDB.usageRecorder
-    if not s then return "No usage session recorded. Use /stonedock record start." end
-    local lines={"StoneDock usage recording v1","Addon version: "..tostring(s.addonVersion),
+    if not s then return "No usage session recorded. Use /la record start." end
+    local lines={"Lazai Adept usage recording v1","Addon version: "..tostring(s.addonVersion),
         "Status: "..(s.active and "recording" or "stopped"),
         string.format("Elapsed: %.1f seconds; total events: %d; retained: %d; dropped: %d",s.elapsed,s.total,s.count,s.total-s.count),
         "Privacy: no chat, player names, typed input or combat-log payloads. Explicit manual notes are included (max 140 characters; control characters removed).",
@@ -203,7 +203,7 @@ function SD:UsageCommand(argument)
         self:RecordUsage("marker",rest) SD.Print("Usage marker added.")
     elseif command=="export" then
         if self:IsBusy() then SD.Print("Export usage outside combat and Edit Mode.") return end
-        self:ShowCopyDialog("StoneDock usage recording",self:BuildUsageExport(rest=="previous"))
+        self:ShowCopyDialog("Lazai Adept usage recording",self:BuildUsageExport(rest=="previous"))
     elseif command=="clear" then
         if self:IsUsageRecording() then SD.Print("Stop recording before clearing it.") return end
         StoneDockCharDB.usageRecorder=nil StoneDockCharDB.usageRecorderPrevious=nil self.usageSession=nil

@@ -22,14 +22,8 @@ local function trim(frame,show)
         end
         styled[frame]=edges
     end
-    local gulveig=SD.layoutName=="Gulveig Bar"
-    if gulveig and show and not frame.stoneDockGroupTrim then
-        frame.stoneDockGroupTrim=SD:CreateGulveigBorder(frame)
-        frame.stoneDockGroupTrim:SetPoint("TOPLEFT",frame,"TOPLEFT",-4,6)
-        frame.stoneDockGroupTrim:SetPoint("BOTTOMRIGHT",frame,"BOTTOMRIGHT",4,-6)
-    end
-    if frame.stoneDockGroupTrim then frame.stoneDockGroupTrim:SetShown(show and gulveig) end
-    for _,t in ipairs(styled[frame]) do t:SetShown(show and not gulveig) end
+    for _,t in ipairs(styled[frame]) do t:SetShown(show) end
+
 end
 
 local function applyGroupPreference(key, stateKey, active, value)
@@ -71,7 +65,6 @@ function SD:RefreshUnitTrim()
     self:RefreshGroupIndicators(active)
     local adept=active and self.layoutName=="Adept"
     if not adept then self:RefreshAdeptUnitFrames(false) end
-    self:RefreshOrnamentalFrames(active)
     if adept then self:RefreshAdeptUnitFrames(true) end
     local show=self.db.stoneUnits and active
     local function apply(frame) trim(frame,show) end
@@ -89,7 +82,7 @@ end
 function SD:ApplyUnitLayout()
     local busy,why = self:IsBusy()
     if busy then SD.Print(why) return false end
-    if not self:IsOurLayoutActive() then SD.Print("Activate the StoneDock layout first.") return false end
+    if not self:IsOurLayoutActive() then SD.Print("Activate the Lazai Adept layout first.") return false end
     local full,err=self:GetFullLayouts()
     if not full then SD.Print(err) return false end
     local layout=full.layouts[full.activeLayout]
@@ -144,14 +137,14 @@ function SD:PreviewRaid(count)
     local title=f.title or f:CreateFontString(nil,"OVERLAY","GameFontNormal")f.title=title
     title:ClearAllPoints()
     title:SetPoint("BOTTOM",f,"BOTTOM",0,positions[1].y+12)
-    title:SetText("RAID PREVIEW: "..count.." players - /stonedock raidpreview 0 to close")
+    title:SetText("RAID PREVIEW: "..count.." players - /la raidpreview 0 to close")
     local colors={{0.78,0.61,0.43},{0.96,0.55,0.73},{0.25,0.78,0.92},{0.33,0.72,0.3},{0.6,0.44,0.85}}
     for i=1,count do
         local card=f.cards[i]or CreateFrame("Frame",nil,f,"BackdropTemplate")f.cards[i]=card card:ClearAllPoints()card:Show()
         local pos=positions[math.ceil(i/5)]
         w,h=pos.w,pos.h
         card:SetSize(w,h) card:SetPoint("TOPLEFT",f,"BOTTOMLEFT",pos.x+((i-1)%5)*(w+pos.gap),pos.y)
-        card:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\Stone.tga",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=2})
+        card:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\AdeptSurface.tga",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=2})
         card:SetBackdropBorderColor(.3,.36,.4,1)
         local c=colors[(i-1)%5+1]
         local bar=card.bar or card:CreateTexture(nil,"ARTWORK")card.bar=bar bar:SetPoint("TOPLEFT",2,-2) bar:SetSize((w-4)*(.55+(i%5)*.09),h-4) bar:SetColorTexture(c[1],c[2],c[3],.8)
@@ -159,105 +152,8 @@ function SD:PreviewRaid(count)
     end
 end
 
-function SD:ToggleUnitOptions()
-    if not self.unitOptions then
-        local H=self.ControlHelpers
-        local f=CreateFrame("Frame","StoneDockUnitOptions",UIParent,"BackdropTemplate") self.unitOptions=f
-        f:SetSize(670,620) f:SetPoint("CENTER") f:SetFrameStrata("DIALOG")
-        f:SetBackdrop({bgFile="Interface\\AddOns\\StoneDock\\Media\\Stone.tga",edgeFile="Interface\\Tooltips\\UI-Tooltip-Border",tile=true,tileSize=256,edgeSize=14})
-        H.text(f,"UNIT & RAID FRAMES",21,26,-25,610)
-        H.text(f,"Native health, auras and clicks. Sizes apply when you press Apply.",12,26,-64,610)
-        local close=CreateFrame("Button",nil,f,"UIPanelCloseButton") f.closeButton=close close:SetPoint("TOPRIGHT",-6,-6) close:SetScript("OnClick",function() f:Hide() end)
-        f.sliders={
-            H.slider(f,"Player / target / focus size (%)","unitSize",100,200,5,26,-105),
-            H.slider(f,"Row width (%)","groupRowWidth",70,100,1,350,-105),
-            H.slider(f,"Preferred row height","groupHeight",24,72,2,350,-175),
-            H.slider(f,"Group horizontal position","groupOffsetX",-350,700,5,26,-245),
-            H.slider(f,"Group vertical position","groupOffsetY",-100,500,5,350,-245),
-        }
-        local check=H.check(f,"Stone trim around native unit frames","stoneUnits",26,-180)
-        check:SetScript("OnClick",function(b) SD.db.stoneUnits=b:GetChecked()==true SD:RefreshUnitTrim() end)
-        f.trimCheck=check
-        local split=H.check(f,"Split raid groups around the map","splitRaid",26,-211)
-        split:SetScript("OnClick",function(b)
-            if InCombatLockdown() then b:SetChecked(SD.db.splitRaid) SD.Print("Finish combat first.") return end
-            SD.db.splitRaid=b:GetChecked()==true
-            if CompactRaidFrameContainer and CompactRaidFrameContainer.TryUpdate then CompactRaidFrameContainer:TryUpdate() end
-            SD:QueueRaidSplit()
-        end)
-        f.splitCheck=split
-        f.classColors=H.check(f,"Class colors for party and raid health bars","groupClassColors",26,-294)
-        f.classColors:SetScript("OnClick",function(b)
-            SD.db.groupClassColors=b:GetChecked()==true
-            SD:RefreshGroupClassColors(SD.db.enabled and SD:IsOurLayoutActive())
-        end)
-        H.button(f,"Apply unit & group layout",26,-330,285,function() SD:ApplyUnitLayout() end)
-        H.button(f,"Blizzard Edit Mode",350,-330,285,function() f:Hide() SD:OpenEditMode() end)
-        for i,count in ipairs({10,20,25,40}) do
-            H.button(f,"Preview "..count,26+(i-1)*157,-380,145,function() SD:PreviewRaid(count) SD:CloseSettings() end)
-        end
-        H.button(f,"Preview party / close",26,-430,285,function() if SD.raidPreview then SD:PreviewRaid(0) else SD:PreviewRaid(5) SD:CloseSettings() end end)
-        H.button(f,"Attach player buffs / debuffs",26,-480,285,function() SD:ApplySessionLayout(true) end)
-        H.button(f,"Choose buff food",350,-480,285,function() SD:ShowItemPicker("bufffood","Buff food for current spec") end)
-        H.button(f,"Back to appearance",350,-430,285,function() f:Hide() SD:ToggleOptions(true) end)
-        H.text(f,"Preview cards are samples, disappear in combat, and do not accept healing clicks. Real group frames appear when you join a group.",12,26,-540,610)
-        f:SetScript("OnShow",function() SD:RefreshFading(true) end)
-        f:SetScript("OnHide",function() SD:RefreshFading() end)
-        f:Hide()
-    end
-    local f=self.unitOptions
-    f.refreshing=true
-    f.classColors:SetChecked(self.db.groupClassColors)
-    for _,s in ipairs(f.sliders) do s:SetValue(self.db[s.dbKey]) end
-    f.splitCheck:SetChecked(self.db.splitRaid)
-    f.trimCheck:SetChecked(self.db.stoneUnits) f.refreshing=nil
-    f:SetShown(not f:IsShown())
-end
-
-SD:On("PLAYER_LOGIN",function() SD:RefreshUnitTrim() end)
-SD:On("GROUP_ROSTER_UPDATE",function() SD:RefreshUnitTrim() end)
-SD:On("PLAYER_REGEN_ENABLED",function() SD:RefreshUnitTrim() end)
-SD:On("EDIT_MODE_LAYOUTS_UPDATED",function() SD:RefreshUnitTrim() end)
-SD:On("PLAYER_REGEN_DISABLED",function() SD:PreviewRaid(0) end)
-
-SD:On("PLAYER_ENTERING_WORLD",function() SD:RefreshUnitTrim() end)
-
-
--- Each five-person group is a horizontal row. Both banks fill their well.
 function SD:GetGroupRows(count,geometry)
-    local g=geometry or self:GetGeometry()
-    local groups=math.ceil(SD.Clamp(count,1,40)/5)
-    local left=math.ceil(groups/2)
-    local rows=math.max(left,groups-left)
-    -- Leave room for the native tracking frame's gold trim and the compact
-    -- unit frames' bottom aura/power strip, not just their nominal rectangles.
-    local bottom=math.max(g.leftWell.y+g.leftWell.h,g.rightWell.y+g.rightWell.h)+math.max(22, 20/g.scale)+self.db.groupOffsetY
-    if g.variant=="adept" then return self:GetAdeptGroupRows(groups,g) end
-    if g.variant=="tofu" then
-        return self:GetTofuGroupRows(groups,g)
-    end
-    local chatBounds
-    if g.variant=="gulveig" then
-        chatBounds=self:GetGulveigChatBounds(g)
-        -- Chat tabs/art, then the item row, then a separate group row.
-        bottom=math.max(bottom,chatBounds.y+chatBounds.h+44+24*.85+16+self.db.groupOffsetY)
-    end
-    local available=chatBounds and (rows*self.db.groupHeight+(rows-1)*4)
-        or math.max(40,g.left.y+g.left.h+12-bottom)
-    local gap=4
-    local height=math.max(16,math.min(self.db.groupHeight,math.floor((available-(rows-1)*gap)/rows)))
-    local result={}
-    for i=1,groups do
-        local isLeft=i<=left
-        local well=isLeft and g.leftWell or g.rightWell
-        if isLeft and chatBounds then well={x=chatBounds.x-22,w=chatBounds.w+44} end
-        local row=isLeft and i or i-left
-        local rowWidth=(well.w-12)*self.db.groupRowWidth/100
-        local width=(rowWidth-4*gap)/5
-        result[i]={x=well.x+(well.w-rowWidth)/2+self.db.groupOffsetX,y=bottom+(rows-row+1)*height+(rows-row)*gap,
-            w=width,h=height,gap=gap,side=isLeft and "left" or "right"}
-    end
-    return result
+    return self:GetAdeptGroupRows(math.ceil(SD.Clamp(count,1,40)/5),geometry or self:GetGeometry())
 end
 function SD:GetRaidSplit(count) return self:GetGroupRows(count) end
 function SD:GetRaidGrooveScale() return 1 end
@@ -355,7 +251,7 @@ function SD:SplitNativeRaid()
     end
     local g=self:GetGeometry()
     -- Party uses the same native cells in one evenly spaced five-wide row.
-    if CompactPartyFrame and CompactPartyFrame:IsShown() then seat(CompactPartyFrame,self:GetGroupRows(5,g)[1],g,g.variant=="gulveig") end
+    if CompactPartyFrame and CompactPartyFrame:IsShown() then seat(CompactPartyFrame,self:GetGroupRows(5,g)[1],g,false) end
     if not self.db.splitRaid then return end
     local container=CompactRaidFrameContainer
     if not container or not container.GetGroupMode or container:GetGroupMode()~="discrete" then return end
