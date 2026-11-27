@@ -3,6 +3,7 @@ local cards = {}
 function SD:GetAdeptUnitCards() return cards end
 local originalAlpha = {}
 local auraPoints = {}
+local auraLayers = {}
 local alphaHooks = setmetatable({}, {__mode="k"})
 local active
 local maskPath = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
@@ -106,6 +107,27 @@ function SD:SeatAdeptCastBar(cast,card)
     end
     saved.card=card
     seatCast(cast,card)
+end
+
+-- Relocated aura artwork can extend into the native unit frame's invisible
+-- mouse rectangle. Keep native aura buttons above that rectangle, with their
+-- original tooltip/cancel handlers intact. Never reparent secure aura buttons.
+local function auraLayer(aura,card,restore)
+    local saved=auraLayers[aura]
+    if restore then
+        if saved then
+            aura:SetFrameStrata(saved.strata) aura:SetFrameLevel(saved.level)
+            auraLayers[aura]=nil
+        end
+        return
+    end
+    if not aura.GetFrameStrata then return end
+    if not saved then
+        saved={strata=aura:GetFrameStrata(),level=aura:GetFrameLevel()}
+        auraLayers[aura]=saved
+    end
+    aura:SetFrameStrata("HIGH")
+    aura:SetFrameLevel(math.max(saved.level,card:GetFrameLevel()+2))
 end
 
 function SD:FitAdeptPlayerAuraLane(aura,card,debuff)
@@ -300,6 +322,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
             for _,point in ipairs(points) do button:SetPoint(unpack(point)) end
         end
         auraPoints={}
+        for aura in pairs(auraLayers) do auraLayer(aura,nil,true) end
         for frame,card in pairs(cards) do
             card:Hide()
             if card.originalPoints then
@@ -371,7 +394,10 @@ function SD:RefreshAdeptUnitFrames(enabled)
             end
             if unit=="player" and not self.db.attachPlayerAuras then
                 for _,aura in pairs({BuffFrame,DebuffFrame}) do
-                    if aura and auraPoints[aura] then restorePoints(aura,auraPoints[aura]) auraPoints[aura]=nil end
+                    if aura then
+                        if auraPoints[aura] then restorePoints(aura,auraPoints[aura]) auraPoints[aura]=nil end
+                        auraLayer(aura,nil,true)
+                    end
                 end
             end
             if unit=="player" and self.db.attachPlayerAuras then
@@ -384,6 +410,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
                         aura:ClearAllPoints()
                         aura:SetPoint(i==1 and "BOTTOMLEFT" or "BOTTOMRIGHT",cards[frame],"TOPLEFT",i==1 and 0 or -8,3)
                         self:FitAdeptPlayerAuraLane(aura,cards[frame],i==2)
+                        auraLayer(aura,cards[frame])
                     end
                 end
             end
@@ -402,6 +429,7 @@ function SD:RefreshAdeptUnitFrames(enabled)
                                 auraPoints[button]={}
                                 for j=1,button:GetNumPoints() do auraPoints[button][j]={button:GetPoint(j)} end
                             end
+                            auraLayer(button,cards[frame])
                             button:ClearAllPoints()
                             button:SetPoint("BOTTOMLEFT",cards[frame],"TOPLEFT",((i-1)%10)*21,3+math.floor((i-1)/10)*23+(kind=="Debuff" and buffRows*23 or 0))
                         end
