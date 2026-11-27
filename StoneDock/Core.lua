@@ -1,5 +1,5 @@
 local addonName, SD = ...
-SD.name, SD.version = addonName, "0.13.46"
+SD.name, SD.version = addonName, "0.13.47"
 SD.defaults = {
     enabled = true,
     layoutVariant = "stone",
@@ -51,7 +51,8 @@ SD.defaults = {
     stoneUnits = true,
     groupClassColors = true,
     attachPlayerAuras = true,
-    showUtility = true,
+    showUtility = true,
+    utilityPositions = {},
     dockPet = true,
     petScale = 80,
     petOffsetX = -8,

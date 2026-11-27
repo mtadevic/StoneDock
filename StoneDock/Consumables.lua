@@ -382,7 +382,7 @@ function SD:CreateUtilityButtons()
     self.utilityRoot.backdrop=self.utilityRoot:CreateTexture(nil,"BACKGROUND")
     self.utilityRoot.backdrop:SetPoint("TOPLEFT",self.utilityRoot,"TOPLEFT",-3,3)
     self.utilityRoot.backdrop:SetPoint("BOTTOMRIGHT",self.utilityRoot,"BOTTOMRIGHT",3,-3)
-    self.utilityRoot.backdrop:SetColorTexture(0,0,0,.5)
+    self.utilityRoot.backdrop:SetColorTexture(0,0,0,0)
     self.utilityButtons={}
     for i=1,2+#self.itemCategories do
         local b=CreateFrame("Button","StoneDockUtility"..i,self.utilityRoot,"SecureActionButtonTemplate")
@@ -467,26 +467,26 @@ function SD:RefreshUtilityButtons(scan)
         if b.itemID~=previousItemID then b.cooldown:SetCooldown(0,0) end
     end
     -- Secure controls only change visibility and position outside combat.
-    -- Ten permanent positions: reserve both trinket slots even when unequipped.
+    -- Only the two trinket seats persist; available categories pack in order.
     self.utilityRoot:SetScale(g.scale)
     local size,spacing=g.utilityIconSize or 24*.85,g.utilityIconSize and 2 or 4
     local width=g.itemWell and g.itemWell.w or g.bagDrawer.w-12
-    local slots,availableCount=10,0
-    size=math.min(size,math.max(1,(width-(slots-1)*spacing)/slots))
-    for i,b in ipairs(self.utilityButtons) do
-        b:SetShown(i<=slots)
-        b:SetSize(size,size)
-        b:ClearAllPoints()
-        local x=i<=2 and (i-1)*(size+spacing) or width-size-(slots-i)*(size+spacing)
-        b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",x,0)
+    size=math.min(size,math.max(1,(width-9*spacing)/10))
+    local visible,availableCount=0,0
+    for _,b in ipairs(self.utilityButtons) do
         local available=b.itemID~=nil
+        local show=b.inventorySlot~=nil or available
+        b:SetShown(show)
+        b:SetSize(size,size) b:ClearAllPoints()
+        if show then b:SetPoint("BOTTOMLEFT",self.utilityRoot,"BOTTOMLEFT",visible*(size+spacing),0) visible=visible+1 end
         if available then availableCount=availableCount+1 end
         b.icon:SetAlpha(available and 1 or 0)
-        if not available then
-            if b.empty then b.empty:SetText(b.inventorySlot and (i==1 and "T1" or "T2") or (b.category and b.category.short or "Home")) end
-            b.count:SetText("")
-        end
+        if b.empty then b.empty:SetText("") end
+        if not available then b.count:SetText("") end
+        b.stoneDockUtilityBorder=true
+        self:SetSoftBarBorder(b,g.variant=="adept")
     end
+    width=math.max(size,visible*(size+spacing)-spacing)
     self.utilityRoot:ClearAllPoints()
     if g.itemWell then
         self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.itemWell.x,g.itemWell.y)
@@ -497,13 +497,71 @@ function SD:RefreshUtilityButtons(scan)
     else
         self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",g.bagDrawer.x+6,g.utilityY)
     end
+    local saved=self.db.utilityPositions and self.db.utilityPositions[g.variant or "stone"]
+    if saved then
+        self.utilityRoot:ClearAllPoints()
+        self.utilityRoot:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",saved.x,saved.y)
+    end
     self.utilityRoot:SetSize(width,size)
+    self:RefreshUtilityMover()
     local shown=self.utilityRoot:IsShown() and availableCount>0
     if not shown and self.utilityTicker then self.utilityTicker:Cancel()self.utilityTicker=nil end
     if shown and not self.utilityTicker then self.utilityTicker=C_Timer.NewTicker(.5,function()SD:UpdateUtilityCooldowns()end)end
     self:UpdateUtilityCooldowns()
 end
 
+function SD:RefreshUtilityMover()
+    local mover=self.utilityMover
+    if not mover then return end
+    if not self.utilityMoveMode or InCombatLockdown() or not self.utilityRoot:IsShown() then mover:Hide() return end
+    if mover.dragging then return end
+    local root=self.utilityRoot
+    local x,y=root:GetLeft(),root:GetBottom()
+    if not x or not y then return end
+    mover:SetScale(root:GetScale()) mover:ClearAllPoints()
+    mover:SetPoint("BOTTOMLEFT",UIParent,"BOTTOMLEFT",x,y)
+    mover:SetSize(math.max(100,root:GetWidth()),root:GetHeight()+14)
+    mover:Show()
+end
+function SD:FinishUtilityDrag()
+    local mover=self.utilityMover
+    if not mover or not mover.dragging then return end
+    mover.dragging=nil mover:StopMovingOrSizing()
+    local g=self:GetGeometry()
+    local x,y=mover:GetLeft(),mover:GetBottom()
+    if not x or not y then return end
+    self.db.utilityPositions=self.db.utilityPositions or {}
+    self.db.utilityPositions[mover.variant or g.variant or "stone"]={x=x,y=y}
+    mover.variant=nil
+    self.utilityMoveMode=false
+    if InCombatLockdown() then self.itemsDirty=true return end
+    self:RefreshUtilityButtons(false)
+end
+function SD:ToggleUtilityMover(reset)
+    if self:IsBusy() then SD.Print("Move the item bar outside combat and Edit Mode.") return end
+    self:CreateUtilityButtons()
+    if reset then
+        if self.db.utilityPositions then self.db.utilityPositions[self:GetGeometry().variant or "stone"]=nil end
+        self.utilityMoveMode=false self:RefreshUtilityButtons(false) return
+    end
+    if not self.utilityMover then
+        -- A separate drag ghost never moves secure item buttons during combat.
+        local f=CreateFrame("Frame",nil,UIParent,"BackdropTemplate") self.utilityMover=f
+        f:SetFrameStrata("DIALOG") f:SetMovable(true) f:EnableMouse(true) f:RegisterForDrag("LeftButton") f:SetClampedToScreen(true)
+        f:SetBackdrop({bgFile="Interface\\Buttons\\WHITE8X8",edgeFile="Interface\\Buttons\\WHITE8X8",edgeSize=1})
+        f:SetBackdropColor(0,0,0,.6) f:SetBackdropBorderColor(.8,.7,.4,1)
+        local t=f:CreateFontString(nil,"OVERLAY","GameFontNormalSmall") t:SetPoint("TOPLEFT",3,-1) t:SetText("ITEM BAR - DRAG")
+        f:SetScript("OnDragStart",function()if not InCombatLockdown() then f.variant=SD:GetGeometry().variant or "stone" f.dragging=true f:StartMoving() end end)
+        f:SetScript("OnDragStop",function()SD:FinishUtilityDrag()end)
+        f:Hide()
+    end
+    self.utilityMoveMode=not self.utilityMoveMode
+    self:RefreshUtilityMover()
+    SD.Print(self.utilityMoveMode and "Drag the item-bar outline; release to save and lock." or "Item-bar position saved.")
+end
+SD:On("PLAYER_REGEN_DISABLED",function()
+    if SD.utilityMover then SD:FinishUtilityDrag() SD.utilityMoveMode=false SD.utilityMover:Hide() end
+end)
 function SD:QueueConsumables()
     self.itemsDirty=true
     if self.itemsPending then return end

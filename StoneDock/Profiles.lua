@@ -1,5 +1,5 @@
 local _, SD = ...
-local localKeys={"showHUD","hudScale","hudOffsetX","hudOffsetY","hudGap","hudHeight","hudArcWidth","hudLabels","hudTicks","hudPowerColor","hudHealthColor","fadeHUD","hudRestAlpha","stoneUnits","unitSize","groupRowWidth","groupHeight","groupOffsetX","groupOffsetY","splitRaid","attachPlayerAuras","itemOverrides","itemRules","preferredHearth","dockPet","petScale","petOffsetX","petOffsetY"}
+local localKeys={"utilityPositions","showHUD","hudScale","hudOffsetX","hudOffsetY","hudGap","hudHeight","hudArcWidth","hudLabels","hudTicks","hudPowerColor","hudHealthColor","fadeHUD","hudRestAlpha","stoneUnits","unitSize","groupRowWidth","groupHeight","groupOffsetX","groupOffsetY","splitRaid","attachPlayerAuras","itemOverrides","itemRules","preferredHearth","dockPet","petScale","petOffsetX","petOffsetY"}
 local localSet={} for _,key in ipairs(localKeys)do localSet[key]=true end
 local function specKey()
     return SD.GetConsumableSpec and SD:GetConsumableSpec() or "0"

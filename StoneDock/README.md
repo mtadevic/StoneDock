@@ -347,3 +347,16 @@ unpriced. Metadata does not prove an item can be disenchanted.
 Disenchant result telemetry, fully attributed dungeon accounting, personal AH
 sale velocity and camp-effect measurement are not implemented; the JSON states
 that explicitly. They require reliable source/receipt and buff attribution.
+
+
+Adept bar refinements: only two trinket seats remain visible when empty. Empty
+consumable/travel categories hide outside combat and available items pack in
+order. Placeholder text and the flat item-bar fill are removed. Soft black native
+border artwork surrounds action/stance/pet/possess and item buttons in Adept;
+switching variants removes the added native-bar artwork.
+
+Use `/stonedock itemsmove`, or Config > Move & resize > Move item bar, outside
+combat. Drag the outline and release to save/lock. A separate drag ghost keeps
+secure item buttons stationary until the drop; combat defers their reposition.
+Positions are saved per character/spec and layout variant. Use
+`/stonedock itemsmove reset` or Reset item bar position to restore the default.

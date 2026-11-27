@@ -312,6 +312,7 @@ function SD:RefreshDocking()
     if InCombatLockdown() then return end
     self:RefreshVariantControls()
     self:RefreshAdeptControlArt()
+    self:RefreshSoftBarBorders()
     self:FitNativeControlSizes()
     self:FitTrackingBars()
     local active = self.db.enabled and self.db.arrangeUtility and self:IsOurLayoutActive() and not self.editing

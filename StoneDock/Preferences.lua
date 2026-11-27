@@ -301,7 +301,9 @@ function SD:BuildPreferencePage(key, definition)
         y=y-130
     elseif key=="positioning" then
         H.button(page,"Blizzard Edit Mode",22,y-8,295,function() SD:OpenEditMode() end)
-        y=y-60
+        H.button(page,"Move item bar",335,y-8,295,function() SD:ToggleUtilityMover() end)
+        H.button(page,"Reset item bar position",22,y-48,295,function() SD:ToggleUtilityMover(true) end)
+        y=y-100
     elseif key=="units" then
         local choices={{0,"Close preview"},{5,"Party (5)"},{10,"Raid (10)"},{20,"Raid (20)"},{25,"Raid (25)"},{40,"Raid (40)"}}
         H.text(page,"Frame preview",15,22,y-8,280)
