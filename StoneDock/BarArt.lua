@@ -32,6 +32,37 @@ function SD:SetSoftBarBorder(button,show)
     end
     if border then for _,edge in ipairs(border) do edge:SetShown(not not show) end end
 end
+-- Skin only the native decorative frame; preserve checked, hover, proc and cooldown regions.
+local nativeArt=setmetatable({}, {__mode="k"})
+function SD:SkinNativeBarButton(button,show)
+    if InCombatLockdown() then self.softBarArtAfterCombat=true return end
+    local state=nativeArt[button]
+    if not state and not show then return end
+    if not state then
+        state={regions={}} nativeArt[button]=state
+        local function changed()
+            if state.active then SD:SkinNativeBarButton(button,true) end
+        end
+        for _,method in ipairs({"SetNormalTexture","SetNormalAtlas"}) do
+            if button[method] and hooksecurefunc then hooksecurefunc(button,method,changed) end
+        end
+    end
+    state.active=show
+    if show then
+        local function suppress(region)
+            if not region or not region.SetAlpha then return end
+            if state.regions[region]==nil then state.regions[region]=region:GetAlpha() end
+            region:SetAlpha(0)
+        end
+        suppress(button.GetNormalTexture and button:GetNormalTexture())
+        suppress(button.NormalTexture) suppress(button.NormalTexture2) suppress(button.SlotArt)
+        local name=button.GetName and button:GetName()
+        if name then suppress(_G[name.."NormalTexture"]) suppress(_G[name.."NormalTexture2"]) end
+    else
+        for region,alpha in pairs(state.regions) do region:SetAlpha(alpha) end
+        state.regions={}
+    end
+end
 function SD:FitItemCooldown(button)
     local cooldown=button and button.cooldown
     if not cooldown then return end
@@ -52,11 +83,14 @@ function SD:RefreshSoftBarBorders()
     for _,name in ipairs({"MainActionBar","MultiBarBottomLeft","MultiBarBottomRight","MultiBarRight","MultiBarLeft",
         "MultiBar5","MultiBar6","MultiBar7","StanceBar","PetActionBar","PossessActionBar"}) do
         local bar=_G[name]
-        for _,button in ipairs(bar and bar.actionButtons or {}) do wanted[button]=true self:SetSoftBarBorder(button,show) end
+        for _,button in ipairs(bar and bar.actionButtons or {}) do wanted[button]=true self:SetSoftBarBorder(button,show) self:SkinNativeBarButton(button,show) end
     end
     for _,prefix in ipairs({"ActionButton","MultiBarBottomLeftButton","MultiBarBottomRightButton","MultiBarRightButton","MultiBarLeftButton",
         "MultiBar5Button","MultiBar6Button","MultiBar7Button","PetActionButton","StanceButton","PossessButton"}) do
-        for i=1,12 do local button=_G[prefix..i] if button then wanted[button]=true self:SetSoftBarBorder(button,show) end end
+        for i=1,12 do local button=_G[prefix..i] if button then wanted[button]=true self:SetSoftBarBorder(button,show) self:SkinNativeBarButton(button,show) end end
+    end
+    for button in pairs(nativeArt) do
+        if not wanted[button] or not show then self:SkinNativeBarButton(button,false) end
     end
     for button in pairs(borders) do
         if not wanted[button] and not button.stoneDockUtilityBorder then self:SetSoftBarBorder(button,false) end
@@ -70,3 +104,5 @@ end
 SD:On("PET_BAR_UPDATE",queue)
 SD:On("UPDATE_SHAPESHIFT_FORMS",queue)
 SD:On("PLAYER_REGEN_ENABLED",function()if SD.softBarArtAfterCombat then queue()end end)
+
+SD:On("ACTIONBAR_SLOT_CHANGED",queue)
