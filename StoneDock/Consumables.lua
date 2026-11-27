@@ -394,6 +394,7 @@ function SD:CreateUtilityButtons()
         b.count=font(b,9) b.count:SetPoint("BOTTOMRIGHT",1,-1)
         b.empty=font(b,7) b.empty:SetPoint("CENTER")
         b.cooldown=CreateFrame("Cooldown",nil,b,"CooldownFrameTemplate") b.cooldown:SetAllPoints()
+        if b.cooldown.SetCountdownFont then b.cooldown:SetCountdownFont("GameFontNormalSmall") end
         if i<=2 then b.inventorySlot=12+i b.label=i==1 and "Upper equipped trinket" or "Lower equipped trinket"
         else b.category=self.itemCategories[i-2] b.label=b.category.label end
         b:SetScript("OnEnter",function(self)
@@ -434,6 +435,7 @@ function SD:UpdateUtilityCooldowns()
             local count=C_Item.GetItemCount(b.itemID,false)
             b.count:SetText(safe(count) and count or "")
         end
+        self:FitItemCooldown(b)
     end
 end
 function SD:RefreshUtilityButtons(scan)

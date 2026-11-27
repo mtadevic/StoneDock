@@ -6,15 +6,43 @@ function SD:SetSoftBarBorder(button,show)
     local border=borders[button]
     if show and not border then
         if InCombatLockdown() then self.softBarArtAfterCombat=true return end
-        border=button:CreateTexture(nil,"BACKGROUND",nil,-8)
-        border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        if border.SetBlendMode then border:SetBlendMode("BLEND") end
-        border:SetVertexColor(0,0,0,.95)
-        border:SetPoint("TOPLEFT",button,"TOPLEFT",-7,7)
-        border:SetPoint("BOTTOMRIGHT",button,"BOTTOMRIGHT",7,-7)
+        border={}
+        -- Thin outside-only rings: no texture spans the button or fills its center.
+        for pad,alpha in ipairs({.34,.22,.12,.055,.015}) do
+            for side=1,4 do
+                local edge=button:CreateTexture(nil,"BACKGROUND",nil,-8)
+                edge:SetTexture("Interface\\Buttons\\WHITE8X8") edge:SetVertexColor(0,0,0,alpha)
+                if side==1 or side==2 then
+                    local anchor=side==1 and "TOP" or "BOTTOM"
+                    local y=side==1 and pad or -pad
+                    edge:SetPoint(anchor.."LEFT",button,anchor.."LEFT",-pad,y)
+                    edge:SetPoint(anchor.."RIGHT",button,anchor.."RIGHT",pad,y)
+                    edge:SetHeight(1)
+                else
+                    local anchor=side==3 and "LEFT" or "RIGHT"
+                    local x=side==3 and -pad or pad
+                    edge:SetPoint("TOP"..anchor,button,"TOP"..anchor,x,pad-1)
+                    edge:SetPoint("BOTTOM"..anchor,button,"BOTTOM"..anchor,x,-pad+1)
+                    edge:SetWidth(1)
+                end
+                border[#border+1]=edge
+            end
+        end
         borders[button]=border
     end
-    if border then border:SetShown(not not show) end
+    if border then for _,edge in ipairs(border) do edge:SetShown(not not show) end end
+end
+function SD:FitItemCooldown(button)
+    local cooldown=button and button.cooldown
+    if not cooldown then return end
+    if cooldown.GetCountdownFontString then
+        local font=cooldown:GetCountdownFontString()
+        if font then
+            font:SetFont("Fonts\\ARIALN.TTF",math.max(6,math.min(10,button:GetWidth()*.45)),"OUTLINE")
+            font:SetWordWrap(false) font:ClearAllPoints() font:SetPoint("CENTER",button,"CENTER",0,0)
+        end
+    end
+
 end
 function SD:RefreshSoftBarBorders()
     if InCombatLockdown() then self.softBarArtAfterCombat=true return end

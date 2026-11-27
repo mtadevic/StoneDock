@@ -111,7 +111,9 @@ function SD:ShowUtilityFlyout(owner,key)
         b.icon=b.icon or b:CreateTexture(nil,'ARTWORK') b.icon:SetAllPoints() b.icon:SetTexture(item.icon or 134400)
         b.icon:SetTexCoord(.06,.94,.06,.94)
         b.border=b.border or b:CreateTexture(nil,'BACKGROUND') b.border:SetPoint('TOPLEFT',-1,1) b.border:SetPoint('BOTTOMRIGHT',1,-1) b.border:SetColorTexture(.4,.45,.5,1)
-        b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
+        b.cooldown=CreateFrame('Cooldown',nil,b,'CooldownFrameTemplate') b.cooldown:SetAllPoints()
+        if b.cooldown.SetCountdownFont then b.cooldown:SetCountdownFont("GameFontNormalSmall") end
+        self:FitItemCooldown(b)
         if C_Item and C_Item.GetItemCooldown then local start,duration=C_Item.GetItemCooldown(item.id) if start and duration then b.cooldown:SetCooldown(start,duration) end end
         b:RegisterForClicks('AnyUp','AnyDown')
         self:BindUtilityItem(b,item)

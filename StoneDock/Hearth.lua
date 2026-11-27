@@ -64,7 +64,8 @@ function SD:CreateHearthButton()
     b.border=b:CreateTexture(nil,"BACKGROUND") b.border:SetPoint("TOPLEFT",-1,1) b.border:SetPoint("BOTTOMRIGHT",1,-1) b.border:SetColorTexture(0,0,0,0)
     b.count=b:CreateFontString(nil,"OVERLAY","GameFontNormalSmall") b.count:SetPoint("BOTTOMRIGHT")
     b.empty=b:CreateFontString(nil,"OVERLAY","GameFontNormalSmall") b.empty:SetPoint("CENTER")
-    b.cooldown=CreateFrame("Cooldown",nil,b,"CooldownFrameTemplate") b.cooldown:SetAllPoints()
+    b.cooldown=CreateFrame("Cooldown",nil,b,"CooldownFrameTemplate") b.cooldown:SetAllPoints()
+    if b.cooldown.SetCountdownFont then b.cooldown:SetCountdownFont("GameFontNormalSmall") end
     b:SetScript("OnEnter",function()
         GameTooltip:SetOwner(b,"ANCHOR_TOP")
         if b.itemID and GameTooltip.SetItemByID then GameTooltip:SetItemByID(b.itemID) else GameTooltip:AddLine("Hearthstones") end
