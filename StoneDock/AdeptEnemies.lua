@@ -158,9 +158,17 @@ function SD:EnemyPanelCommand(argument)
     preview=not preview
     if preview then self:DrawAdeptEnemyPreview() else panel:Hide() end
 end
+local function sizeRows(count,hasHeader)
+    local top=hasHeader and 18 or 4
+    panel.title:SetShown(hasHeader)
+    for i,row in ipairs(panel.rows) do
+        row:ClearAllPoints() row:SetPoint("TOPLEFT",panel,"TOPLEFT",4,-(top+(i-1)*26))
+    end
+    panel:SetHeight(top+2+count*26)
+end
 function SD:DrawAdeptEnemyPreview()
     local count=rowLimit()
-    panel:SetHeight(20+count*26) panel.title:SetText("PREVIEW")
+    sizeRows(count,true) panel.title:SetText("PREVIEW")
     for i,row in ipairs(panel.rows) do
         row:SetShown(i<=count)
         if i<=count then
@@ -255,7 +263,7 @@ function SD:UpdateAdeptEnemies()
             row.status:SetTextColor(enemy.onYou and 1 or .8,enemy.onYou and .4 or .8,enemy.onYou and .32 or .7)
         else row.unit=nil end
     end
-    panel:SetHeight(20+math.min(count,limit)*26)
+    sizeRows(math.min(count,limit),count>limit)
     panel:SetShown(count>0)
 end
 local function queue()
