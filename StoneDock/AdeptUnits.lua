@@ -16,6 +16,28 @@ local function text(parent,size)
     return f
 end
 
+local function updateLevel(card)
+    local unit=card.unit
+    local level
+    if UnitEffectiveLevel then level=UnitEffectiveLevel(unit) else level=UnitLevel(unit) end
+    local readable=type(level)=="number" and (not issecretvalue or not issecretvalue(level))
+    card.level:SetText(readable and level<0 and "??" or level)
+    local color
+    if unit=="target" or unit=="focus" then
+        local hostile=UnitCanAttack and UnitCanAttack("player",unit)
+        local public=not issecretvalue or not issecretvalue(hostile)
+        if public and hostile then
+            if readable and level<0 then color={r=1,g=.1,b=.1}
+            elseif C_PlayerInfo and C_PlayerInfo.GetContentDifficultyCreatureForPlayer and GetDifficultyColor then
+                local difficulty=C_PlayerInfo.GetContentDifficultyCreatureForPlayer(unit)
+                if not issecretvalue or not issecretvalue(difficulty) then color=GetDifficultyColor(difficulty) end
+            elseif readable and GetCreatureDifficultyColor then color=GetCreatureDifficultyColor(level) end
+        elseif public and hostile~=nil then color={r=1,g=.82,b=0} end
+    end
+    if color then card.level:SetTextColor(color.r,color.g,color.b)
+    else card.level:SetTextColor(.88,.84,.73) end
+end
+
 local function circle(parent,size,r,g,b,layer)
     local t=parent:CreateTexture(nil,"ARTWORK",nil,layer)
     t:SetTexture(maskPath)
@@ -192,7 +214,8 @@ function SD:UpdateAdeptUnitCards(event,changed)
     if issecretvalue and issecretvalue(changed) then return end
     for _,card in pairs(cards) do
         local unit=card.unit
-        if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" or (unit=="pet" and event=="UNIT_PET" and changed=="player") then
+        if not changed or changed==unit or event=="UNIT_TARGET" or event=="UNIT_FACTION" or event=="PLAYER_FLAGS_CHANGED" or (event=="UNIT_LEVEL" and changed=="player") or (unit=="pet" and event=="UNIT_PET" and changed=="player") then
+            updateLevel(card)
             local classification=UnitClassification and UnitClassification(unit)
             local readableClass=not issecretvalue or not issecretvalue(classification)
             local label=readableClass and ({elite="ELITE",rareelite="RARE ELITE",rare="RARE",worldboss="BOSS"})[classification]
@@ -244,7 +267,6 @@ function SD:UpdateAdeptUnitCards(event,changed)
             if not event or event=="PLAYER_TARGET_CHANGED" or event=="PLAYER_FOCUS_CHANGED"
                 or event=="UNIT_TARGET" or event=="UNIT_PORTRAIT_UPDATE" or event=="UNIT_NAME_UPDATE" then
                 card.name:SetText(UnitName(unit))
-                card.level:SetText(UnitLevel(unit))
                 if SetPortraitTexture then SetPortraitTexture(card.portrait,unit) end
             end
         end
@@ -397,12 +419,16 @@ function SD:RefreshAdeptUnitFrames(enabled)
     end
     if not self.adeptUnitEvents then
         self.adeptUnitEvents=CreateFrame("Frame")
-        self.adeptUnitEvents:SetScript("OnEvent",function(_,event,unit) SD:UpdateAdeptUnitCards(event,unit) end)
+        self.adeptUnitEvents:SetScript("OnEvent",function(_,event,unit)
+            if event=="PLAYER_LEVEL_UP" then
+                C_Timer.After(0,function() SD:UpdateAdeptUnitCards("UNIT_LEVEL","player") end)
+            else SD:UpdateAdeptUnitCards(event,unit) end
+        end)
     end
     self.adeptUnitEvents:UnregisterAllEvents()
     for _,event in ipairs({"UNIT_HEALTH","UNIT_MAXHEALTH","UNIT_POWER_UPDATE","UNIT_MAXPOWER",
         "UNIT_NAME_UPDATE","UNIT_PORTRAIT_UPDATE","UNIT_TARGET","PLAYER_TARGET_CHANGED","PLAYER_FOCUS_CHANGED",
-        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET","UNIT_CLASSIFICATION_CHANGED"}) do
+        "UNIT_FACTION","PLAYER_FLAGS_CHANGED","PLAYER_ENTERING_WORLD","UNIT_PET","UNIT_CLASSIFICATION_CHANGED","UNIT_LEVEL","PLAYER_LEVEL_UP"}) do
         self.adeptUnitEvents:RegisterEvent(event)
     end
     if (C_PetInfo and C_PetInfo.GetPetHappiness) or GetPetHappiness then self.adeptUnitEvents:RegisterEvent("UNIT_HAPPINESS") end
