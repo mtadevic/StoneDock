@@ -2,7 +2,7 @@
 ## Title: Lazai Adept
 ## Notes: A compact Adept dashboard around Blizzard's native interface.
 ## Author: Custom UI project
-## Version: 0.14.0
+## Version: 0.14.1
 ## SavedVariables: StoneDockDB
 ## SavedVariablesPerCharacter: StoneDockCharDB
 ## OptionalDeps: Blizzard_EditMode, Blizzard_Minimap, Blizzard_ActionBar, Blizzard_UnitFrame
